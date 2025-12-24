@@ -1,0 +1,22 @@
+# MinPic
+
+现代化图床管理系统
+
+## 开发
+
+\`\`\`bash
+pnpm dev
+\`\`\`
+
+## 构建
+
+\`\`\`bash
+pnpm build
+pnpm start
+\`\`\`
+
+## Docker 部署
+
+\`\`\`bash
+docker-compose up -d
+\`\`\`

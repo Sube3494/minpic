@@ -1,0 +1,51 @@
+// Prisma schemafile
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+// 原 SQLite 配置 (本地开发备份)
+// datasource db {
+//   provider = "sqlite"
+//   url      = env("DATABASE_URL")
+// }
+
+// Config table
+model Config {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("configs")
+}
+
+// File table
+model File {
+  id            String   @id @default(cuid())
+  filename      String
+  minioPath     String   @unique
+  fileSize      Int
+  mimeType      String
+  fileType      String
+  thumbnailPath String?
+  width         Int?
+  height        Int?
+  duration      Float?
+  shortlinkCode String?  @unique
+  tags          String   @default("[]")
+  configId      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([fileType])
+  @@index([createdAt])
+  @@map("files")
+}

@@ -1,65 +1,126 @@
-import Image from "next/image";
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Upload, Link2, Settings, BarChart3, ArrowRight, Sparkles, Zap, Shield } from 'lucide-react';
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] p-6 md:p-12 relative z-10 w-full overflow-hidden">
+      
+      {/* Hero Section */}
+      <div className="text-center space-y-8 max-w-5xl relative mt-20 mb-32">
+        {/* Glow effect backend */}
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-primary/15 blur-[120px] rounded-full -z-10 pointer-events-none" />
+        
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-md text-sm text-primary animate-fade-in-up delay-0 fill-mode-backwards">
+          <Sparkles className="w-4 h-4" />
+          <span className="font-medium">新一代图床解决方案</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-glow mb-6 animate-fade-in-up delay-100 fill-mode-backwards">
+          <span className="bg-clip-text text-transparent bg-linear-to-br from-zinc-900 via-zinc-700 to-zinc-500 dark:from-white dark:via-white/90 dark:to-white/70">
+            MinPic
+          </span>
+        </h1>
+        
+        <p className="text-xl md:text-2xl text-muted-foreground font-light tracking-wide max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-200 fill-mode-backwards">
+          体验对数字资产的 <span className="text-primary dark:text-white font-medium">极致掌控</span>。
+          <br className="hidden md:block" />
+          无缝集成 MinIO 对象存储与自定义短链服务。
+        </p>
+        
+        <div className="flex items-center justify-center gap-6 pt-8 animate-fade-in-up delay-300 fill-mode-backwards">
+           <Button asChild size="lg" className="rounded-full h-14 px-10 text-lg shadow-[0_0_50px_-10px_rgba(139,92,246,0.5)] hover:shadow-[0_0_60px_-15px_rgba(139,92,246,0.6)] bg-primary hover:bg-primary/90 text-white border-0 ring-offset-0 active:scale-95 transition-all duration-300">
+             <Link href="/settings">
+               开始使用 <ArrowRight className="ml-2 w-5 h-5" />
+             </Link>
+           </Button>
+           
+           <Button asChild variant="outline" size="lg" className="rounded-full h-14 px-10 text-lg border-zinc-200 bg-white/50 text-zinc-900 hover:bg-zinc-100 hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10 dark:hover:border-white/20 backdrop-blur-md transition-all duration-300 dark:text-white active:scale-95">
+             <Link href="/files">
+               文件管理
+             </Link>
+           </Button>
         </div>
-      </main>
-    </div>
+      </div>
+
+      {/* Feature Showcase Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-7xl">
+        
+        <Card className="glass-card group hover:border-primary/50 relative overflow-hidden animate-fade-in-up delay-400 fill-mode-backwards">
+          <div className="absolute inset-0 bg-linear-to-br from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardHeader>
+            <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center mb-4 group-hover:bg-primary/30 transition-colors duration-500">
+              <Upload className="w-6 h-6 text-primary" />
+            </div>
+            <CardTitle className="text-xl">智能上传</CardTitle>
+            <CardDescription className="text-zinc-400">
+              支持多种格式拖拽上传，即时处理与响应。
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card className="glass-card group hover:border-purple-500/50 relative overflow-hidden animate-fade-in-up delay-500 fill-mode-backwards">
+          <div className="absolute inset-0 bg-linear-to-b from-purple-500/5 via-blue-500/5 to-transparent dark:from-purple-500/20 dark:via-blue-500/10 dark:to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardHeader>
+            <div className="w-12 h-12 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-4 group-hover:bg-purple-500/30 transition-colors duration-500">
+              <Link2 className="w-6 h-6 text-purple-500" />
+            </div>
+            <CardTitle className="text-xl">自动短链</CardTitle>
+            <CardDescription className="text-zinc-400">
+              上传资源自动生成并管理简洁短链。
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card className="glass-card group hover:border-blue-500/50 relative overflow-hidden animate-fade-in-up delay-700 fill-mode-backwards">
+          <div className="absolute inset-0 bg-linear-to-br from-blue-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardHeader>
+            <div className="w-12 h-12 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-4 group-hover:bg-blue-500/30 transition-colors duration-500">
+              <Settings className="w-6 h-6 text-blue-500" />
+            </div>
+            <CardTitle className="text-xl">多源配置</CardTitle>
+            <CardDescription className="text-zinc-400">
+             无缝切换多个 MinIO 存储桶与环境配置。
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card className="glass-card group hover:border-green-500/50 relative overflow-hidden animate-fade-in-up delay-1000 fill-mode-backwards">
+          <div className="absolute inset-0 bg-linear-to-br from-green-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardHeader>
+            <div className="w-12 h-12 rounded-2xl bg-green-500/20 flex items-center justify-center mb-4 group-hover:bg-green-500/30 transition-colors duration-500">
+              <BarChart3 className="w-6 h-6 text-green-500" />
+            </div>
+            <CardTitle className="text-xl">数据洞察</CardTitle>
+            <CardDescription className="text-zinc-400">
+              可视化展示存储用量与文件访问热度。
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+
+      {/* Decorative Footer Area */}
+      <div className="mt-32 w-full max-w-7xl border-t border-zinc-200 dark:border-white/5 pt-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <div className="space-y-4">
+               <h3 className="text-lg font-semibold flex items-center gap-2">
+                 <Zap className="w-5 h-5 text-yellow-500" /> 极速性能
+               </h3>
+               <p className="text-sm text-zinc-500">基于 Next.js 15 构建，秒级加载与交互响应。</p>
+            </div>
+            <div className="space-y-4">
+               <h3 className="text-lg font-semibold flex items-center gap-2">
+                 <Shield className="w-5 h-5 text-emerald-500" /> 安全存储
+               </h3>
+               <p className="text-sm text-zinc-500">文件安全存储于您自托管的 MinIO 实例中。</p>
+            </div>
+            <div className="text-right flex flex-col items-end justify-center">
+               <div className="text-sm text-zinc-600">Powered by</div>
+               <div className="font-mono text-xs text-zinc-700 mt-1">MinPic v1.0 • React 19</div>
+            </div>
+        </div>
+      </div>
+    </main>
   );
 }
