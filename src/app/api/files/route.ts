@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { MinioService } from '@/lib/minio';
 import { getShortlinkService } from '@/lib/shortlink';
-import { generateThumbnail, getImageDimensions, getFileType } from '@/lib/image-utils';
+import { generateThumbnail, generateVideoThumbnail, getImageDimensions, getFileType, generatePinyin } from '@/lib/image-utils';
 
 export async function POST(request: NextRequest) {
   try {
+    // ... existing metadata extraction ...
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const configId = formData.get('configId') as string;
@@ -75,8 +76,8 @@ export async function POST(request: NextRequest) {
       mimeType
     );
 
-    // Generate thumbnail for images
-    let thumbnailPath: string | null = null;
+    // Generate thumbnail
+    let thumbnailData: Buffer | null = null;
     let width: number | null = null;
     let height: number | null = null;
 
@@ -87,14 +88,10 @@ export async function POST(request: NextRequest) {
         height = dimensions.height;
       }
 
-      const thumbnail = await generateThumbnail(fileBuffer, mimeType);
-      if (thumbnail) {
-        thumbnailPath = await minioService.uploadFile(
-          thumbnail,
-          `thumb_${file.name}`,
-          'image/webp'
-        );
-      }
+      thumbnailData = await generateThumbnail(fileBuffer, mimeType);
+    } else if (fileType === 'video') {
+      // Generate thumbnail for video
+      thumbnailData = await generateVideoThumbnail(fileBuffer);
     }
 
     // Create database record
@@ -105,7 +102,9 @@ export async function POST(request: NextRequest) {
         fileSize: file.size,
         mimeType,
         fileType,
-        thumbnailPath,
+        thumbnailData, // Store binary data
+        thumbnailPath: thumbnailData ? 'database' : null, // Mark that we have thumbnail in DB
+        pinyin: generatePinyin(file.name),
         width,
         height,
         configId: usedConfigId,
@@ -125,7 +124,9 @@ export async function POST(request: NextRequest) {
           const shortlinkService = getShortlinkService();
           shortlinkService.setConfig(slConfig);
           
-          const shortlink = await shortlinkService.createShortlink(fileUrl);
+          // Use configured expires_in (hours), default to undefined for permanent
+          const expiresIn = slConfig.expiresIn && slConfig.expiresIn > 0 ? slConfig.expiresIn : undefined;
+          const shortlink = await shortlinkService.createShortlink(fileUrl, undefined, expiresIn);
           
           // Update file record with shortlink
           await prisma.file.update({
@@ -166,15 +167,33 @@ export async function GET(request: NextRequest) {
     const where = {
       ...(fileType && { fileType }),
       ...(search && {
-        filename: {
-          contains: search,
-        },
+        OR: [
+          { filename: { contains: search } },
+          { pinyin: { contains: search.toLowerCase() } },
+        ],
       }),
     };
 
     const [files, total] = await Promise.all([
       prisma.file.findMany({
         where,
+        select: {
+          id: true,
+          filename: true,
+          minioPath: true,
+          fileSize: true,
+          mimeType: true,
+          fileType: true,
+          thumbnailPath: true,
+          shortlinkCode: true,
+          width: true,
+          height: true,
+          duration: true,
+          configId: true,
+          createdAt: true,
+          updatedAt: true,
+          // Explicitly exclude thumbnailData as it's too large for list view
+        },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -197,5 +216,89 @@ export async function GET(request: NextRequest) {
       { error: 'Failed to get files' },
       { status: 500 }
     );
+  }
+}
+export async function DELETE(request: NextRequest) {
+  try {
+    const { ids } = await request.json();
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: 'No IDs provided' }, { status: 400 });
+    }
+
+    const files = await prisma.file.findMany({
+      where: { id: { in: ids } },
+    });
+
+    if (files.length === 0) {
+      return NextResponse.json({ error: 'No files found' }, { status: 404 });
+    }
+
+    // Step 1: Group by configId to minimize MinIO connections
+    const groups: Record<string, typeof files> = {};
+    for (const f of files) {
+      const cid = f.configId || 'minio_default';
+      if (!groups[cid]) groups[cid] = [];
+      groups[cid].push(f);
+    }
+
+    // Step 2: Delete from MinIO per group
+    for (const [configId, groupFiles] of Object.entries(groups)) {
+      try {
+        let config = null;
+        if (configId === 'minio_default') {
+          const dc = await prisma.config.findUnique({ where: { key: 'minio_default' } });
+          if (dc) config = JSON.parse(dc.value);
+        } else {
+          const mc = await prisma.config.findUnique({ where: { key: 'minio_configs' } });
+          if (mc) {
+            const list = JSON.parse(mc.value);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            config = list.find((c: any) => c.id === configId);
+          }
+        }
+
+        if (config) {
+          const minioService = new MinioService();
+          await minioService.connect(config);
+          
+          const deleteBatch = [];
+          for (const f of groupFiles) {
+            deleteBatch.push(minioService.deleteFile(f.minioPath).catch(() => {}));
+            if (f.thumbnailPath && f.thumbnailPath !== 'database') {
+              deleteBatch.push(minioService.deleteFile(f.thumbnailPath).catch(() => {}));
+            }
+          }
+          await Promise.all(deleteBatch);
+        }
+      } catch (err) {
+        console.error(`Failed to delete MinIO group ${configId}:`, err);
+      }
+    }
+
+    // Step 3: Delete shortlinks and DB records
+    const shortlinkCodes = files.filter(f => f.shortlinkCode).map(f => f.shortlinkCode!);
+    if (shortlinkCodes.length > 0) {
+      try {
+        const sc = await prisma.config.findUnique({ where: { key: 'shortlink_default' } });
+        if (sc) {
+          const slConfig = JSON.parse(sc.value);
+          const service = getShortlinkService();
+          service.setConfig(slConfig);
+          // Delete in parallel
+          await Promise.all(shortlinkCodes.map(code => service.deleteShortlink(code).catch(() => {})));
+        }
+      } catch (err) {
+        console.error('Failed to delete shortlinks:', err);
+      }
+    }
+
+    await prisma.file.deleteMany({
+      where: { id: { in: ids } },
+    });
+
+    return NextResponse.json({ success: true, deletedCount: files.length });
+  } catch (error) {
+    console.error('Batch delete failed:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -57,14 +57,14 @@ export default function RootLayout({
               toastOptions={{
                 className: "glass-card border-border/50 shadow-lg",
                 classNames: {
-                  toast: "group toast group-[.toaster]:bg-background/80 group-[.toaster]:text-foreground group-[.toaster]:border-border/50 group-[.toaster]:shadow-lg group-[.toaster]:backdrop-blur-xl",
+                  toast: "group toast group-[.toaster]:bg-white/70 dark:group-[.toaster]:bg-zinc-900/70 group-[.toaster]:text-foreground group-[.toaster]:border-border/30 group-[.toaster]:shadow-2xl group-[.toaster]:backdrop-blur-2xl group-[.toaster]:rounded-2xl",
                   description: "group-[.toast]:text-muted-foreground",
                   actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
                   cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
-                  error: "group-[.toaster]:text-red-600 dark:group-[.toaster]:text-red-400 group-[.toaster]:border-red-200 dark:group-[.toaster]:border-red-500/20 dark:group-[.toaster]:bg-red-500/10",
-                  success: "group-[.toaster]:text-green-600 dark:group-[.toaster]:text-green-400 group-[.toaster]:border-green-200 dark:group-[.toaster]:border-green-500/20 dark:group-[.toaster]:bg-green-500/10",
-                  warning: "group-[.toaster]:text-yellow-600 dark:group-[.toaster]:text-yellow-400 group-[.toaster]:border-yellow-200 dark:group-[.toaster]:border-yellow-500/20 dark:group-[.toaster]:bg-yellow-500/10",
-                  info: "group-[.toaster]:text-blue-600 dark:group-[.toaster]:text-blue-400 group-[.toaster]:border-blue-200 dark:group-[.toaster]:border-blue-500/20 dark:group-[.toaster]:bg-blue-500/10",
+                  error: "group-[.toaster]:text-red-500 group-[.toaster]:bg-red-500/10 group-[.toaster]:border-red-500/20",
+                  success: "group-[.toaster]:text-emerald-500 group-[.toaster]:bg-emerald-500/10 group-[.toaster]:border-emerald-500/20",
+                  warning: "group-[.toaster]:text-amber-500 group-[.toaster]:bg-amber-500/10 group-[.toaster]:border-amber-500/20",
+                  info: "group-[.toaster]:text-sky-500 group-[.toaster]:bg-sky-500/10 group-[.toaster]:border-sky-500/20",
                 }
               }}
             />

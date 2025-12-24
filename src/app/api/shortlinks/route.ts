@@ -20,27 +20,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    // Get MinIO and shortlink configs
-    const [minioConfig, shortlinkConfig] = await Promise.all([
-      prisma.config.findUnique({
-        where: { key: file.configId || 'minio_default' },
-      }),
-      prisma.config.findUnique({
-        where: { key: 'shortlink_default' },
-      }),
-    ]);
+    // Get shortlink config
+    const shortlinkConfig = await prisma.config.findUnique({
+      where: { key: 'shortlink_default' },
+    });
 
-    if (!minioConfig || !shortlinkConfig) {
+    if (!shortlinkConfig) {
       return NextResponse.json(
-        { error: 'Required configs not found' },
+        { error: 'Shortlink config not found' },
+        { status: 400 }
+      );
+    }
+
+    // Get MinIO config
+    let minioConfig = null;
+    
+    if (file.configId) {
+      const configsRecord = await prisma.config.findUnique({
+        where: { key: 'minio_configs' },
+      });
+      
+      if (configsRecord) {
+        const configs = JSON.parse(configsRecord.value);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        minioConfig = configs.find((c: any) => c.id === file.configId);
+      }
+    }
+    
+    if (!minioConfig) {
+      const defaultConfig = await prisma.config.findUnique({
+        where: { key: 'minio_default' },
+      });
+      
+      if (defaultConfig) {
+        minioConfig = JSON.parse(defaultConfig.value);
+      }
+    }
+
+    if (!minioConfig) {
+      return NextResponse.json(
+        { error: 'MinIO config not found' },
         { status: 400 }
       );
     }
 
     // Get file URL
-    const mConfig = JSON.parse(minioConfig.value);
     const minioService = getMinioService();
-    await minioService.connect(mConfig);
+    await minioService.connect(minioConfig);
     const fileUrl = await minioService.getFileUrl(file.minioPath);
 
     // Create shortlink
@@ -48,7 +74,9 @@ export async function POST(request: NextRequest) {
     const shortlinkService = getShortlinkService();
     shortlinkService.setConfig(sConfig);
     
-    const shortlink = await shortlinkService.createShortlink(fileUrl, customCode);
+    // Use configured expires_in (hours), default to undefined for permanent
+    const expiresIn = sConfig.expiresIn && sConfig.expiresIn > 0 ? sConfig.expiresIn : undefined;
+    const shortlink = await shortlinkService.createShortlink(fileUrl, customCode, expiresIn);
 
     // Update file record
     await prisma.file.update({

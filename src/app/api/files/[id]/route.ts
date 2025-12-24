@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getMinioService } from '@/lib/minio';
 import { getShortlinkService } from '@/lib/shortlink';
+import { generatePinyin } from '@/lib/image-utils';
 
 export async function GET(
   request: NextRequest,
@@ -42,50 +43,93 @@ export async function DELETE(
     }
 
     // Get MinIO config
-    const minioConfig = await prisma.config.findUnique({
-      where: { key: file.configId || 'minio_default' },
-    });
+    let config = null;
+    
+    // Try to find config from configs list
+    if (file.configId) {
+      const configsRecord = await prisma.config.findUnique({
+        where: { key: 'minio_configs' },
+      });
+      
+      if (configsRecord) {
+        const configs = JSON.parse(configsRecord.value);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        config = configs.find((c: any) => c.id === file.configId);
+      }
+    }
+    
+    // Fallback to default config
+    if (!config) {
+      const defaultConfig = await prisma.config.findUnique({
+        where: { key: 'minio_default' },
+      });
+      
+      if (defaultConfig) {
+        config = JSON.parse(defaultConfig.value);
+      }
+    }
 
-    if (minioConfig) {
-      const config = JSON.parse(minioConfig.value);
+    if (config) {
       const minioService = getMinioService();
       await minioService.connect(config);
 
-      // Delete main file
-      await minioService.deleteFile(file.minioPath);
+      const minioDeletePromises = []; // Restore this line
 
-      // Delete thumbnail if exists
+      // Delete main file
+      minioDeletePromises.push(
+        minioService.deleteFile(file.minioPath).catch(error => {
+          console.error('Error deleting main file:', error);
+        })
+      );
+      
+      // Thumbnail is now stored in DB (cascade delete) or was separate path. 
+      // For legacy files with thumbnailPath, we ideally should delete from MinIO too.
+      // But user asked to "delete together" implying DB delete handles it.
+      // I will keep the legacy deletion for `thumbnailPath` just in case, 
+      // but `thumbnailData` in DB needs no extra action.
       if (file.thumbnailPath) {
-        try {
-          await minioService.deleteFile(file.thumbnailPath);
-        } catch (error) {
-          console.error('Error deleting thumbnail:', error);
-        }
+        minioDeletePromises.push(
+          minioService.deleteFile(file.thumbnailPath).catch(error => {
+            console.error('Error deleting legacy thumbnail:', error);
+          })
+        );
       }
+
+      await Promise.all(minioDeletePromises);
     }
 
-    // Delete shortlink if exists
+    // Delete shortlink if exists (parallel with database delete)
+    const deletePromises = [];
+    
     if (file.shortlinkCode) {
-      const shortlinkConfig = await prisma.config.findUnique({
-        where: { key: 'shortlink_default' },
-      });
+      const shortlinkDeletePromise = (async () => {
+        const shortlinkConfig = await prisma.config.findUnique({
+          where: { key: 'shortlink_default' },
+        });
 
-      if (shortlinkConfig) {
-        try {
-          const config = JSON.parse(shortlinkConfig.value);
-          const shortlinkService = getShortlinkService();
-          shortlinkService.setConfig(config);
-          await shortlinkService.deleteShortlink(file.shortlinkCode);
-        } catch (error) {
-          console.error('Error deleting shortlink:', error);
+        if (shortlinkConfig) {
+          try {
+            const config = JSON.parse(shortlinkConfig.value);
+            const shortlinkService = getShortlinkService();
+            shortlinkService.setConfig(config);
+            await shortlinkService.deleteShortlink(file.shortlinkCode!);
+          } catch (error) {
+            console.error('Error deleting shortlink:', error);
+          }
         }
-      }
+      })();
+      
+      deletePromises.push(shortlinkDeletePromise);
     }
 
     // Delete database record
-    await prisma.file.delete({
-      where: { id },
-    });
+    deletePromises.push(
+      prisma.file.delete({
+        where: { id },
+      })
+    );
+
+    await Promise.all(deletePromises);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -109,7 +153,10 @@ export async function PUT(
     const file = await prisma.file.update({
       where: { id },
       data: {
-        ...(filename && { filename }),
+        ...(filename && { 
+          filename,
+          pinyin: generatePinyin(filename)
+        }),
         ...(tags && { tags: JSON.stringify(tags) }),
       },
     });

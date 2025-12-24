@@ -24,9 +24,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { apiUrl, apiKey, autoGenerate } = body;
+    const { apiUrl, apiKey, autoGenerate, expiresIn } = body;
+
+    console.log('Shortlink config received:', { apiUrl, apiKey: apiKey ? '***' : 'empty', autoGenerate, expiresIn });
 
     if (!apiUrl || !apiKey) {
+      console.error('Validation failed - apiUrl:', apiUrl, 'apiKey:', apiKey ? 'present' : 'missing');
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -37,6 +40,7 @@ export async function POST(request: NextRequest) {
       apiUrl,
       apiKey,
       autoGenerate: autoGenerate !== false, // Default to true
+      expiresIn: expiresIn || 0, // Default to 0 (永久)
     });
 
     const config = await prisma.config.upsert({

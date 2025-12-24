@@ -253,4 +253,12 @@
   .aurora-blob {
     @apply absolute blur-3xl opacity-30 pointer-events-none rounded-full mix-blend-screen animate-blob;
   }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
 }

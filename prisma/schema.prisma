@@ -5,16 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
-
-// 原 SQLite 配置 (本地开发备份)
-// datasource db {
-//   provider = "sqlite"
-//   url      = env("DATABASE_URL")
-// }
 
 // Config table
 model Config {
@@ -36,16 +29,19 @@ model File {
   mimeType      String
   fileType      String
   thumbnailPath String?
+  thumbnailData Bytes?
   width         Int?
   height        Int?
   duration      Float?
   shortlinkCode String?  @unique
   tags          String   @default("[]")
+  pinyin        String?
   configId      String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([fileType])
   @@index([createdAt])
+  @@index([pinyin])
   @@map("files")
 }

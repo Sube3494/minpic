@@ -1,6 +1,7 @@
 export interface ShortlinkConfig {
   apiUrl: string;
   apiKey: string;
+  expiresIn?: number; // 过期时间(小时)
 }
 
 export interface ShortlinkResponse {
@@ -19,7 +20,7 @@ export class ShortlinkService {
     this.config = config;
   }
 
-  async createShortlink(url: string, customCode?: string): Promise<ShortlinkResponse> {
+  async createShortlink(url: string, customCode?: string, expiresInHours?: number): Promise<ShortlinkResponse> {
     if (!this.config) {
       throw new Error('Shortlink config not initialized');
     }
@@ -32,7 +33,8 @@ export class ShortlinkService {
       },
       body: JSON.stringify({
         url,
-        ...(customCode && { short_code: customCode }),
+        ...(customCode && { custom_code: customCode }),
+        ...(expiresInHours && { expires_in_hours: expiresInHours }),
       }),
     });
 

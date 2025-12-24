@@ -9,6 +9,7 @@ export interface MinioConfig {
   bucket: string;
   region?: string;
   customDomain?: string;
+  duplicateHandling?: 'skip' | 'overwrite' | 'keep-both'; // 同名文件处理
   baseDir?: string;
   autoArchive?: boolean;
 }
@@ -59,9 +60,36 @@ export class MinioService {
         objectPath += `${year}/${month}/`;
     }
 
-    // Clean filename and timestamp
-    const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const objectName = `${objectPath}${Date.now()}-${cleanFilename}`;
+    // Clean filename - remove unsafe characters but keep Unicode (Chinese, etc.)
+    // Only remove: / \ : * ? " < > |
+    const cleanFilename = filename.replace(/[\/\\:*?"<>|]/g, '_');
+    
+    // Handle duplicate files based on configuration
+    const duplicateMode = this.config.duplicateHandling || 'keep-both';
+    let objectName = '';
+    
+    if (duplicateMode === 'keep-both') {
+      // Default: add timestamp to keep both files
+      objectName = `${objectPath}${Date.now()}-${cleanFilename}`;
+    } else if (duplicateMode === 'overwrite') {
+      // Overwrite: use original filename
+      objectName = `${objectPath}${cleanFilename}`;
+    } else if (duplicateMode === 'skip') {
+      // Skip: check if file exists first
+      objectName = `${objectPath}${cleanFilename}`;
+      
+      try {
+        await this.client.statObject(this.config.bucket, objectName);
+        // File exists, skip upload by throwing error
+        throw new Error('FILE_EXISTS');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        if (error.message === 'FILE_EXISTS') {
+          throw error;
+        }
+        // File doesn't exist (statObject threw 404), continue upload
+      }
+    }
 
     await this.client.putObject(
       this.config.bucket,

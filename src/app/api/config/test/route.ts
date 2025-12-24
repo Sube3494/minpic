@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       await minioService.connect({
         endpoint,
         port: port || 9000,
-        useSSL: useSSL || false,
+        useSSL: useSSL === true, // 明确转换为布尔值
         accessKey,
         secretKey,
         bucket,
