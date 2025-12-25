@@ -126,21 +126,38 @@ export async function POST(request: NextRequest) {
           
           // Use configured expires_in (hours), default to undefined for permanent
           const expiresIn = slConfig.expiresIn && slConfig.expiresIn > 0 ? slConfig.expiresIn : undefined;
-          const shortlink = await shortlinkService.createShortlink(fileUrl, undefined, expiresIn);
           
-          // Update file record with shortlink
-          await prisma.file.update({
-            where: { id: fileRecord.id },
-            data: { shortlinkCode: shortlink.short_code },
-          });
+          let shortlink = null;
+          let retryCount = 0;
+          const maxRetries = 3;
 
-          return NextResponse.json({
-            ...fileRecord,
-            shortlinkCode: shortlink.short_code,
-            shortlink: shortlink.short_url,
-          });
+          while (retryCount < maxRetries && !shortlink) {
+            try {
+              shortlink = await shortlinkService.createShortlink(fileUrl, undefined, expiresIn);
+            } catch (err) {
+              retryCount++;
+              console.error(`Attempt ${retryCount} failed to generate shortlink:`, err);
+              if (retryCount < maxRetries) {
+                await new Promise(r => setTimeout(r, 1000));
+              }
+            }
+          }
+          
+          if (shortlink) {
+            // Update file record with shortlink
+            await prisma.file.update({
+              where: { id: fileRecord.id },
+              data: { shortlinkCode: shortlink.short_code },
+            });
+
+            return NextResponse.json({
+              ...fileRecord,
+              shortlinkCode: shortlink.short_code,
+              shortlink: shortlink.short_url,
+            });
+          }
         } catch (error) {
-          console.error('Error generating shortlink:', error);
+          console.error('Error in shortlink generation process:', error);
           // Continue without shortlink
         }
       }

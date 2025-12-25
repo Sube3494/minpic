@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -98,6 +98,21 @@ export default function FilesPage() {
     }
     setIsDeleting(false);
   };
+
+  // Global Paste Handler
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const clipboardFiles = e.clipboardData?.files;
+      if (clipboardFiles && clipboardFiles.length > 0) {
+        e.preventDefault();
+        uploadFiles(clipboardFiles, selectedConfigId);
+        toast.info(`正在从剪贴板上传 ${clipboardFiles.length} 个文件...`);
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [uploadFiles, selectedConfigId]);
 
   // Derived state
   const selectedConfigName = configs.find(c => c.id === selectedConfigId)?.name || '加载中...';
@@ -221,26 +236,16 @@ export default function FilesPage() {
           ) : (
             <motion.div 
               key="content"
-              variants={{
-                hidden: { opacity: 0 },
-                show: {
-                  opacity: 1,
-                  transition: {
-                    staggerChildren: 0.05,
-                    delayChildren: 0.1
-                  }
-                }
-              }}
-              initial="hidden"
-              animate="show"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               className={cn(
                 viewMode === 'grid' 
                   ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3 md:gap-4" 
                   : "flex flex-col gap-2"
               )}
             >
-              <AnimatePresence initial={false} mode="popLayout">
                 {files.map((file) => {
                    const isSelected = selectedIds.includes(file.id);
                    return viewMode === 'grid' ? (
@@ -263,7 +268,6 @@ export default function FilesPage() {
                        />
                    );
                 })}
-              </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>

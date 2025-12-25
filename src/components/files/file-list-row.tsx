@@ -22,19 +22,13 @@ interface FileListRowProps {
 }
 
 export function FileListRow({ file, isSelected, toggleSelect, copyShortlink, deleteFile }: FileListRowProps) {
-  const variants = {
-    hidden: { opacity: 0, x: -20 },
-    show: { opacity: 1, x: 0 }
-  };
 
   return (
     <motion.div
-      layoutId={`file-${file.id}`}
-      variants={variants}
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: -20 }}
-      transition={{ 
-        layout: { type: "spring", stiffness: 250, damping: 30 },
-      }}
+      transition={{ duration: 0.2 }}
       className={cn(
         "relative group cursor-pointer overflow-hidden border rounded-2xl shadow-sm bg-card p-1",
         isSelected ? "ring-2 ring-primary border-primary z-20" : "border-black/5 dark:border-white/5"
@@ -50,13 +44,12 @@ export function FileListRow({ file, isSelected, toggleSelect, copyShortlink, del
           )}
         </div>
 
-        <motion.div 
-          layoutId={`thumb-${file.id}`} 
+        <div 
           className="w-10 h-10 md:w-14 md:h-14 bg-zinc-100 dark:bg-white/5 flex items-center justify-center relative overflow-hidden rounded-xl shrink-0 border border-black/5 dark:border-white/10"
         >
           {(file.fileType === 'image' || file.fileType === 'video') ? (
             <Image
-              src={`/api/files/${file.id}/thumbnail`}
+              src={`/api/files/${file.id}/thumbnail?v=${new Date(file.updatedAt || file.createdAt).getTime()}`}
               alt={file.filename}
               fill
               className="object-cover"
@@ -67,9 +60,9 @@ export function FileListRow({ file, isSelected, toggleSelect, copyShortlink, del
              <FileIcon fileType={file.fileType} className="w-5 h-5" />
             </div>
           )}
-        </motion.div>
+        </div>
 
-        <motion.div layoutId={`info-${file.id}`} className="flex-1 min-w-0 pr-1">
+        <div className="flex-1 min-w-0 pr-1">
           <h3 className="font-bold text-xs md:text-sm truncate dark:text-zinc-100">{file.filename}</h3>
           <div className="flex items-center gap-1.5 md:gap-3 mt-0.5 text-[10px] md:text-[11px] text-zinc-600 dark:text-zinc-300 uppercase font-bold">
             <span>{formatFileSize(file.fileSize)}</span>
@@ -78,7 +71,7 @@ export function FileListRow({ file, isSelected, toggleSelect, copyShortlink, del
             <span className="opacity-30 hidden sm:inline">•</span>
             <span className="hidden sm:inline">{new Date(file.createdAt).toLocaleDateString('zh-CN')}</span>
           </div>
-        </motion.div>
+        </div>
 
         <div className="flex gap-1.5 md:gap-2" onClick={e => e.stopPropagation()}>
           <Button

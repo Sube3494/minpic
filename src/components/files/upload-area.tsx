@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react';
-import { Upload, Loader2 } from 'lucide-react';
+import { Upload, Loader2, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { UploadTask } from '@/types/file';
 import { formatFileSize } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface UploadAreaProps {
   uploadFiles: (files: FileList, configId: string) => Promise<void>;
@@ -15,7 +17,47 @@ interface UploadAreaProps {
 
 export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, selectedConfigId }: UploadAreaProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePasteInput = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    let hasImage = false;
+    
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          hasImage = true;
+          break;
+        }
+      }
+    }
+
+    if (!hasImage) {
+       // Allow default behavior for text (maybe they want to paste a URL later), 
+       // but for now let's just warn if it looks like they expected an upload.
+       // actually, checking files is better.
+       const files = e.clipboardData?.files;
+       if (files && files.length > 0) {
+           e.preventDefault();
+           e.stopPropagation(); // Stop global listener from firing twice if needed, though global uses document
+           uploadFiles(files, selectedConfigId);
+           toast.info(`已捕获粘贴板文件: ${files[0].name}`);
+       } else {
+           // Text was pasted?
+           toast.info('暂仅支持粘贴上传图片文件 (截图)');
+       }
+    } else {
+       // It has image, let the logic above (files check) handle it, or handle items directly.
+       const files = e.clipboardData?.files;
+       if (files && files.length > 0) {
+          e.preventDefault();
+          e.stopPropagation();
+          uploadFiles(files, selectedConfigId);
+          toast.info(`正在上传粘贴板图片...`);
+       }
+    }
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -48,7 +90,7 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
     <Card className="glass-strong">
       <CardContent className="p-3 md:p-6">
         <div 
-          className={`border-2 border-dashed rounded-lg p-6 md:p-8 text-center transition-all ${
+          className={`border-2 border-dashed rounded-lg p-6 md:p-10 text-center transition-all ${
             isDragging 
               ? 'border-primary bg-primary/10 dark:bg-primary/20 scale-[1.02]' 
               : 'border-border bg-white/50 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10'
@@ -63,8 +105,8 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
           <h3 className="text-base md:text-lg font-semibold mb-1 md:mb-2 text-zinc-800 dark:text-white">
             {isDragging ? '松开鼠标上传' : '上传文件'}
           </h3>
-          <p className="text-[10px] md:text-sm text-muted-foreground mb-4 md:mb-6">
-            {isDragging ? '拖放文件到此处' : '支持拖拽文件或点击选择'}
+          <p className="text-[10px] md:text-sm text-muted-foreground mb-4 md:mb-8">
+            {isDragging ? '拖放文件到此处' : '支持拖拽、粘贴 (Ctrl+V) 或点击选择'}
           </p>
 
           {uploading && aggregateProgress.total > 0 && (
@@ -112,21 +154,43 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
             className="hidden"
             id="file-upload"
           />
-          <Button asChild disabled={uploading} className="rounded-full px-8 shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow">
-            <label htmlFor="file-upload" className="cursor-pointer">
-              {uploading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {aggregateProgress.isProcessing ? '正在后端处理...' : `总进度 ${aggregateProgress.percent}%`}
-                </>
-              ) : (
-                <>
-                  <Upload className="w-4 h-4 mr-2" />
-                  选择文件上传
-                </>
-              )}
-            </label>
-          </Button>
+          
+          <div className="flex flex-col items-center justify-center gap-4 w-full max-w-sm mx-auto">
+            <Button asChild disabled={uploading} className="w-full rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow">
+              <label htmlFor="file-upload" className="cursor-pointer">
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {aggregateProgress.isProcessing ? '正在后端处理...' : `总进度 ${aggregateProgress.percent}%`}
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    选择文件上传
+                  </>
+                )}
+              </label>
+            </Button>
+
+            <div className="relative group w-full">
+              <div className={`absolute inset-0 bg-primary/20 blur-xl rounded-full transition-opacity duration-500 ${isFocused ? 'opacity-100' : 'opacity-0'}`} />
+              <div className="relative flex items-center">
+                  <Input 
+                    placeholder="在此处按下 Ctrl + V 粘贴截图..." 
+                    className="rounded-full h-10 border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-black/20 pr-10 shadow-sm focus-visible:ring-primary transition-all text-center text-xs"
+                    onPaste={handlePasteInput}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                  />
+                  <div className="absolute right-1 top-1 bottom-1 aspect-square p-1 hidden md:block">
+                      <Button size="icon" variant="ghost" className="w-full h-full rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-muted-foreground">
+                          <ArrowRight className="w-3 h-3" />
+                      </Button>
+                  </div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </CardContent>
     </Card>

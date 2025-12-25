@@ -4,14 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { 
+import {
   DropdownMenu, 
   DropdownMenuTrigger, 
-  DropdownMenuContent, 
-  DropdownMenuRadioGroup, 
-  DropdownMenuRadioItem 
+  DropdownMenuContent,
+  DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-import { Check, Trash2, RefreshCw, Loader2, Info, ChevronDown, Server } from 'lucide-react';
+import { Check, Trash2, RefreshCw, Loader2, Info, ChevronDown, Server, Calendar, Shield, SkipForward, Copy, FileWarning } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ConfigEditorProps {
@@ -132,7 +133,7 @@ export function ConfigEditor({
               value={config.port}
               onChange={(e) => onUpdate({ port: parseInt(e.target.value) || 9000 })}
               placeholder="9000"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
+              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
         </div>
@@ -163,7 +164,7 @@ export function ConfigEditor({
         {/* Bucket & Region */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-2">
-            <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">Bucket 名称</Label>
+            <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">Bucket 名称</Label>
             <Input 
               value={config.bucket} 
               onChange={(e) => onUpdate({ bucket: e.target.value })}
@@ -172,7 +173,7 @@ export function ConfigEditor({
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">区域 (Region / 可选)</Label>
+            <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">区域 (Region / 可选)</Label>
             <Input 
               value={config.region || ''} 
               onChange={(e) => onUpdate({ region: e.target.value })}
@@ -186,10 +187,10 @@ export function ConfigEditor({
         
         {/* Advanced Settings */}
         <div className="space-y-6">
-          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 ml-1">高级配置选项</h3>
+          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-500 ml-1">高级配置选项</h3>
           
           <div className="space-y-2">
-            <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">自定义访问域名 (可选)</Label>
+            <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">自定义访问域名 (可选)</Label>
             <Input 
               value={config.customDomain || ''} 
               onChange={(e) => onUpdate({ customDomain: e.target.value })}
@@ -201,7 +202,7 @@ export function ConfigEditor({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="space-y-2">
-              <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">对象存放目录 (可选)</Label>
+              <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">对象存放目录 (可选)</Label>
               <Input 
                 value={config.baseDir || ''} 
                 onChange={(e) => onUpdate({ baseDir: e.target.value })}
@@ -209,25 +210,30 @@ export function ConfigEditor({
                 className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
               />
             </div>
-            <div className="flex flex-col justify-end">
-              <label className="flex items-center space-x-3 cursor-pointer group p-3 rounded-2xl border border-zinc-200 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all bg-white dark:bg-zinc-950/20 h-11 shadow-sm">
-                <div className="relative flex items-center justify-center shrink-0">
-                  <input
-                    type="checkbox"
+            <div className="space-y-2">
+                <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">归档设置</Label>
+                <div className="flex items-center justify-between px-3 h-11 rounded-2xl border border-zinc-200 dark:border-white/5 bg-white dark:bg-zinc-950/20 shadow-sm hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400">
+                      <Calendar className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-zinc-700 dark:text-zinc-200 leading-none mb-0.5">自动归档</span>
+                      <span className="text-[9px] text-muted-foreground leading-none">按日期分类存储</span>
+                    </div>
+                  </div>
+                  <Switch
                     checked={config.autoArchive || false}
-                    onChange={(e) => onUpdate({ autoArchive: e.target.checked })}
-                    className="peer appearance-none w-5 h-5 rounded-full border border-zinc-300 dark:border-white/20 bg-white dark:bg-white/5 checked:bg-primary checked:border-primary transition-all shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] cursor-pointer"
+                    onCheckedChange={(checked: boolean) => onUpdate({ autoArchive: checked })}
+                    className="data-[state=checked]:bg-primary scale-90 origin-right"
                   />
-                  <Check className="absolute w-3 h-3 text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100 stroke-[3px]" />
                 </div>
-                <span className="text-xs font-bold text-zinc-700 dark:text-zinc-200 select-none">开启日期自动归档</span>
-              </label>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="space-y-3">
-              <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1 flex items-center gap-2">
+            <div className="space-y-2">
+              <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1 flex items-center gap-2">
                 同名文件冲突策略
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -243,42 +249,90 @@ export function ConfigEditor({
                 <DropdownMenuTrigger asChild>
                   <Button 
                     variant="outline" 
-                    className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 h-11 px-3 font-normal shadow-sm"
+                    className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 h-11 px-3 font-normal shadow-sm group"
                   >
-                    <span className="text-sm">
-                      {config.duplicateHandling === 'skip' && '跳过 (Skip)'}
-                      {config.duplicateHandling === 'overwrite' && '覆盖 (Overwrite)'}
-                      {config.duplicateHandling === 'keep-both' && '保留两者 (Keep Both)'}
-                    </span>
-                    <ChevronDown className="w-4 h-4 opacity-50" />
+                    <div className="flex items-center gap-2">
+                       {config.duplicateHandling === 'skip' && <SkipForward className="w-4 h-4 text-zinc-500" />}
+                       {config.duplicateHandling === 'overwrite' && <FileWarning className="w-4 h-4 text-zinc-500" />}
+                       {(config.duplicateHandling === 'keep-both' || !config.duplicateHandling) && <Copy className="w-4 h-4 text-zinc-500" />}
+                       <span className="text-sm text-zinc-700 dark:text-zinc-200">
+                        {config.duplicateHandling === 'skip' && '跳过 (Skip)'}
+                        {config.duplicateHandling === 'overwrite' && '覆盖 (Overwrite)'}
+                        {(config.duplicateHandling === 'keep-both' || !config.duplicateHandling) && '保留两者 (Keep Both)'}
+                      </span>
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-zinc-400 transition-transform group-data-[state=open]:rotate-180" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width] glass-card">
-                  <DropdownMenuRadioGroup 
-                    value={config.duplicateHandling || 'keep-both'} 
-                    onValueChange={(val) => onUpdate({ duplicateHandling: val as 'skip' | 'overwrite' | 'keep-both' })}
-                  >
-                    <DropdownMenuRadioItem value="skip" className="cursor-pointer">跳过 (Skip)</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="overwrite" className="cursor-pointer">覆盖 (Overwrite)</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="keep-both" className="cursor-pointer">保留两者 (Keep Both)</DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
+                <DropdownMenuContent 
+                  align="start" 
+                  sideOffset={4}
+                  style={{ width: 'var(--radix-dropdown-menu-trigger-width)' }}
+                  className="glass-strong border-zinc-200/50 dark:border-white/10 p-1.5 shadow-xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl"
+                >
+                    <DropdownMenuItem 
+                        onClick={() => onUpdate({ duplicateHandling: 'skip' })}
+                        className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
+                    >
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-zinc-100 dark:bg-white/5 text-zinc-500">
+                            <SkipForward className="w-4 h-4" />
+                        </div>
+                        <div className="flex flex-col flex-1">
+                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">跳过 (Skip)</span>
+                            <span className="text-[10px] text-zinc-500">如果文件已存在，则不进行上传</span>
+                        </div>
+                        {config.duplicateHandling === 'skip' && <Check className="w-4 h-4 text-primary" />}
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem 
+                        onClick={() => onUpdate({ duplicateHandling: 'overwrite' })}
+                        className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
+                    >
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-400">
+                            <FileWarning className="w-4 h-4" />
+                        </div>
+                        <div className="flex flex-col flex-1">
+                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">覆盖 (Overwrite)</span>
+                            <span className="text-[10px] text-zinc-500">强制覆盖已存在的同名文件</span>
+                        </div>
+                        {config.duplicateHandling === 'overwrite' && <Check className="w-4 h-4 text-primary" />}
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem 
+                        onClick={() => onUpdate({ duplicateHandling: 'keep-both' })}
+                        className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
+                    >
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400">
+                            <Copy className="w-4 h-4" />
+                        </div>
+                        <div className="flex flex-col flex-1">
+                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">保留两者 (Keep Both)</span>
+                            <span className="text-[10px] text-zinc-500">自动重命名新文件以避免冲突</span>
+                        </div>
+                        {(config.duplicateHandling === 'keep-both' || !config.duplicateHandling) && <Check className="w-4 h-4 text-primary" />}
+                    </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
 
-            <div className="flex flex-col justify-end">
-              <label className="flex items-center space-x-3 cursor-pointer group p-3 rounded-2xl border border-zinc-200 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all bg-white dark:bg-zinc-950/20 h-11 shadow-sm">
-                <div className="relative flex items-center justify-center shrink-0">
-                  <input
-                    type="checkbox"
+            <div className="space-y-2">
+                <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">安全连接</Label>
+                <div className="flex items-center justify-between px-3 h-11 rounded-2xl border border-zinc-200 dark:border-white/5 bg-white dark:bg-zinc-950/20 shadow-sm hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400">
+                      <Shield className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-zinc-700 dark:text-zinc-200 leading-none mb-0.5">SSL 加密</span>
+                      <span className="text-[9px] text-muted-foreground leading-none">启用 HTTPS</span>
+                    </div>
+                  </div>
+                  <Switch
                     checked={config.useSSL}
-                    onChange={(e) => onUpdate({ useSSL: e.target.checked })}
-                    className="peer appearance-none w-5 h-5 rounded-full border border-zinc-300 dark:border-white/20 bg-white dark:bg-white/5 checked:bg-primary checked:border-primary transition-all shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] cursor-pointer"
+                    onCheckedChange={(checked: boolean) => onUpdate({ useSSL: checked })}
+                    className="data-[state=checked]:bg-primary scale-90 origin-right"
                   />
-                  <Check className="absolute w-3 h-3 text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-all scale-50 peer-checked:scale-100 stroke-[3px]" />
                 </div>
-                <span className="text-xs font-bold text-zinc-700 dark:text-zinc-200 select-none">启用 SSL 安全连接</span>
-              </label>
             </div>
           </div>
         </div>

@@ -12,6 +12,7 @@ export interface FileItem {
   thumbnailPath: string | null;
   shortlinkCode: string | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface UploadTask {

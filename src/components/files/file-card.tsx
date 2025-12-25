@@ -29,19 +29,13 @@ export function FileCard({ file, isSelected, toggleSelect, copyShortlink, delete
     ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
     : 'bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-zinc-300';
 
-  const variants = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 }
-  };
 
   return (
     <motion.div
-      layoutId={`file-${file.id}`}
-      variants={variants}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9 }}
-      transition={{ 
-        layout: { type: "spring", stiffness: 250, damping: 30 },
-      }}
+      transition={{ duration: 0.2 }}
       className={cn(
         "relative group cursor-pointer overflow-hidden border rounded-2xl shadow-sm bg-card p-0",
         isSelected ? "ring-2 ring-primary border-primary z-20" : typeBorderStyle
@@ -64,10 +58,10 @@ export function FileCard({ file, isSelected, toggleSelect, copyShortlink, delete
         </div>
 
         {/* Thumbnail */}
-        <motion.div layoutId={`thumb-${file.id}`} className="absolute inset-0 bg-muted/50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-muted/50 flex items-center justify-center">
           {(file.fileType === 'image' || file.fileType === 'video') ? (
             <Image
-              src={`/api/files/${file.id}/thumbnail`}
+              src={`/api/files/${file.id}/thumbnail?v=${new Date(file.updatedAt || file.createdAt).getTime()}`}
               alt={file.filename}
               fill
               className="object-cover"
@@ -78,7 +72,7 @@ export function FileCard({ file, isSelected, toggleSelect, copyShortlink, delete
              <FileIcon fileType={file.fileType} className="w-8 h-8" />
             </div>
           )}
-        </motion.div>
+        </div>
 
         {/* Info Overlay - Refined with Gradient for better visibility */}
         <div className="absolute inset-0 z-10 transition-opacity duration-300">
@@ -86,14 +80,14 @@ export function FileCard({ file, isSelected, toggleSelect, copyShortlink, delete
           <div className="absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-black/80 via-black/40 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300" />
           
           <div className="absolute inset-0 flex flex-col justify-between p-2.5 md:p-3 z-20 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
-            <motion.div layoutId={`info-${file.id}`} className="drop-shadow-md">
+            <div className="drop-shadow-md">
               <h3 className="text-white text-[10px] md:text-[13px] font-bold truncate leading-tight tracking-tight">
                 {file.filename}
               </h3>
               <p className="text-white/80 text-[9px] md:text-[11px] mt-0.5 font-medium">
                 {formatFileSize(file.fileSize)}
               </p>
-            </motion.div>
+            </div>
             
             <div className="flex items-center justify-between mt-auto">
               <span className={cn(
