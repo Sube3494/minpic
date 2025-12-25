@@ -107,6 +107,17 @@
         transform: scale(1);
     }
   }
+  
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  --animate-shimmer: shimmer 2s ease-in-out infinite;
 }
 
 @utility delay-0 { animation-delay: 0ms; }
@@ -206,6 +217,15 @@
 }
 
 @layer base {
+  html {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  html::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+
   * {
     @apply border-border outline-ring/50;
   }
@@ -260,5 +280,12 @@
     &::-webkit-scrollbar {
       display: none;
     }
+  }
+
+  /* View Transition API Reset for Manual Control */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
   }
 }

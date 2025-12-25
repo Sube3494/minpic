@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ModeToggle } from "@/components/mode-toggle";
+import { NavBar } from "@/components/layout/nav-bar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -43,10 +43,8 @@ export default function RootLayout({
               <div className="absolute bottom-[-20%] left-[20%] w-160 h-160 bg-indigo-500/10 rounded-full blur-3xl animate-blob animation-delay-4000" />
             </div>
 
-            {/* Global Theme Toggle */}
-            <div className="fixed top-6 right-6 z-50">
-              <ModeToggle />
-            </div>
+            {/* Global Navigation */}
+            <NavBar />
 
             <div className="relative z-10 flex flex-col min-h-screen">
               {children}

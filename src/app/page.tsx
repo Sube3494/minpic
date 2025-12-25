@@ -1,3 +1,4 @@
+import { PageWrapper } from '@/components/layout/page-wrapper';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,40 +6,39 @@ import { Upload, Link2, Settings, BarChart3, ArrowRight, Sparkles, Zap, Shield }
 
 export default function HomePage() {
   return (
-    <main className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] p-6 md:p-12 relative z-10 w-full overflow-hidden">
+    <PageWrapper>
+      <main className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] p-4 sm:p-6 md:p-12 relative z-10 w-full overflow-hidden">
       
       {/* Hero Section */}
-      <div className="text-center space-y-8 max-w-5xl relative mt-20 mb-32">
+      <div className="text-center space-y-6 sm:space-y-8 max-w-5xl relative mt-16 sm:mt-20 mb-24 sm:mb-32">
         {/* Glow effect backend */}
         <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-primary/15 blur-[120px] rounded-full -z-10 pointer-events-none" />
         
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-md text-sm text-primary animate-fade-in-up delay-0 fill-mode-backwards">
-          <Sparkles className="w-4 h-4" />
-          <span className="font-medium">新一代图床解决方案</span>
+        <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium animate-in fade-in slide-in-from-bottom-2 duration-500">
+          <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary animate-pulse" />
+          <span className="bg-gradient-to-r from-primary via-blue-500 to-purple-500 bg-clip-text text-transparent">
+            新一代图床解决方案
+          </span>
         </div>
 
-        <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-glow mb-6 animate-fade-in-up delay-100 fill-mode-backwards">
+        <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight text-glow mb-4 sm:mb-6 animate-fade-in-up delay-100 fill-mode-backwards">
           <span className="bg-clip-text text-transparent bg-linear-to-br from-zinc-900 via-zinc-700 to-zinc-500 dark:from-white dark:via-white/90 dark:to-white/70">
             MinPic
           </span>
         </h1>
         
-        <p className="text-xl md:text-2xl text-muted-foreground font-light tracking-wide max-w-2xl mx-auto leading-relaxed animate-fade-in-up delay-200 fill-mode-backwards">
+        <p className="text-base sm:text-xl md:text-2xl text-muted-foreground font-light tracking-wide max-w-2xl mx-auto leading-relaxed px-4 animate-fade-in-up delay-200 fill-mode-backwards">
           体验对数字资产的 <span className="text-primary dark:text-white font-medium">极致掌控</span>。
           <br className="hidden md:block" />
           无缝集成 MinIO 对象存储与自定义短链服务。
         </p>
         
-        <div className="flex items-center justify-center gap-6 pt-8 animate-fade-in-up delay-300 fill-mode-backwards">
-           <Button asChild size="lg" className="rounded-full h-14 px-10 text-lg shadow-[0_0_50px_-10px_rgba(139,92,246,0.5)] hover:shadow-[0_0_60px_-15px_rgba(139,92,246,0.6)] bg-primary hover:bg-primary/90 text-white border-0 ring-offset-0 active:scale-95 transition-all duration-300">
-             <Link href="/settings">
-               开始使用 <ArrowRight className="ml-2 w-5 h-5" />
-             </Link>
-           </Button>
-           
-           <Button asChild variant="outline" size="lg" className="rounded-full h-14 px-10 text-lg border-zinc-200 bg-white/50 text-zinc-900 hover:bg-zinc-100 hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10 dark:hover:border-white/20 backdrop-blur-md transition-all duration-300 dark:text-white active:scale-95">
-             <Link href="/files">
-               文件管理
+        <div className="flex items-center justify-center gap-6 pt-6 sm:pt-8 animate-fade-in-up delay-300 fill-mode-backwards">
+           <Button asChild size="lg" className="group rounded-full h-11 sm:h-12 px-12 sm:px-16 text-sm sm:text-base font-semibold shadow-[0_0_50px_-10px_rgba(139,92,246,0.5)] hover:shadow-[0_0_70px_-10px_rgba(139,92,246,0.7)] bg-primary hover:bg-primary/90 text-white border-0 ring-offset-0 active:scale-95 transition-all duration-300 relative overflow-hidden">
+             <Link href="/settings" className="flex items-center gap-2">
+               <span className="relative z-10">开始使用</span>
+               <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform duration-300 relative z-10" />
+               <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent bg-size-[200%_100%] group-hover:animate-shimmer" />
              </Link>
            </Button>
         </div>
@@ -122,5 +122,6 @@ export default function HomePage() {
         </div>
       </div>
     </main>
-  );
+  </PageWrapper>
+);
 }
