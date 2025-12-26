@@ -56,7 +56,16 @@ export async function POST(request: NextRequest) {
         });
 
         if (existing) {
-          skipped++;
+          // If file exists but has different configId (or null), update it to current configId
+          if (existing.configId !== configId) {
+            await prisma.file.update({
+              where: { id: existing.id },
+              data: { configId },
+            });
+            imported++; // Count as imported since we "recovered" it for this view
+          } else {
+            skipped++;
+          }
           continue;
         }
 
