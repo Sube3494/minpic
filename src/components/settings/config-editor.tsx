@@ -10,7 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-import { Check, Trash2, RefreshCw, Loader2, Info, ChevronDown, Server, PlugZap, Shield, FolderTree, Settings2 } from 'lucide-react';
+import { Check, RefreshCw, Loader2, Info, ChevronDown, Server, PlugZap, Shield, FolderTree, Settings2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useState, useRef, useEffect } from 'react';
 
@@ -18,18 +18,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface ConfigEditorProps {
   config: MinioConfigItem;
-  canDelete: boolean;
   isSyncing: boolean;
   isTesting: boolean;
   onUpdate: (updates: Partial<MinioConfigItem>) => void;
-  onDelete: (id: string) => void;
   onSync: (id: string) => void;
   onTest: () => void;
 }
 
 export function ConfigEditor({ 
-  config, canDelete, isSyncing, isTesting,
-  onUpdate, onDelete, onSync, onTest 
+  config, isSyncing, isTesting,
+  onUpdate, onSync, onTest 
 }: ConfigEditorProps) {
   const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
   const advancedRef = useRef<HTMLDivElement>(null);
@@ -103,16 +101,6 @@ export function ConfigEditor({
             >
               {isTesting ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <PlugZap className="w-3.5 h-3.5 mr-1.5" />}
               测试连接
-            </Button>
-
-            <Button 
-              size="sm" 
-              variant="destructive" 
-              onClick={() => onDelete(config.id)}
-              disabled={!canDelete}
-              className="h-8 w-8 md:h-9 md:w-9 p-0"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
             </Button>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, AlertTriangle, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const { syncing, syncFiles } = useSync();
 
   const [syncDialog, setSyncDialog] = useState<{ open: boolean; configId: string }>({ open: false, configId: '' });
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; configId: string }>({ open: false, configId: '' });
 
   const selectedConfig = configs.find(c => c.id === selectedId);
   const loading = minioLoading || slLoading;
@@ -64,6 +65,19 @@ export default function SettingsPage() {
             }, 1000);
           }
       }
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setDeleteDialog({ open: true, configId: id });
+  };
+
+  const confirmDelete = async () => {
+    const { configId } = deleteDialog;
+    setDeleteDialog({ open: false, configId: '' });
+    if (configId) {
+      await deleteConfig(configId);
+      toast.success('配置已删除');
+    }
   };
 
   return (
@@ -139,6 +153,8 @@ export default function SettingsPage() {
                         onSelect={setSelectedId}
                         onCreate={createConfig}
                         onActivate={activateConfig}
+                        onDelete={handleDeleteClick}
+                        canDelete={true}
                     />
 
                     {/* Shortlink Section - Only visible on desktop */}
@@ -157,11 +173,9 @@ export default function SettingsPage() {
                     {selectedConfig && (
                         <ConfigEditor 
                             config={selectedConfig}
-                            canDelete={true}
                             isSyncing={syncing}
                             isTesting={minioTesting}
                             onUpdate={updateSelectedConfig}
-                            onDelete={deleteConfig}
                             onSync={handleSyncClick}
                             onTest={testMinioConnection}
                         />
@@ -185,11 +199,54 @@ export default function SettingsPage() {
             open={syncDialog.open}
             onOpenChange={(open) => !open && setSyncDialog({ open: false, configId: '' })}
             title="同步文件库"
-            description="确定要扫描并同步此配置的所有文件吗？\n\n此操作将:\n• 扫描 MinIO 存储桶中的所有文件\n• 自动识别文件类型并生成缩略图\n• 批量导入到数据库\n• 跳过已存在的文件\n\n⚠️ 这可能需要一些时间,特别是如果存储桶中有大量文件。"
+            description={
+                <div className="space-y-4 py-1">
+                    <p className="text-zinc-600 dark:text-zinc-300">确定要扫描并同步此配置的所有文件吗？此操作将：</p>
+                    <div className="bg-zinc-50/80 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-100 dark:border-white/5 space-y-2">
+                        {[
+                            '扫描 MinIO 存储桶中的所有文件',
+                            '自动识别文件类型并生成缩略图',
+                            '批量导入到数据库',
+                            '跳过已存在的文件'
+                        ].map((item, i) => (
+                            <div key={i} className="flex items-center gap-2.5 text-sm text-zinc-600 dark:text-zinc-400">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500/50 shrink-0" />
+                                <span>{item}</span>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="flex items-center gap-3 text-amber-600 dark:text-amber-500 text-sm bg-amber-50/80 dark:bg-amber-950/30 p-4 rounded-xl border border-amber-100/50 dark:border-amber-900/10">
+                        <Info className="w-5 h-5 shrink-0" />
+                        <span className="leading-tight">这可能需要一些时间，特别是如果存储桶中有大量文件。</span>
+                    </div>
+                </div>
+            }
             confirmText="开始同步"
             cancelText="取消"
             onConfirm={confirmSync}
             isLoading={syncing}
+        />
+
+        <ConfirmDialog
+            open={deleteDialog.open}
+            onOpenChange={(open) => !open && setDeleteDialog({ open: false, configId: '' })}
+            title="删除配置"
+            description={
+                <div className="space-y-4 py-1">
+                    <p className="text-zinc-600 dark:text-zinc-300">确定要删除此存储配置吗？</p>
+                    <div className="flex items-start gap-3 text-red-600 dark:text-red-400 text-sm bg-red-50/80 dark:bg-red-950/30 p-4 rounded-xl border border-red-100/50 dark:border-red-900/10 shadow-sm">
+                        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                        <div className="space-y-1.5">
+                            <p className="font-bold text-base tracking-tight">此操作不可撤销</p>
+                            <p className="opacity-90 leading-relaxed">虽然 MinIO 中的文件不会被删除，但此应用中的相关配置和数据库引用将被移除。</p>
+                        </div>
+                    </div>
+                </div>
+            }
+            confirmText="确认删除"
+            cancelText="取消"
+            onConfirm={confirmDelete}
+            variant="destructive"
         />
       </div>
     </div>

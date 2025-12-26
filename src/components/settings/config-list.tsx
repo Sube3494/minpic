@@ -1,7 +1,7 @@
 import { MinioConfigItem } from '@/types/config';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Server } from 'lucide-react';
+import { Plus, Server, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useState, useRef, useEffect } from 'react';
@@ -14,10 +14,12 @@ interface ConfigListProps {
   onSelect: (id: string) => void;
   onCreate: () => void;
   onActivate: (id: string) => void;
+  onDelete: (id: string) => void;
+  canDelete: boolean;
 }
 
 export function ConfigList({ 
-  configs, activeId, selectedId, onSelect, onCreate, onActivate 
+  configs, activeId, selectedId, onSelect, onCreate, onActivate, onDelete, canDelete 
 }: ConfigListProps) {
   const [indicatorStyle, setIndicatorStyle] = useState({ top: 0, height: 0, opacity: 0 });
   const itemsRef = useRef<(HTMLDivElement | null)[]>([]);
@@ -101,7 +103,7 @@ export function ConfigList({
                             className={cn(
                                 "group relative flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-all duration-300 border z-10",
                                 isSelected 
-                                    ? "border-transparent scale-[1.02]" 
+                                    ? "border-transparent" 
                                     : "bg-transparent border-transparent hover:bg-zinc-100/80 dark:hover:bg-white/5 hover:border-zinc-200/50 dark:hover:border-white/5"
                             )}
                         >
@@ -134,23 +136,48 @@ export function ConfigList({
                                 </div>
                             </div>
 
-                            {/* Activate Button */}
-                            <Button
-                                size="sm"
-                                variant={isActive ? "default" : "outline"}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onActivate(config.id);
-                                }}
-                                className={cn(
-                                    "h-7 px-3 text-[10px] font-medium transition-all shrink-0",
-                                    isActive 
-                                        ? "bg-green-100 text-green-700 dark:bg-green-600/20 dark:text-green-500 hover:bg-green-200 dark:hover:bg-green-600/30" 
-                                        : "hover:bg-zinc-100 dark:hover:bg-white/10"
-                                )}
-                            >
-                                {isActive ? "已激活" : "激活"}
-                            </Button>
+                            {/* Action Buttons */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onActivate(config.id);
+                                    }}
+                                    className={cn(
+                                        "h-7 w-auto min-w-[28px] p-0 transition-all flex items-center justify-center hover:bg-transparent",
+                                        isActive 
+                                            ? "text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-400" 
+                                            : "text-zinc-300 dark:text-zinc-600 hover:text-zinc-400 dark:hover:text-zinc-500"
+                                    )}
+                                >
+                                    <div className="relative w-9 h-5 rounded-full border-2 border-current p-[2px] flex items-center">
+                                        <motion.div 
+                                            className="w-3 h-3 rounded-full bg-current shadow-sm"
+                                            animate={{ x: isActive ? 18 : 0 }}
+                                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                        />
+                                    </div>
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDelete(config.id);
+                                    }}
+                                    disabled={!canDelete}
+                                    className={cn(
+                                        "h-7 w-7 p-0 transition-all flex items-center justify-center",
+                                        canDelete 
+                                            ? "hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 dark:hover:text-red-400" 
+                                            : "opacity-30 cursor-not-allowed"
+                                    )}
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                            </div>
                         </div>
                     );
                 })}
