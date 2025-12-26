@@ -2,7 +2,7 @@ export interface MinioConfigItem {
   id: string;
   name: string;
   endpoint: string;
-  port: number;
+  port?: number;
   useSSL: boolean;
   accessKey: string;
   secretKey: string;
@@ -11,14 +11,15 @@ export interface MinioConfigItem {
   customDomain?: string;
   duplicateHandling?: 'skip' | 'overwrite' | 'keep-both';
   baseDir?: string;
-  autoArchive?: boolean;
+  archiveStrategy?: 'none' | 'year' | 'month' | 'day';
+  expirationDays?: number; // 文件过期天数，0 表示永不过期
 }
 
 export interface ShortlinkConfig {
   apiUrl: string;
   apiKey: string;
-  autoGenerate: boolean;
-  expiresIn: number;
+  enabled: boolean;
+  expiresIn?: number;
 }
 
 export interface SyncProgress {
@@ -38,5 +39,6 @@ export const DEFAULT_MINIO_CONFIG: Omit<MinioConfigItem, 'id' | 'name'> = {
   customDomain: '',
   duplicateHandling: 'keep-both',
   baseDir: '',
-  autoArchive: false,
+  archiveStrategy: 'none',
+  expirationDays: 0,
 };

@@ -21,7 +21,14 @@ export async function GET() {
 
     if (configListRes && configListRes.value) {
       configs = JSON.parse(configListRes.value);
-      activeId = activeIdRes?.value || configs[0]?.id || '';
+
+      // Fix: Check if activeId record exists, otherwise fallback to first config
+      // We must allow empty string (deactivated state) if the record exists
+      if (activeIdRes) {
+        activeId = activeIdRes.value;
+      } else {
+        activeId = configs[0]?.id || '';
+      }
     } else if (defaultRes && defaultRes.value) {
       // Migration: Create list from single default config
       const defaultConfig = JSON.parse(defaultRes.value);
@@ -49,12 +56,35 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { configs, activeId } = body;
 
-    if (!Array.isArray(configs) || !activeId) {
+    console.log('Received MinIO config save request:', {
+      configsCount: Array.isArray(configs) ? configs.length : 'not array',
+      activeId,
+      firstConfig: configs?.[0],
+    });
+
+    if (!Array.isArray(configs)) {
+       console.error('Validation failed:', { 
+         isArray: Array.isArray(configs), 
+         configsLength: configs?.length,
+         activeId,
+       });
        return NextResponse.json(
         { error: 'Invalid config format' },
         { status: 400 }
       );
     }
+
+    // If activeId is provided, validate it exists in configs
+    if (activeId && !configs.find((c: MinioConfigItem) => c.id === activeId)) {
+      console.error('Active ID not found in configs:', { activeId, configIds: configs.map((c: MinioConfigItem) => c.id) });
+      return NextResponse.json(
+        { error: 'Active config not found' },
+        { status: 400 }
+      );
+    }
+
+    // Use activeId as is (can be empty string if no config is active)
+    const finalActiveId = activeId || '';
 
     // Save list and active ID
     await Promise.all([
@@ -65,13 +95,13 @@ export async function POST(request: NextRequest) {
       }),
       prisma.config.upsert({
         where: { key: 'minio_active_id' },
-        update: { value: activeId },
-        create: { key: 'minio_active_id', value: activeId },
+        update: { value: finalActiveId },
+        create: { key: 'minio_active_id', value: finalActiveId },
       }),
     ]);
 
     // Sync active config to minio_default for compatibility
-    const activeConfig = configs.find((c: MinioConfigItem) => c.id === activeId);
+    const activeConfig = configs.find((c: MinioConfigItem) => c.id === finalActiveId);
     if (activeConfig) {
       // Remove UI-only fields before saving to default
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

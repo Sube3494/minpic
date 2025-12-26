@@ -44,7 +44,9 @@ export default function ShortlinksPage() {
         }
       }
     } catch (error) {
-      toast.error('加载短链列表失败');
+      toast.error('加载短链列表失败', {
+        description: '请检查网络连接或刷新页面'
+      });
     } finally {
       setLoading(false);
     }
@@ -53,7 +55,9 @@ export default function ShortlinksPage() {
   const copyToClipboard = async (code: string) => {
     const url = `${shortlinkBaseUrl}/${code}`;
     await navigator.clipboard.writeText(url);
-    toast.success('短链已复制');
+    toast.success('短链已复制', {
+      description: url
+    });
   };
 
   const formatDate = (date: string) => {

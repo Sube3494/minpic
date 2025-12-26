@@ -39,25 +39,36 @@ export function useFileUpload(refreshFiles: () => void) {
 
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        toast.success(`${task.file.name} 上传成功`);
+        const sizeInMB = (task.file.size / (1024 * 1024)).toFixed(2);
+        toast.success(`${task.file.name} 上传成功`, {
+          description: `文件大小 ${sizeInMB} MB`
+        });
         setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed', loaded: task.total } : t));
       } else {
         try {
           const errorData = JSON.parse(xhr.responseText);
           if (errorData.message?.includes('FILE_EXISTS')) {
-            toast.info(`${task.file.name} 已存在`);
+            toast.info(`${task.file.name} 已存在`, {
+              description: '该文件已在存储库中，已跳过上传'
+            });
           } else {
-            toast.error(`${task.file.name} 上传失败`);
+            toast.error(`${task.file.name} 上传失败`, {
+              description: errorData.error || '请检查网络连接和存储配置'
+            });
           }
         } catch {
-          toast.error(`${task.file.name} 上传失败`);
+          toast.error(`${task.file.name} 上传失败`, {
+            description: '请检查网络连接和存储配置'
+          });
         }
         setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
       }
     });
 
     xhr.addEventListener('error', () => {
-      toast.error(`${task.file.name} 网络错误`);
+      toast.error(`${task.file.name} 网络错误`, {
+        description: '请检查网络连接后重试'
+      });
       setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
     });
 

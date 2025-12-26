@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+﻿import { useState, useEffect, useCallback } from 'react';
 import { MinioConfigItem, DEFAULT_MINIO_CONFIG } from '@/types/config';
 import { configService } from '@/services/config.service';
 import { toast } from 'sonner';
@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 export function useMinioConfig() {
   const [configs, setConfigs] = useState<MinioConfigItem[]>([]);
   const [activeId, setActiveId] = useState<string>('');
+  const [activeIdChanged, setActiveIdChanged] = useState(false);
+  const [originalActiveId, setOriginalActiveId] = useState<string>('');
   const [selectedId, setSelectedId] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -16,23 +18,37 @@ export function useMinioConfig() {
     try {
       const data = await configService.getMinioConfigs();
       
-      // Defer rendering until page transition is mostly complete
       const elapsed = Date.now() - startTime;
       const minLoadTime = 300;
       if (elapsed < minLoadTime) {
          await new Promise(resolve => setTimeout(resolve, minLoadTime - elapsed));
       }
 
-      setConfigs(data.configs || []);
+      let configsToSet = data.configs || [];
+      
+      if (configsToSet.length === 0) {
+        const defaultId = `default-${Date.now()}`;
+        const defaultConfig: MinioConfigItem = {
+          ...DEFAULT_MINIO_CONFIG,
+          id: defaultId,
+          name: '默认配置',
+        };
+        configsToSet = [defaultConfig];
+      }
+
+      setConfigs(configsToSet);
       setActiveId(data.activeId || '');
-      // Only set selectedId if it's not already set
+      setOriginalActiveId(data.activeId || '');
+      setActiveIdChanged(false);
       setSelectedId(prev => {
-        if (prev) return prev; // Keep existing selection
-        return data.activeId || (data.configs?.[0]?.id ?? '');
+        if (prev) return prev;
+        return data.activeId || (configsToSet[0]?.id ?? '');
       });
     } catch (error) {
       console.error('Error loading MinIO configs:', error);
-      toast.error('无法加载配置信息');
+      toast.error('无法加载配置信息', {
+        description: '请检查网络连接或刷新页面'
+      });
     } finally {
       setLoading(false);
     }
@@ -54,19 +70,15 @@ export function useMinioConfig() {
   };
 
   const deleteConfig = (id: string) => {
-    if (configs.length <= 1) {
-      toast.error('无法删除最后一个配置');
-      return;
-    }
-    if (id === activeId) {
-      toast.error('无法删除当前激活的配置');
-      return;
-    }
-    
     const newConfigs = configs.filter(c => c.id !== id);
     setConfigs(newConfigs);
+    
     if (selectedId === id) {
-      setSelectedId(newConfigs[0].id);
+      setSelectedId(newConfigs.length > 0 ? newConfigs[0].id : '');
+    }
+    
+    if (activeId === id) {
+      setActiveId('');
     }
   };
 
@@ -74,19 +86,59 @@ export function useMinioConfig() {
     setConfigs(configs.map(c => c.id === selectedId ? { ...c, ...updates } : c));
   };
 
-  const activateConfig = (id: string) => {
-    setActiveId(id);
-    toast.info('已设为激活状态，由于尚未保存，请点击右上角"保存所有更改"以生效。');
-  };
-
-  const saveConfigs = async () => {
+  const activateConfig = async (id: string) => {
+    const newActiveId = activeId === id ? '' : id;
+    const oldActiveId = activeId;
+    setActiveId(newActiveId);
+    
     setLoading(true);
     try {
-      await configService.saveMinioConfigs(configs, activeId);
-      toast.success('MinIO 配置已保存');
+      await configService.saveMinioConfigs(configs, newActiveId);
+      setOriginalActiveId(newActiveId);
+      setActiveIdChanged(false);
+      
+      if (newActiveId === '') {
+        toast.success('已取消激活配置', {
+          description: '当前无激活的 MinIO 配置'
+        });
+      } else {
+        const configName = configs.find(c => c.id === id)?.name || '未命名配置';
+        toast.success(`已激活: ${configName}`, {
+          description: '配置已立即生效'
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      setActiveId(oldActiveId);
+      toast.error('激活配置失败', {
+        description: '请检查网络连接后重试'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveConfigs = async (silent = false) => {
+    setLoading(true);
+    try {
+      const finalActiveId = activeIdChanged ? activeId : originalActiveId;
+      
+      await configService.saveMinioConfigs(configs, finalActiveId);
+      
+      setOriginalActiveId(finalActiveId);
+      setActiveIdChanged(false);
+      
+      if (!silent) {
+        const activeConfig = configs.find(c => c.id === finalActiveId);
+        toast.success(`MinIO 配置已保存`, {
+          description: `当前激活 ${activeConfig?.name || '未命名'}`
+        });
+      }
     } catch (error) {
        console.error(error);
-       toast.error('保存 MinIO 配置失败');
+       toast.error('保存 MinIO 配置失败', {
+         description: '请检查网络连接后重试'
+       });
     } finally {
       setLoading(false);
     }
@@ -101,10 +153,19 @@ export function useMinioConfig() {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { id, name, ...rest } = config; 
           const success = await configService.testConnection('minio', rest);
-          if (success) toast.success('连接测试成功！');
-          else toast.error('连接测试失败，请检查配置信息。');
+          if (success) {
+            toast.success(`${config.name} 连接测试成功`, {
+              description: `已验证存储桶 ${config.bucket}`
+            });
+          } else {
+            toast.error(`${config.name} 连接测试失败`, {
+              description: '建议检查 Endpoint、Access Key、Secret Key 和 Bucket 名称'
+            });
+          }
       } catch {
-          toast.error('连接测试发生错误');
+          toast.error('连接测试发生错误', {
+            description: '请检查网络连接后重试'
+          });
       } finally {
           setTesting(false);
       }

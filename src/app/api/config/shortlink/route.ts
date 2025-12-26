@@ -24,9 +24,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { apiUrl, apiKey, autoGenerate, expiresIn } = body;
+    const { apiUrl, apiKey, enabled, expiresIn } = body;
 
-    console.log('Shortlink config received:', { apiUrl, apiKey: apiKey ? '***' : 'empty', autoGenerate, expiresIn });
+    console.log('Shortlink config received:', { apiUrl, apiKey: apiKey ? '***' : 'empty', enabled, expiresIn });
 
     if (!apiUrl || !apiKey) {
       console.error('Validation failed - apiUrl:', apiUrl, 'apiKey:', apiKey ? 'present' : 'missing');
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     const configValue = JSON.stringify({
       apiUrl,
       apiKey,
-      autoGenerate: autoGenerate !== false, // Default to true
+      enabled: enabled !== false, // Default to true
       expiresIn: expiresIn || 0, // Default to 0 (永久)
     });
 

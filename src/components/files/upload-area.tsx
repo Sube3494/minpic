@@ -45,7 +45,9 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
            toast.info(`已捕获粘贴板文件: ${files[0].name}`);
        } else {
            // Text was pasted?
-           toast.info('暂仅支持粘贴上传图片文件 (截图)');
+           toast.info('暂仅支持粘贴图片文件', {
+             description: '请使用截图工具或选择文件上传'
+           });
        }
     } else {
        // It has image, let the logic above (files check) handle it, or handle items directly.
@@ -53,8 +55,10 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
        if (files && files.length > 0) {
           e.preventDefault();
           e.stopPropagation();
-          uploadFiles(files, selectedConfigId);
-          toast.info(`正在上传粘贴板图片...`);
+           uploadFiles(files, selectedConfigId);
+           toast.info('正在上传粘贴板图片', {
+             description: `${files.length} 个文件已添加到队列`
+           });
        }
     }
   };

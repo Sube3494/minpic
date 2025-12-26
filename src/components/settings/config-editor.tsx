@@ -1,4 +1,4 @@
-import { MinioConfigItem } from '@/types/config';
+﻿import { MinioConfigItem } from '@/types/config';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,28 +10,43 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-import { Check, Trash2, RefreshCw, Loader2, Info, ChevronDown, Server, Calendar, Shield, SkipForward, Copy, FileWarning } from 'lucide-react';
+import { Check, Trash2, RefreshCw, Loader2, Info, ChevronDown, Server, PlugZap, Shield, FolderTree, Settings2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import { useState, useRef, useEffect } from 'react';
 
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ConfigEditorProps {
   config: MinioConfigItem;
-  isActive: boolean;
   canDelete: boolean;
   isSyncing: boolean;
   isTesting: boolean;
   onUpdate: (updates: Partial<MinioConfigItem>) => void;
-  onActivate: (id: string) => void;
   onDelete: (id: string) => void;
   onSync: (id: string) => void;
   onTest: () => void;
 }
 
 export function ConfigEditor({ 
-  config, isActive, canDelete, isSyncing, isTesting,
-  onUpdate, onActivate, onDelete, onSync, onTest 
+  config, canDelete, isSyncing, isTesting,
+  onUpdate, onDelete, onSync, onTest 
 }: ConfigEditorProps) {
+  const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
+  const advancedRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll when advanced options expand
+  useEffect(() => {
+    if (isAdvancedExpanded && advancedRef.current) {
+      // Use a slightly longer delay to ensure the animation has meaningful progress
+      const timer = setTimeout(() => {
+        advancedRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [isAdvancedExpanded]);
   
   if (!config) {
     return (
@@ -52,7 +67,7 @@ export function ConfigEditor({
   }
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence>
       <motion.div
         key={config.id}
         initial={{ opacity: 0, scale: 0.98 }}
@@ -61,23 +76,13 @@ export function ConfigEditor({
         transition={{ duration: 0.2 }}
       >
     <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20">
-      <CardHeader className="border-b border-zinc-200 dark:border-white/5 pb-6">
+      <CardHeader className="pb-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
             <CardTitle className="text-xl md:text-2xl text-zinc-800 dark:text-zinc-100 truncate">编辑配置</CardTitle>
             <CardDescription className="text-zinc-500 dark:text-zinc-400 truncate">更新 {config.name} 的连接详情</CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {!isActive ? (
-              <Button size="sm" variant="secondary" onClick={() => onActivate(config.id)} className="h-8 md:h-9 hover:bg-zinc-200 dark:hover:bg-white/10 text-[10px] md:text-xs">
-                <Check className="w-3.5 h-3.5 mr-1.5" /> 设为激活
-              </Button>
-            ) : (
-              <Button size="sm" variant="default" disabled className="h-8 md:h-9 bg-green-100 text-green-700 dark:bg-green-600/20 dark:text-green-500 opacity-100 text-[10px] md:text-xs">
-                <Check className="w-3.5 h-3.5 mr-1.5" /> 当前使用中
-              </Button>
-            )}
-             
             <Button 
               size="sm" 
               variant="outline"
@@ -91,9 +96,20 @@ export function ConfigEditor({
              
             <Button 
               size="sm" 
+              variant="outline"
+              onClick={onTest}
+              disabled={isTesting}
+              className="h-8 md:h-9 hover:bg-zinc-100 dark:hover:bg-white/10 text-[10px] md:text-xs"
+            >
+              {isTesting ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <PlugZap className="w-3.5 h-3.5 mr-1.5" />}
+              测试连接
+            </Button>
+
+            <Button 
+              size="sm" 
               variant="destructive" 
               onClick={() => onDelete(config.id)}
-              disabled={!canDelete || isActive}
+              disabled={!canDelete}
               className="h-8 w-8 md:h-9 md:w-9 p-0"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -101,10 +117,10 @@ export function ConfigEditor({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6 pt-6 bg-white/50 dark:bg-transparent">
+      <CardContent className="space-y-4 pt-2">
         {/* Alias */}
         <div className="space-y-2">
-          <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">配置名称 (别名)</Label>
+          <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">配置名称 (别名) <span className="text-red-500">*</span></Label>
           <Input 
             value={config.name} 
             onChange={(e) => onUpdate({ name: e.target.value })}
@@ -118,7 +134,7 @@ export function ConfigEditor({
         {/* Server & Port */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
           <div className="md:col-span-8 space-y-2">
-            <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">服务器地址 (Endpoint)</Label>
+            <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">服务器地址 (Endpoint) <span className="text-red-500">*</span></Label>
             <Input 
               value={config.endpoint} 
               onChange={(e) => onUpdate({ endpoint: e.target.value })}
@@ -130,8 +146,11 @@ export function ConfigEditor({
             <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">端口 (Port)</Label>
             <Input 
               type="number"
-              value={config.port}
-              onChange={(e) => onUpdate({ port: parseInt(e.target.value) || 9000 })}
+              value={config.port ?? ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                onUpdate({ port: val === '' ? undefined : (parseInt(val) || 9000) });
+              }}
               placeholder="9000"
               className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
@@ -141,7 +160,7 @@ export function ConfigEditor({
         {/* Keys */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-2">
-            <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">Access Key</Label>
+            <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">Access Key <span className="text-red-500">*</span></Label>
             <Input 
               value={config.accessKey} 
               onChange={(e) => onUpdate({ accessKey: e.target.value })}
@@ -150,7 +169,7 @@ export function ConfigEditor({
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">Secret Key</Label>
+            <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">Secret Key <span className="text-red-500">*</span></Label>
             <Input 
               type="password"
               value={config.secretKey} 
@@ -164,7 +183,7 @@ export function ConfigEditor({
         {/* Bucket & Region */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-2">
-            <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">Bucket 名称</Label>
+            <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">Bucket 名称 <span className="text-red-500">*</span></Label>
             <Input 
               value={config.bucket} 
               onChange={(e) => onUpdate({ bucket: e.target.value })}
@@ -186,168 +205,261 @@ export function ConfigEditor({
         <div className="h-px bg-zinc-200 dark:bg-white/5 my-6" />
         
         {/* Advanced Settings */}
-        <div className="space-y-6">
-          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-500 ml-1">高级配置选项</h3>
-          
-          <div className="space-y-2">
-            <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">自定义访问域名 (可选)</Label>
-            <Input 
-              value={config.customDomain || ''} 
-              onChange={(e) => onUpdate({ customDomain: e.target.value })}
-              placeholder="https://img.example.com"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
-            />
-            <p className="text-[10px] text-muted-foreground ml-1">生成的链接将优先使用此域名 (适用于 CDN 或反向代理)。</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="space-y-2">
-              <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">对象存放目录 (可选)</Label>
-              <Input 
-                value={config.baseDir || ''} 
-                onChange={(e) => onUpdate({ baseDir: e.target.value })}
-                placeholder="uploads"
-                className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
-              />
-            </div>
-            <div className="space-y-2">
-                <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">归档设置</Label>
-                <div className="flex items-center justify-between px-3 h-11 rounded-2xl border border-zinc-200 dark:border-white/5 bg-white dark:bg-zinc-950/20 shadow-sm hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400">
-                      <Calendar className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-zinc-700 dark:text-zinc-200 leading-none mb-0.5">自动归档</span>
-                      <span className="text-[9px] text-muted-foreground leading-none">按日期分类存储</span>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={config.autoArchive || false}
-                    onCheckedChange={(checked: boolean) => onUpdate({ autoArchive: checked })}
-                    className="data-[state=checked]:bg-primary scale-90 origin-right"
-                  />
-                </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="space-y-2">
-              <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1 flex items-center gap-2">
-                同名文件冲突策略
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    选择当上传的文件在存储桶中已存在时的操作
-                  </TooltipContent>
-                </Tooltip>
-              </Label>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 h-11 px-3 font-normal shadow-sm group"
-                  >
-                    <div className="flex items-center gap-2">
-                       {config.duplicateHandling === 'skip' && <SkipForward className="w-4 h-4 text-zinc-500" />}
-                       {config.duplicateHandling === 'overwrite' && <FileWarning className="w-4 h-4 text-zinc-500" />}
-                       {(config.duplicateHandling === 'keep-both' || !config.duplicateHandling) && <Copy className="w-4 h-4 text-zinc-500" />}
-                       <span className="text-sm text-zinc-700 dark:text-zinc-200">
-                        {config.duplicateHandling === 'skip' && '跳过 (Skip)'}
-                        {config.duplicateHandling === 'overwrite' && '覆盖 (Overwrite)'}
-                        {(config.duplicateHandling === 'keep-both' || !config.duplicateHandling) && '保留两者 (Keep Both)'}
-                      </span>
-                    </div>
-                    <ChevronDown className="w-4 h-4 text-zinc-400 transition-transform group-data-[state=open]:rotate-180" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent 
-                  align="start" 
-                  sideOffset={4}
-                  style={{ width: 'var(--radix-dropdown-menu-trigger-width)' }}
-                  className="glass-strong border-zinc-200/50 dark:border-white/10 p-1.5 shadow-xl bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl"
-                >
-                    <DropdownMenuItem 
-                        onClick={() => onUpdate({ duplicateHandling: 'skip' })}
-                        className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
-                    >
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-zinc-100 dark:bg-white/5 text-zinc-500">
-                            <SkipForward className="w-4 h-4" />
-                        </div>
-                        <div className="flex flex-col flex-1">
-                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">跳过 (Skip)</span>
-                            <span className="text-[10px] text-zinc-500">如果文件已存在，则不进行上传</span>
-                        </div>
-                        {config.duplicateHandling === 'skip' && <Check className="w-4 h-4 text-primary" />}
-                    </DropdownMenuItem>
-
-                    <DropdownMenuItem 
-                        onClick={() => onUpdate({ duplicateHandling: 'overwrite' })}
-                        className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
-                    >
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 dark:bg-red-500/10 text-red-500 dark:text-red-400">
-                            <FileWarning className="w-4 h-4" />
-                        </div>
-                        <div className="flex flex-col flex-1">
-                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">覆盖 (Overwrite)</span>
-                            <span className="text-[10px] text-zinc-500">强制覆盖已存在的同名文件</span>
-                        </div>
-                        {config.duplicateHandling === 'overwrite' && <Check className="w-4 h-4 text-primary" />}
-                    </DropdownMenuItem>
-
-                    <DropdownMenuItem 
-                        onClick={() => onUpdate({ duplicateHandling: 'keep-both' })}
-                        className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
-                    >
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400">
-                            <Copy className="w-4 h-4" />
-                        </div>
-                        <div className="flex flex-col flex-1">
-                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">保留两者 (Keep Both)</span>
-                            <span className="text-[10px] text-zinc-500">自动重命名新文件以避免冲突</span>
-                        </div>
-                        {(config.duplicateHandling === 'keep-both' || !config.duplicateHandling) && <Check className="w-4 h-4 text-primary" />}
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            <div className="space-y-2">
-                <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">安全连接</Label>
-                <div className="flex items-center justify-between px-3 h-11 rounded-2xl border border-zinc-200 dark:border-white/5 bg-white dark:bg-zinc-950/20 shadow-sm hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center w-7 h-7 rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400">
-                      <Shield className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-zinc-700 dark:text-zinc-200 leading-none mb-0.5">SSL 加密</span>
-                      <span className="text-[9px] text-muted-foreground leading-none">启用 HTTPS</span>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={config.useSSL}
-                    onCheckedChange={(checked: boolean) => onUpdate({ useSSL: checked })}
-                    className="data-[state=checked]:bg-primary scale-90 origin-right"
-                  />
-                </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="pt-4">
-          <Button 
-            variant="outline" 
-            className="w-full h-11 bg-white dark:bg-white/10 border-zinc-200 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-white/20 active:scale-[0.99] transition-all font-bold shadow-sm"
-            onClick={onTest}
-            disabled={isTesting}
+        <div className="space-y-4" ref={advancedRef}>
+          <button 
+            onClick={() => setIsAdvancedExpanded(!isAdvancedExpanded)}
+            className="group flex items-center justify-between w-full p-1.5 rounded-xl hover:bg-zinc-100/50 dark:hover:bg-white/5 transition-all duration-300 border border-transparent hover:border-zinc-200/50 dark:hover:border-white/5"
           >
-            {isTesting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            测试 MinIO 连接有效性
-          </Button>
+            <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400 group-hover:bg-primary/10 group-hover:text-primary transition-all duration-300">
+                <Settings2 className="w-4 h-4" />
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400 tracking-wide">高级配置</span>
+                <span className="text-[9px] text-zinc-400 dark:text-zinc-500 font-medium tracking-tight">自定义域名、归档与策略</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 pr-1">
+              <span className="text-[10px] font-bold text-zinc-400 group-hover:text-primary transition-colors">
+                {isAdvancedExpanded ? '收起详情' : '展开选项'}
+              </span>
+              <div className="flex items-center justify-center w-5 h-5 rounded-full border border-zinc-200 dark:border-white/10 group-hover:border-primary/30 transition-colors">
+                <motion.div
+                  animate={{ rotate: isAdvancedExpanded ? 180 : 0 }}
+                  transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                >
+                  <ChevronDown className="w-3 h-3 text-zinc-400 group-hover:text-primary" />
+                </motion.div>
+              </div>
+            </div>
+          </button>
         </div>
+
+        <div className="relative">
+          <AnimatePresence initial={false}>
+            {isAdvancedExpanded && (
+              <motion.div
+                key="advanced"
+                initial="collapsed"
+                animate="expanded"
+                exit="collapsed"
+                variants={{
+                  expanded: { height: 'auto', opacity: 1 },
+                  collapsed: { height: 0, opacity: 0 }
+                }}
+                transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                className="overflow-hidden"
+              >
+                <div className="space-y-6 pt-4 pb-4 px-1">
+                  <div className="space-y-2">
+                    <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1 flex items-center gap-2">
+                      自定义访问域名 (可选)
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-3.5 h-3.5 text-muted-foreground/70 hover:text-primary transition-colors cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          生成的链接将优先使用此域名 (适用于 CDN 或反向代理)
+                        </TooltipContent>
+                      </Tooltip>
+                    </Label>
+                    <Input 
+                      value={config.customDomain || ''} 
+                      onChange={(e) => onUpdate({ customDomain: e.target.value })}
+                      placeholder="https://img.example.com"
+                      className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1 flex items-center gap-2">
+                        对象存放目录 (可选)
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="w-3.5 h-3.5 text-muted-foreground/70 hover:text-primary transition-colors cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            指定文件上传到 MinIO 存储桶中的子目录
+                          </TooltipContent>
+                        </Tooltip>
+                      </Label>
+                      <Input 
+                        value={config.baseDir || ''} 
+                        onChange={(e) => onUpdate({ baseDir: e.target.value })}
+                        placeholder="uploads"
+                        className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">归档设置</Label>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 h-11 px-3 font-normal shadow-sm group"
+                            >
+                              <div className="flex items-center gap-2">
+                                <FolderTree className="w-4 h-4 text-zinc-500" />
+                                <span className="text-sm text-zinc-700 dark:text-zinc-200">
+                                  {config.archiveStrategy === 'none' && '不归档'}
+                                  {config.archiveStrategy === 'year' && '按年归档 (YYYY)'}
+                                  {config.archiveStrategy === 'month' && '按月归档 (YYYY/MM)'}
+                                  {config.archiveStrategy === 'day' && '按日归档 (YYYY/MM/DD)'}
+                                  {!config.archiveStrategy && '不归档'}
+                                </span>
+                              </div>
+                              <ChevronDown className="w-4 h-4 text-zinc-400 transition-transform group-data-[state=open]:rotate-180" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent 
+                            align="start" 
+                            sideOffset={4}
+                            style={{ width: 'var(--radix-dropdown-menu-trigger-width)' }}
+                            className="border border-zinc-200/50 dark:border-white/10 p-1.5 shadow-2xl bg-white/80 dark:bg-zinc-900/70 backdrop-blur-2xl rounded-xl"
+                          >
+                            {[
+                              { value: 'none', label: '不归档', desc: '文件直接存放在根目录或指定目录' },
+                              { value: 'year', label: '按年归档', desc: '例如: 2023/filename.jpg' },
+                              { value: 'month', label: '按月归档', desc: '例如: 2023/12/filename.jpg' },
+                              { value: 'day', label: '按日归档', desc: '例如: 2023/12/26/filename.jpg' },
+                            ].map((item) => (
+                              <DropdownMenuItem 
+                                key={item.value}
+                                onClick={() => onUpdate({ archiveStrategy: item.value as 'none' | 'year' | 'month' | 'day' })}
+                                className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
+                              >
+                                <div className="flex flex-col flex-1">
+                                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{item.label}</span>
+                                  <span className="text-[10px] text-zinc-500">{item.desc}</span>
+                                </div>
+                                {(config.archiveStrategy === item.value || (!config.archiveStrategy && item.value === 'none')) && <Check className="w-4 h-4 text-primary" />}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+
+                    {/* File Expiration Days */}
+                    <div className="space-y-2">
+                      <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1 flex items-center gap-2">
+                        文件过期天数
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="w-3.5 h-3.5 text-muted-foreground/70 hover:text-primary transition-colors cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            设置文件自动过期时间，0 表示永不过期
+                          </TooltipContent>
+                        </Tooltip>
+                      </Label>
+                      <Input 
+                        type="number"
+                        min="0"
+                        value={config.expirationDays ?? ''} 
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          // Allow undefined to represent empty input
+                          onUpdate({ expirationDays: val === '' ? undefined : (parseInt(val) || 0) });
+                        }}
+                        placeholder="0"
+                        className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1 flex items-center gap-2">
+                        同名文件冲突策略
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="w-3.5 h-3.5 text-muted-foreground/70 hover:text-primary transition-colors cursor-help" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            选择当上传的文件在存储桶中已存在时的操作
+                          </TooltipContent>
+                        </Tooltip>
+                      </Label>
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 h-11 px-3 font-normal shadow-sm group"
+                          >
+                            <span className="text-sm text-zinc-700 dark:text-zinc-200">
+                                {config.duplicateHandling === 'skip' && '跳过 (Skip)'}
+                                {config.duplicateHandling === 'overwrite' && '覆盖 (Overwrite)'}
+                                {(config.duplicateHandling === 'keep-both' || !config.duplicateHandling) && '保留两者 (Keep Both)'}
+                            </span>
+                            <ChevronDown className="w-4 h-4 text-zinc-400 transition-transform group-data-[state=open]:rotate-180" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent 
+                          align="start" 
+                          sideOffset={4}
+                          style={{ width: 'var(--radix-dropdown-menu-trigger-width)' }}
+                          className="border border-zinc-200/50 dark:border-white/10 p-1.5 shadow-2xl bg-white/80 dark:bg-zinc-900/70 backdrop-blur-2xl rounded-xl"
+                        >
+                            <DropdownMenuItem 
+                                onClick={() => onUpdate({ duplicateHandling: 'skip' })}
+                                className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
+                            >
+                                <div className="flex flex-col flex-1">
+                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">跳过 (Skip)</span>
+                                    <span className="text-[10px] text-zinc-500">如果文件已存在，则不进行上传</span>
+                                </div>
+                                {config.duplicateHandling === 'skip' && <Check className="w-4 h-4 text-primary" />}
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem 
+                                onClick={() => onUpdate({ duplicateHandling: 'overwrite' })}
+                                className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
+                            >
+                                <div className="flex flex-col flex-1">
+                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">覆盖 (Overwrite)</span>
+                                    <span className="text-[10px] text-zinc-500">强制覆盖已存在的同名文件</span>
+                                </div>
+                                {config.duplicateHandling === 'overwrite' && <Check className="w-4 h-4 text-primary" />}
+                            </DropdownMenuItem>
+
+                            <DropdownMenuItem 
+                                onClick={() => onUpdate({ duplicateHandling: 'keep-both' })}
+                                className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
+                            >
+                                <div className="flex flex-col flex-1">
+                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">保留两者 (Keep Both)</span>
+                                    <span className="text-[10px] text-zinc-500">自动重命名新文件以避免冲突</span>
+                                </div>
+                                {(config.duplicateHandling === 'keep-both' || !config.duplicateHandling) && <Check className="w-4 h-4 text-primary" />}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">安全连接</Label>
+                        <div className="flex items-center justify-between px-3 h-11 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 shadow-sm">
+                          <div className="flex items-center gap-2">
+                            <Shield className="w-4 h-4 text-zinc-500" />
+                            <span className="text-sm text-zinc-700 dark:text-zinc-200">SSL 加密 / HTTPS</span>
+                          </div>
+                          <Switch
+                            checked={config.useSSL}
+                            onCheckedChange={(checked: boolean) => onUpdate({ useSSL: checked })}
+                            className="data-[state=checked]:bg-primary scale-90 origin-right"
+                          />
+                        </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
       </CardContent>
     </Card>
       </motion.div>

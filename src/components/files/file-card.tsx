@@ -8,6 +8,23 @@ import { cn } from '@/lib/utils';
 import { formatFileSize } from '@/lib/utils';
 import { FileIcon } from './file-icon';
 
+// 格式化过期时间
+function formatExpiryTime(expiresAt: string | null | undefined): string | null {
+  if (!expiresAt) return null;
+  
+  const expireDate = new Date(expiresAt);
+  const now = new Date();
+  const diffMs = expireDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) return '已过期';
+  if (diffDays === 0) return '今天过期';
+  if (diffDays === 1) return '明天过期';
+  if (diffDays <= 7) return `${diffDays} 天后过期`;
+  if (diffDays <= 30) return `${Math.ceil(diffDays / 7)} 周后过期`;
+  return `${Math.ceil(diffDays / 30)} 个月后过期`;
+}
+
 interface FileCardProps {
   file: FileItem;
   isSelected: boolean;
@@ -87,6 +104,16 @@ export function FileCard({ file, isSelected, toggleSelect, copyShortlink, delete
               <p className="text-white/80 text-[9px] md:text-[11px] mt-0.5 font-medium">
                 {formatFileSize(file.fileSize)}
               </p>
+              {file.expiresAt && (
+                <p className={cn(
+                  "text-[9px] md:text-[10px] mt-0.5 font-medium",
+                  formatExpiryTime(file.expiresAt) === '已过期' 
+                    ? 'text-red-300' 
+                    : 'text-amber-300'
+                )}>
+                  {formatExpiryTime(file.expiresAt)}
+                </p>
+              )}
             </div>
             
             <div className="flex items-center justify-between mt-auto">

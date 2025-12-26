@@ -50,21 +50,9 @@ export default function RootLayout({
               {children}
             </div>
             <Toaster 
-              position="bottom-right" 
-              theme="system"
-              toastOptions={{
-                className: "glass-card border-border/50 shadow-lg",
-                classNames: {
-                  toast: "group toast group-[.toaster]:bg-white/70 dark:group-[.toaster]:bg-zinc-900/70 group-[.toaster]:text-foreground group-[.toaster]:border-border/30 group-[.toaster]:shadow-2xl group-[.toaster]:backdrop-blur-2xl group-[.toaster]:rounded-2xl",
-                  description: "group-[.toast]:text-muted-foreground",
-                  actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
-                  cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
-                  error: "group-[.toaster]:text-red-500 group-[.toaster]:bg-red-500/10 group-[.toaster]:border-red-500/20",
-                  success: "group-[.toaster]:text-emerald-500 group-[.toaster]:bg-emerald-500/10 group-[.toaster]:border-emerald-500/20",
-                  warning: "group-[.toaster]:text-amber-500 group-[.toaster]:bg-amber-500/10 group-[.toaster]:border-amber-500/20",
-                  info: "group-[.toaster]:text-sky-500 group-[.toaster]:bg-sky-500/10 group-[.toaster]:border-sky-500/20",
-                }
-              }}
+              position="top-right"
+              expand={false}
+              richColors={false}
             />
         </ThemeProvider>
       </body>

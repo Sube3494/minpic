@@ -39,7 +39,9 @@ export function useFiles(initialFilter: FilterType = 'all', initialViewMode: Vie
       cache.current[cacheKey] = data;
       setFiles(data);
     } catch {
-      toast.error('加载文件列表失败');
+      toast.error('加载文件列表失败', {
+        description: '请检查网络连接或刷新页面重试'
+      });
     } finally {
       setLoading(false);
     }
@@ -63,13 +65,18 @@ export function useFiles(initialFilter: FilterType = 'all', initialViewMode: Vie
   }, []);
 
   const deleteFile = async (id: string) => {
+    const file = files.find(f => f.id === id);
     try {
       await fileService.deleteFile(id);
       removeFile(id);
-      toast.success('文件已删除');
+      toast.success('文件已删除', {
+        description: file?.filename || '已从存储库中移除'
+      });
       return true;
     } catch {
-      toast.error('删除失败');
+      toast.error('删除失败', {
+        description: file?.filename ? `无法删除 ${file.filename}` : '无法删除文件，请稍后重试'
+      });
       return false;
     }
   };
@@ -82,10 +89,14 @@ export function useFiles(initialFilter: FilterType = 'all', initialViewMode: Vie
         Object.keys(cache.current).forEach(key => {
           cache.current[key] = cache.current[key].filter(f => !ids.includes(f.id));
         });
-        toast.success(`成功删除 ${ids.length} 个文件`);
+        toast.success(`成功删除 ${ids.length} 个文件`, {
+          description: '已从存储库中批量移除'
+        });
         return true;
     } catch {
-        toast.error('批量删除失败');
+        toast.error('批量删除失败', {
+          description: '部分文件可能无法删除，请重试'
+        });
         return false;
     }
   }

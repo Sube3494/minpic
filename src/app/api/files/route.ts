@@ -10,6 +10,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const configId = formData.get('configId') as string;
+    const expiresAtStr = formData.get('expiresAt') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const objectName = await minioService.uploadFile(
+    const { objectName, expiresAt } = await minioService.uploadFile(
       fileBuffer,
       file.name,
       mimeType
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest) {
         width,
         height,
         configId: usedConfigId,
+        expiresAt: expiresAtStr || expiresAt ? new Date(expiresAtStr || expiresAt!) : null,
       },
     });
 
@@ -118,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     if (shortlinkConfig) {
       const slConfig = JSON.parse(shortlinkConfig.value);
-      if (slConfig.autoGenerate) {
+      if (slConfig.enabled) {
         try {
           const fileUrl = await minioService.getFileUrl(objectName);
           const shortlinkService = getShortlinkService();
@@ -181,8 +183,31 @@ export async function GET(request: NextRequest) {
     const fileType = searchParams.get('fileType');
     const search = searchParams.get('search');
 
+    // Determine effective active config ID for strict filtering
+    let filterConfigId: string | undefined = undefined;
+    
+    // Check if we are in multi-config mode
+    const [configsRes, activeIdRes] = await Promise.all([
+      prisma.config.findUnique({ where: { key: 'minio_configs' } }),
+      prisma.config.findUnique({ where: { key: 'minio_active_id' } }),
+    ]);
+
+    if (configsRes && configsRes.value) {
+      // Multi-config mode active
+      const configs = JSON.parse(configsRes.value);
+      if (configs.length > 0) {
+        if (activeIdRes && activeIdRes.value) {
+           filterConfigId = activeIdRes.value;
+        } else {
+           // Fallback to first config if no active ID recorded (default behavior)
+           filterConfigId = configs[0].id;
+        }
+      }
+    }
+
     const where = {
       ...(fileType && { fileType }),
+      ...(filterConfigId !== undefined && { configId: filterConfigId }),
       ...(search && {
         OR: [
           { filename: { contains: search } },
@@ -207,6 +232,7 @@ export async function GET(request: NextRequest) {
           height: true,
           duration: true,
           configId: true,
+          expiresAt: true,
           createdAt: true,
           updatedAt: true,
           // Explicitly exclude thumbnailData as it's too large for list view

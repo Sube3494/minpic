@@ -13,6 +13,7 @@ export interface FileItem {
   shortlinkCode: string | null;
   createdAt: string;
   updatedAt?: string;
+  expiresAt?: string | null; // 文件过期时间 (ISO 字符串)
 }
 
 export interface UploadTask {

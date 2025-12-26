@@ -169,11 +169,10 @@
     --ring: hsl(221 83% 53%);
     
     /* Charts - Cool Spectrum */
-    --chart-1: hsl(221 83% 53%);
-    --chart-2: hsl(199 89% 48%);
-    --chart-3: hsl(173 58% 39%);
-    --chart-4: hsl(262 83% 58%); /* Kept slightly purple for chart variety only */
     --chart-5: hsl(340 75% 55%);
+    
+    /* Premium Focus States - Using color-mix for reliability */
+    --focus-shadow: 0 0 0 4px color-mix(in srgb, var(--primary), transparent 90%), 0 0 0 1px color-mix(in srgb, var(--primary), transparent 60%);
   }
 
   .dark {
@@ -213,6 +212,9 @@
     --chart-3: hsl(160 84% 39%);
     --chart-4: hsl(280 65% 60%);
     --chart-5: hsl(340 75% 55%);
+    
+    /* Vibrant Focus for Dark Mode - Stronger glow */
+    --focus-shadow: 0 0 0 4px color-mix(in srgb, var(--primary), transparent 80%), 0 0 0 1px color-mix(in srgb, var(--primary), transparent 40%), 0 0 12px color-mix(in srgb, var(--primary), transparent 70%);
   }
 }
 

@@ -16,7 +16,7 @@ export default function HomePage() {
         
         <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-medium animate-in fade-in slide-in-from-bottom-2 duration-500">
           <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary animate-pulse" />
-          <span className="bg-gradient-to-r from-primary via-blue-500 to-purple-500 bg-clip-text text-transparent">
+          <span className="bg-linear-to-r from-primary via-blue-500 to-purple-500 bg-clip-text text-transparent">
             新一代图床解决方案
           </span>
         </div>

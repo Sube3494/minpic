@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMinioConfig } from '@/hooks/use-minio-config';
@@ -33,7 +34,17 @@ export default function SettingsPage() {
   const loading = minioLoading || slLoading;
 
   const handleSaveAll = async () => {
-    await Promise.all([saveConfigs(), saveShortlinkConfig()]);
+    try {
+      await Promise.all([
+        saveConfigs(true), 
+        saveShortlinkConfig(true)
+      ]);
+      toast.success('所有配置已保存', {
+        description: 'MinIO 和短链服务配置已更新'
+      });
+    } catch {
+       // Error handled in hooks
+    }
   };
 
   const handleSyncClick = (id: string) => {
@@ -75,9 +86,9 @@ export default function SettingsPage() {
              <Button 
                 onClick={handleSaveAll} 
                 disabled={loading} 
-                className="h-9 md:h-11 rounded-full px-4 md:px-6 bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all text-xs md:text-sm font-bold"
+                className="h-9 md:h-11 rounded-full px-4 md:px-6 bg-linear-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white shadow-[0_0_20px_-5px_rgba(37,99,235,0.4)] hover:shadow-[0_0_25px_-5px_rgba(37,99,235,0.6)] border border-blue-400/20 hover:scale-105 active:scale-95 transition-all duration-300 text-xs md:text-sm font-bold tracking-wide"
              >
-                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2 stroke-[2.5]" />}
                 保存更改
               </Button>
           </div>
@@ -127,6 +138,7 @@ export default function SettingsPage() {
                         selectedId={selectedId}
                         onSelect={setSelectedId}
                         onCreate={createConfig}
+                        onActivate={activateConfig}
                     />
 
                     {/* Shortlink Section - Only visible on desktop */}
@@ -145,12 +157,10 @@ export default function SettingsPage() {
                     {selectedConfig && (
                         <ConfigEditor 
                             config={selectedConfig}
-                            isActive={activeId === selectedConfig.id}
-                            canDelete={configs.length > 1}
+                            canDelete={true}
                             isSyncing={syncing}
                             isTesting={minioTesting}
                             onUpdate={updateSelectedConfig}
-                            onActivate={activateConfig}
                             onDelete={deleteConfig}
                             onSync={handleSyncClick}
                             onTest={testMinioConnection}

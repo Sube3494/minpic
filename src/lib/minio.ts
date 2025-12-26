@@ -11,7 +11,8 @@ export interface MinioConfig {
   customDomain?: string;
   duplicateHandling?: 'skip' | 'overwrite' | 'keep-both'; // 同名文件处理
   baseDir?: string;
-  autoArchive?: boolean;
+  archiveStrategy?: 'none' | 'year' | 'month' | 'day';
+  expirationDays?: number; // 文件过期天数
 }
 
 export class MinioService {
@@ -40,7 +41,7 @@ export class MinioService {
     file: Buffer,
     filename: string,
     mimeType: string
-  ): Promise<string> {
+  ): Promise<{ objectName: string; expiresAt: string | null }> {
     if (!this.client || !this.config) {
       throw new Error('MinIO client not initialized');
     }
@@ -52,12 +53,20 @@ export class MinioService {
         objectPath += `${this.config.baseDir}/`;
     }
 
-    // Handle autoArchive
-    if (this.config.autoArchive) {
+    // Handle archiveStrategy
+    if (this.config.archiveStrategy && this.config.archiveStrategy !== 'none') {
         const date = new Date();
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
-        objectPath += `${year}/${month}/`;
+        const day = String(date.getDate()).padStart(2, '0');
+        
+        if (this.config.archiveStrategy === 'year') {
+            objectPath += `${year}/`;
+        } else if (this.config.archiveStrategy === 'month') {
+            objectPath += `${year}/${month}/`;
+        } else if (this.config.archiveStrategy === 'day') {
+            objectPath += `${year}/${month}/${day}/`;
+        }
     }
 
     // Clean filename - remove unsafe characters but keep Unicode (Chinese, etc.)
@@ -101,7 +110,15 @@ export class MinioService {
       }
     );
 
-    return objectName;
+    // Calculate expiration date
+    let expiresAt: string | null = null;
+    if (this.config.expirationDays && this.config.expirationDays > 0) {
+      const expireDate = new Date();
+      expireDate.setDate(expireDate.getDate() + this.config.expirationDays);
+      expiresAt = expireDate.toISOString();
+    }
+
+    return { objectName, expiresAt };
   }
 
   async getFileUrl(objectName: string): Promise<string> {

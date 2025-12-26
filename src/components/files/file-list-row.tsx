@@ -13,6 +13,23 @@ import { Button } from '@/components/ui/button';
 import { cn, formatFileSize } from '@/lib/utils'; 
 import { FileIcon } from './file-icon'; 
 
+// 格式化过期时间
+function formatExpiryTime(expiresAt: string | null | undefined): string | null {
+  if (!expiresAt) return null;
+  
+  const expireDate = new Date(expiresAt);
+  const now = new Date();
+  const diffMs = expireDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) return '已过期';
+  if (diffDays === 0) return '今天过期';
+  if (diffDays === 1) return '明天过期';
+  if (diffDays <= 7) return `${diffDays} 天后过期`;
+  if (diffDays <= 30) return `${Math.ceil(diffDays / 7)} 周后过期`;
+  return `${Math.ceil(diffDays / 30)} 个月后过期`;
+}
+
 interface FileListRowProps {
   file: FileItem;
   isSelected: boolean;
@@ -70,6 +87,17 @@ export function FileListRow({ file, isSelected, toggleSelect, copyShortlink, del
             <span className="truncate">{file.fileType}</span>
             <span className="opacity-30 hidden sm:inline">•</span>
             <span className="hidden sm:inline">{new Date(file.createdAt).toLocaleDateString('zh-CN')}</span>
+            {file.expiresAt && (
+              <>
+                <span className="opacity-30 hidden md:inline">•</span>
+                <span className={cn(
+                  "hidden md:inline",
+                  formatExpiryTime(file.expiresAt) === '已过期' ? 'text-red-500' : 'text-amber-500'
+                )}>
+                  {formatExpiryTime(file.expiresAt)}
+                </span>
+              </>
+            )}
           </div>
         </div>
 

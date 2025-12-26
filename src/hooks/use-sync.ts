@@ -20,15 +20,21 @@ export function useSync() {
           imported: data.imported,
           skipped: data.skipped,
         });
-        toast.success(`同步完成！共 ${data.total} 个文件，导入 ${data.imported} 个，跳过 ${data.skipped} 个`);
+        toast.success('同步完成', {
+          description: `共扫描 ${data.total} 个文件，导入 ${data.imported} 个，跳过 ${data.skipped} 个`
+        });
         return true;
       } else {
-        toast.error(data.error || '同步失败');
+        toast.error('同步失败', {
+          description: data.error || '请检查存储配置和网络连接'
+        });
         return false;
       }
     } catch (error) {
       console.error(error);
-      toast.error('同步时发生错误');
+      toast.error('同步时发生错误', {
+        description: '请检查网络连接和 MinIO 配置'
+      });
       return false;
     } finally {
       setSyncing(false);
