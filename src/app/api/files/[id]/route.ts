@@ -34,6 +34,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const { searchParams } = new URL(request.url);
+    const deleteMode = searchParams.get('deleteMode') || 'record-only'; // 'full' | 'record-only'
+    
     const file = await prisma.file.findUnique({
       where: { id },
     });
@@ -69,11 +72,12 @@ export async function DELETE(
       }
     }
 
-    if (config) {
+    // Only delete MinIO files if mode is 'full'
+    if (deleteMode === 'full' && config) {
       const minioService = getMinioService();
       await minioService.connect(config);
 
-      const minioDeletePromises = []; // Restore this line
+      const minioDeletePromises = [];
 
       // Delete main file
       minioDeletePromises.push(
@@ -82,11 +86,7 @@ export async function DELETE(
         })
       );
       
-      // Thumbnail is now stored in DB (cascade delete) or was separate path. 
-      // For legacy files with thumbnailPath, we ideally should delete from MinIO too.
-      // But user asked to "delete together" implying DB delete handles it.
-      // I will keep the legacy deletion for `thumbnailPath` just in case, 
-      // but `thumbnailData` in DB needs no extra action.
+      // Delete legacy thumbnail if exists
       if (file.thumbnailPath) {
         minioDeletePromises.push(
           minioService.deleteFile(file.thumbnailPath).catch(error => {
@@ -98,10 +98,10 @@ export async function DELETE(
       await Promise.all(minioDeletePromises);
     }
 
-    // Delete shortlink if exists (parallel with database delete)
+    // Delete shortlink if exists and mode is 'full' (parallel with database delete)
     const deletePromises = [];
     
-    if (file.shortlinkCode) {
+    if (deleteMode === 'full' && file.shortlinkCode) {
       const shortlinkDeletePromise = (async () => {
         const shortlinkConfig = await prisma.config.findUnique({
           where: { key: 'shortlink_default' },

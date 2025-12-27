@@ -19,9 +19,16 @@ export function useSync() {
           total: data.total,
           imported: data.imported,
           skipped: data.skipped,
+          shortlinksCreated: data.shortlinksCreated,
+          shortlinksFailed: data.shortlinksFailed,
         });
+        
+        const shortlinkMsg = data.shortlinksCreated 
+          ? `，生成短链 ${data.shortlinksCreated} 个${data.shortlinksFailed ? `（失败 ${data.shortlinksFailed} 个）` : ''}` 
+          : '';
+        
         toast.success('同步完成', {
-          description: `共扫描 ${data.total} 个文件，导入 ${data.imported} 个，跳过 ${data.skipped} 个`
+          description: `共扫描 ${data.total} 个文件，导入 ${data.imported} 个，跳过 ${data.skipped} 个${shortlinkMsg}`
         });
         return true;
       } else {

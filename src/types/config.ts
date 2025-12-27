@@ -26,6 +26,8 @@ export interface SyncProgress {
   total: number;
   imported: number;
   skipped: number;
+  shortlinksCreated?: number;
+  shortlinksFailed?: number;
 }
 
 export const DEFAULT_MINIO_CONFIG: Omit<MinioConfigItem, 'id' | 'name'> = {

@@ -18,13 +18,13 @@ export const fileService = {
     return response.json();
   },
 
-  async deleteFile(id: string): Promise<void> {
-    const response = await fetch(`/api/files/${id}`, { method: 'DELETE' });
+  async deleteFile(id: string, deleteMode: 'full' | 'record-only' = 'record-only'): Promise<void> {
+    const response = await fetch(`/api/files/${id}?deleteMode=${deleteMode}`, { method: 'DELETE' });
     if (!response.ok) throw new Error('Failed to delete file');
   },
 
-  async batchDeleteFiles(ids: string[]): Promise<void> {
-    const response = await fetch('/api/files', {
+  async batchDeleteFiles(ids: string[], deleteMode: 'full' | 'record-only' = 'record-only'): Promise<void> {
+    const response = await fetch(`/api/files?deleteMode=${deleteMode}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids }),

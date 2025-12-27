@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { FileItem } from '@/types/file';
 import Image from 'next/image';
-import { CheckCircle2, Circle, Copy, Link2, Trash2 } from 'lucide-react';
+import { Check, Copy, Link2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -65,12 +65,13 @@ export function FileCard({ file, isSelected, toggleSelect, copyShortlink, delete
           "absolute top-2 right-2 z-30 transition-all duration-300",
           isSelected ? "opacity-100 scale-100" : "opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100"
         )}>
-          <div className="bg-black/20 backdrop-blur-md rounded-full p-1 border border-white/20">
-            {isSelected ? (
-              <CheckCircle2 className="w-4 h-4 text-primary fill-primary/20" />
-            ) : (
-              <Circle className="w-4 h-4 text-white/80" />
-            )}
+          <div className={cn(
+            "rounded-full p-1 transition-all duration-200 flex items-center justify-center backdrop-blur-sm",
+            isSelected 
+              ? "bg-primary text-primary-foreground shadow-sm scale-110" 
+              : "bg-black/20 border border-white/50 hover:bg-black/40 hover:border-white text-transparent"
+          )}>
+            <Check className="w-3.5 h-3.5" strokeWidth={3} />
           </div>
         </div>
 

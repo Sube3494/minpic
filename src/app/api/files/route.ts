@@ -263,7 +263,11 @@ export async function GET(request: NextRequest) {
 }
 export async function DELETE(request: NextRequest) {
   try {
-    const { ids } = await request.json();
+    const body = await request.json();
+    const { ids } = body;
+    const { searchParams } = new URL(request.url);
+    const deleteMode = searchParams.get('deleteMode') || 'record-only'; // 'full' | 'record-only'
+    
     if (!Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ error: 'No IDs provided' }, { status: 400 });
     }
@@ -284,54 +288,58 @@ export async function DELETE(request: NextRequest) {
       groups[cid].push(f);
     }
 
-    // Step 2: Delete from MinIO per group
-    for (const [configId, groupFiles] of Object.entries(groups)) {
-      try {
-        let config = null;
-        if (configId === 'minio_default') {
-          const dc = await prisma.config.findUnique({ where: { key: 'minio_default' } });
-          if (dc) config = JSON.parse(dc.value);
-        } else {
-          const mc = await prisma.config.findUnique({ where: { key: 'minio_configs' } });
-          if (mc) {
-            const list = JSON.parse(mc.value);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            config = list.find((c: any) => c.id === configId);
-          }
-        }
-
-        if (config) {
-          const minioService = new MinioService();
-          await minioService.connect(config);
-          
-          const deleteBatch = [];
-          for (const f of groupFiles) {
-            deleteBatch.push(minioService.deleteFile(f.minioPath).catch(() => {}));
-            if (f.thumbnailPath && f.thumbnailPath !== 'database') {
-              deleteBatch.push(minioService.deleteFile(f.thumbnailPath).catch(() => {}));
+    // Step 2: Delete from MinIO per group (only if mode is 'full')
+    if (deleteMode === 'full') {
+      for (const [configId, groupFiles] of Object.entries(groups)) {
+        try {
+          let config = null;
+          if (configId === 'minio_default') {
+            const dc = await prisma.config.findUnique({ where: { key: 'minio_default' } });
+            if (dc) config = JSON.parse(dc.value);
+          } else {
+            const mc = await prisma.config.findUnique({ where: { key: 'minio_configs' } });
+            if (mc) {
+              const list = JSON.parse(mc.value);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              config = list.find((c: any) => c.id === configId);
             }
           }
-          await Promise.all(deleteBatch);
+
+          if (config) {
+            const minioService = new MinioService();
+            await minioService.connect(config);
+            
+            const deleteBatch = [];
+            for (const f of groupFiles) {
+              deleteBatch.push(minioService.deleteFile(f.minioPath).catch(() => {}));
+              if (f.thumbnailPath && f.thumbnailPath !== 'database') {
+                deleteBatch.push(minioService.deleteFile(f.thumbnailPath).catch(() => {}));
+              }
+            }
+            await Promise.all(deleteBatch);
+          }
+        } catch (err) {
+          console.error(`Failed to delete MinIO group ${configId}:`, err);
         }
-      } catch (err) {
-        console.error(`Failed to delete MinIO group ${configId}:`, err);
       }
     }
 
-    // Step 3: Delete shortlinks and DB records
-    const shortlinkCodes = files.filter(f => f.shortlinkCode).map(f => f.shortlinkCode!);
-    if (shortlinkCodes.length > 0) {
-      try {
-        const sc = await prisma.config.findUnique({ where: { key: 'shortlink_default' } });
-        if (sc) {
-          const slConfig = JSON.parse(sc.value);
-          const service = getShortlinkService();
-          service.setConfig(slConfig);
-          // Delete in parallel
-          await Promise.all(shortlinkCodes.map(code => service.deleteShortlink(code).catch(() => {})));
+    // Step 3: Delete shortlinks (only if mode is 'full') and DB records
+    if (deleteMode === 'full') {
+      const shortlinkCodes = files.filter(f => f.shortlinkCode).map(f => f.shortlinkCode!);
+      if (shortlinkCodes.length > 0) {
+        try {
+          const sc = await prisma.config.findUnique({ where: { key: 'shortlink_default' } });
+          if (sc) {
+            const slConfig = JSON.parse(sc.value);
+            const service = getShortlinkService();
+            service.setConfig(slConfig);
+            // Delete in parallel
+            await Promise.all(shortlinkCodes.map(code => service.deleteShortlink(code).catch(() => {})));
+          }
+        } catch (err) {
+          console.error('Failed to delete shortlinks:', err);
         }
-      } catch (err) {
-        console.error('Failed to delete shortlinks:', err);
       }
     }
 

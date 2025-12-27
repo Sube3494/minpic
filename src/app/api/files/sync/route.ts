@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { MinioService } from '@/lib/minio';
 import { generateThumbnail, getImageDimensions, getFileType } from '@/lib/image-utils';
+import { getShortlinkService } from '@/lib/shortlink';
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,6 +48,23 @@ export async function POST(request: NextRequest) {
     let imported = 0;
     let skipped = 0;
     let errors = 0;
+    let shortlinksCreated = 0;
+    let shortlinksFailed = 0;
+
+    // Get shortlink config (if enabled)
+    let shortlinkConfig = null;
+    let shortlinkEnabled = false;
+    try {
+      const shortlinkConfigRecord = await prisma.config.findUnique({
+        where: { key: 'shortlink_default' },
+      });
+      if (shortlinkConfigRecord) {
+        shortlinkConfig = JSON.parse(shortlinkConfigRecord.value);
+        shortlinkEnabled = shortlinkConfig?.enabled === true;
+      }
+    } catch {
+      console.log('Shortlink config not found or disabled');
+    }
 
     for (const fileObj of files) {
       try {
@@ -122,6 +140,31 @@ export async function POST(request: NextRequest) {
         // Extract filename from path
         const filename = fileObj.name?.split('/').pop() || fileObj.name || 'unknown';
 
+        // Generate shortlink if enabled
+        let shortlinkCode: string | null = null;
+        if (shortlinkEnabled && shortlinkConfig) {
+          try {
+            // Get file URL
+            const fileUrl = await minioService.getFileUrl(fileObj.name!);
+            
+            // Create shortlink (service handles MD5 deduplication automatically)
+            const shortlinkService = getShortlinkService();
+            shortlinkService.setConfig(shortlinkConfig);
+            
+            const expiresIn = shortlinkConfig.expiresIn && shortlinkConfig.expiresIn > 0 
+              ? shortlinkConfig.expiresIn 
+              : undefined;
+            
+            const shortlink = await shortlinkService.createShortlink(fileUrl, undefined, expiresIn);
+            shortlinkCode = shortlink.short_code;
+            shortlinksCreated++;
+          } catch (error) {
+            console.error(`Failed to create shortlink for ${fileObj.name}:`, error);
+            shortlinksFailed++;
+            // Continue without shortlink - don't fail the entire sync
+          }
+        }
+
         // Create database record
         await prisma.file.create({
           data: {
@@ -134,6 +177,7 @@ export async function POST(request: NextRequest) {
             width,
             height,
             configId,
+            shortlinkCode,
           },
         });
 
@@ -150,6 +194,8 @@ export async function POST(request: NextRequest) {
       imported,
       skipped,
       errors,
+      shortlinksCreated,
+      shortlinksFailed,
     });
   } catch (error) {
     console.error('Error syncing files:', error);

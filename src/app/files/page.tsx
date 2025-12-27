@@ -44,56 +44,69 @@ export default function FilesPage() {
     uploading, queue, aggregateProgress, uploadFiles 
   } = useFileUpload(refreshFn);
 
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; fileId: string; filename: string }>({ 
-    open: false, fileId: '', filename: '' 
+  const [deleteDialog, setDeleteDialog] = useState<{ 
+    open: boolean; 
+    fileId: string; 
+    filename: string;
+    deleteMode: 'full' | 'record-only';
+  }>({ 
+    open: false, 
+    fileId: '', 
+    filename: '',
+    deleteMode: 'record-only' // 默认仅删除记录
   });
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Handlers
   const handleCopyShortlink = async (fileId: string, shortlinkCode: string | null) => {
     if (!shortlinkCode) {
+      // Generate and copy shortlink
+      const loadingToast = toast.loading('正在生成短链...');
       try {
         const url = await fileService.generateShortlink(fileId);
         await navigator.clipboard.writeText(url);
-        toast.success('短链已生成并复制');
         refreshFn();
-      } catch {
-        toast.error('生成短链失败');
+        toast.success('短链已生成并复制到剪贴板', { id: loadingToast });
+      } catch (err) {
+        console.error('生成短链失败:', err);
+        toast.error('生成短链失败，请检查短链服务配置', { id: loadingToast });
       }
     } else {
-       try {
+      // Copy existing shortlink
+      try {
         const config = await fileService.getShortlinkConfig();
         const shortUrl = `${config.apiUrl}/${shortlinkCode}`;
         await navigator.clipboard.writeText(shortUrl);
-        toast.success('短链已复制');
-       } catch {
-           toast.error('获取短链配置失败');
-       }
+        toast.success('短链已复制到剪贴板');
+      } catch (err) {
+        console.error('复制短链失败:', err);
+        toast.error('获取短链配置失败');
+      }
     }
   };
 
   const handleDeleteClick = (id: string, name: string) => {
-    setDeleteDialog({ open: true, fileId: id, filename: name });
+    setDeleteDialog({ open: true, fileId: id, filename: name, deleteMode: 'record-only' });
   };
 
   const handleBatchDeleteClick = () => {
-    setDeleteDialog({ open: true, fileId: 'batch', filename: `选中的 ${selectedIds.length} 个文件` });
+    setDeleteDialog({ open: true, fileId: 'batch', filename: `选中的 ${selectedIds.length} 个文件`, deleteMode: 'record-only' });
   };
 
   const confirmDelete = async () => {
     setIsDeleting(true);
-    const { fileId } = deleteDialog;
+    const { fileId, deleteMode } = deleteDialog;
     
     if (fileId === 'batch') {
-      const success = await batchDelete(selectedIds);
+      const success = await batchDelete(selectedIds, deleteMode);
       if (success) {
         setSelectedIds([]);
-        setDeleteDialog({ open: false, fileId: '', filename: '' });
+        setDeleteDialog({ open: false, fileId: '', filename: '', deleteMode: 'record-only' });
       }
     } else {
-      const success = await deleteFile(fileId);
+      const success = await deleteFile(fileId, deleteMode);
       if (success) {
-        setDeleteDialog({ open: false, fileId: '', filename: '' });
+        setDeleteDialog({ open: false, fileId: '', filename: '', deleteMode: 'record-only' });
       }
     }
     setIsDeleting(false);
@@ -309,7 +322,9 @@ export default function FilesPage() {
         open={deleteDialog.open}
         onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
         title={deleteDialog.fileId === 'batch' ? "确认批量删除" : "确认删除文件"}
-        description={`确定要删除 "${deleteDialog.filename}" 吗？此操作无法撤销。`}
+        description={`确定要删除 "${deleteDialog.filename}" 吗？`}
+        deleteMode={deleteDialog.deleteMode}
+        onDeleteModeChange={(mode) => setDeleteDialog(prev => ({ ...prev, deleteMode: mode }))}
         onConfirm={confirmDelete}
         isLoading={isDeleting}
       />

@@ -64,14 +64,18 @@ export function useFiles(initialFilter: FilterType = 'all', initialViewMode: Vie
     });
   }, []);
 
-  const deleteFile = async (id: string) => {
+  const deleteFile = async (id: string, deleteMode: 'full' | 'record-only' = 'record-only') => {
     const file = files.find(f => f.id === id);
     try {
-      await fileService.deleteFile(id);
+      await fileService.deleteFile(id, deleteMode);
       removeFile(id);
-      toast.success('文件已删除', {
-        description: file?.filename || '已从存储库中移除'
-      });
+      
+      const message = deleteMode === 'full' ? '文件已完全删除' : '记录已删除';
+      const description = deleteMode === 'full' 
+        ? (file?.filename || '已从存储库中移除')
+        : (file?.filename ? `${file.filename} (图床文件保留)` : 'MinIO文件保留，可重新同步');
+      
+      toast.success(message, { description });
       return true;
     } catch {
       toast.error('删除失败', {
@@ -81,17 +85,23 @@ export function useFiles(initialFilter: FilterType = 'all', initialViewMode: Vie
     }
   };
 
-  const batchDelete = async (ids: string[]) => {
+  const batchDelete = async (ids: string[], deleteMode: 'full' | 'record-only' = 'record-only') => {
     try {
-        await fileService.batchDeleteFiles(ids);
+        await fileService.batchDeleteFiles(ids, deleteMode);
         setFiles(prev => prev.filter(f => !ids.includes(f.id)));
         // Update cache for batch deletion
         Object.keys(cache.current).forEach(key => {
           cache.current[key] = cache.current[key].filter(f => !ids.includes(f.id));
         });
-        toast.success(`成功删除 ${ids.length} 个文件`, {
-          description: '已从存储库中批量移除'
-        });
+        
+        const message = deleteMode === 'full'
+          ? `成功完全删除 ${ids.length} 个文件`
+          : `成功删除 ${ids.length} 条记录`;
+        const description = deleteMode === 'full'
+          ? '已从存储库中批量移除'
+          : 'MinIO文件保留，可重新同步';
+        
+        toast.success(message, { description });
         return true;
     } catch {
         toast.error('批量删除失败', {
