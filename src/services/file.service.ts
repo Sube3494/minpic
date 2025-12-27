@@ -32,11 +32,17 @@ export const fileService = {
     if (!response.ok) throw new Error('Failed to batch delete files');
   },
 
-  async generateShortlink(fileId: string): Promise<string> {
+  async generateShortlink(fileId: string, expiresIn?: number, unit?: 'minutes' | 'hours' | 'days'): Promise<string> {
+    const body: { fileId: string; expiresIn?: number; unit?: string } = { fileId };
+    if (expiresIn !== undefined && unit) {
+      body.expiresIn = expiresIn;
+      body.unit = unit;
+    }
+    
     const response = await fetch('/api/shortlinks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileId }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) throw new Error('Failed to generate shortlink');
@@ -44,7 +50,14 @@ export const fileService = {
     return data.short_url;
   },
 
-  async getShortlinkConfig(): Promise<{ apiUrl: string }> {
+  async getDirectLink(fileId: string): Promise<string> {
+    const response = await fetch(`/api/files/${fileId}/url`);
+    if (!response.ok) throw new Error('Failed to get direct link');
+    const data = await response.json();
+    return data.url;
+  },
+
+  async getShortlinkConfig(): Promise<{ apiUrl: string; enabled?: boolean }> {
       const response = await fetch('/api/config/shortlink');
       if (!response.ok) throw new Error('Failed to fetch shortlink config');
       return response.json();

@@ -22,6 +22,7 @@ import { FileListRow } from '@/components/files/file-list-row';
 import { UploadArea } from '@/components/files/upload-area';
 import { FilterBar } from '@/components/files/filter-bar';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ShortlinkDialog } from '@/components/files/shortlink-dialog';
 import { fileService } from '@/services/file.service';
 import { PageWrapper } from '@/components/layout/page-wrapper';
 import { toast } from 'sonner';
@@ -57,36 +58,54 @@ export default function FilesPage() {
   });
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Handlers
-  const handleCopyShortlink = async (fileId: string, shortlinkCode: string | null) => {
-    if (!shortlinkCode) {
-      // Generate and copy shortlink
-      const loadingToast = toast.loading('正在生成短链...');
-      try {
-        const url = await fileService.generateShortlink(fileId);
-        await navigator.clipboard.writeText(url);
-        refreshFn();
-        toast.success('短链已生成并复制到剪贴板', { id: loadingToast });
-      } catch (err) {
-        console.error('生成短链失败:', err);
-        toast.error('生成短链失败，请检查短链服务配置', { id: loadingToast });
-      }
-    } else {
-      // Copy existing shortlink
+  const [shortlinkDialog, setShortlinkDialog] = useState<{
+    open: boolean;
+    fileId: string;
+  }>({ open: false, fileId: '' });
+
+  const [shortlinkEnabled, setShortlinkEnabled] = useState(false);
+
+  // Load shortlink config on mount
+  useEffect(() => {
+    const loadShortlinkConfig = async () => {
       try {
         const config = await fileService.getShortlinkConfig();
-        const shortUrl = `${config.apiUrl}/${shortlinkCode}`;
-        await navigator.clipboard.writeText(shortUrl);
-        toast.success('短链已复制到剪贴板');
-      } catch (err) {
-        console.error('复制短链失败:', err);
-        toast.error('获取短链配置失败');
+        setShortlinkEnabled(config.enabled || false);
+      } catch {
+        setShortlinkEnabled(false);
       }
+    };
+    loadShortlinkConfig();
+  }, []);
+
+  // Handlers
+  const handleCopyDirectLink = async (fileId: string) => {
+    try {
+      const url = await fileService.getDirectLink(fileId);
+      await navigator.clipboard.writeText(url);
+      toast.success('直链已复制到剪贴板');
+    } catch (err) {
+      console.error('获取直链失败:', err);
+      toast.error('获取直链失败');
     }
   };
 
-  const handleDeleteClick = (id: string, name: string) => {
-    setDeleteDialog({ open: true, fileId: id, filename: name, deleteMode: 'record-only' });
+  const handleGenerateShortlink = (fileId: string) => {
+    setShortlinkDialog({ open: true, fileId });
+  };
+
+  const handleConfirmGenerateShortlink = async (expiresIn: number, unit: 'minutes' | 'hours' | 'days') => {
+    const loadingToast = toast.loading('正在生成短链...');
+    try {
+      const url = await fileService.generateShortlink(shortlinkDialog.fileId, expiresIn, unit);
+      await navigator.clipboard.writeText(url);
+      toast.success('短链已生成并复制到剪贴板', { id: loadingToast });
+      setShortlinkDialog({ open: false, fileId: '' });
+      refreshFn(); // Refresh to update the file list
+    } catch (err) {
+      console.error('生成短链失败:', err);
+      toast.error('生成短链失败，请检查短链服务配置', { id: loadingToast });
+    }
   };
 
   const handleBatchDeleteClick = () => {
@@ -267,8 +286,9 @@ export default function FilesPage() {
                            file={file} 
                            isSelected={isSelected} 
                            toggleSelect={toggleSelect} 
-                           copyShortlink={handleCopyShortlink} 
-                           deleteFile={handleDeleteClick} 
+                           copyDirectLink={handleCopyDirectLink} 
+                           generateShortlink={handleGenerateShortlink}
+                           shortlinkEnabled={shortlinkEnabled}
                        />
                    ) : (
                        <FileListRow 
@@ -276,8 +296,9 @@ export default function FilesPage() {
                            file={file} 
                            isSelected={isSelected} 
                            toggleSelect={toggleSelect} 
-                           copyShortlink={handleCopyShortlink} 
-                           deleteFile={handleDeleteClick} 
+                           copyDirectLink={handleCopyDirectLink} 
+                           generateShortlink={handleGenerateShortlink}
+                           shortlinkEnabled={shortlinkEnabled}
                        />
                    );
                 })}
@@ -327,6 +348,13 @@ export default function FilesPage() {
         onDeleteModeChange={(mode) => setDeleteDialog(prev => ({ ...prev, deleteMode: mode }))}
         onConfirm={confirmDelete}
         isLoading={isDeleting}
+      />
+
+      {/* Shortlink Dialog */}
+      <ShortlinkDialog
+        open={shortlinkDialog.open}
+        onOpenChange={(open) => setShortlinkDialog(prev => ({ ...prev, open }))}
+        onConfirm={handleConfirmGenerateShortlink}
       />
     </div>
     </PageWrapper>

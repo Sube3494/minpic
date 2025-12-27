@@ -113,58 +113,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Auto-generate shortlink if configured
-    const shortlinkConfig = await prisma.config.findUnique({
-      where: { key: 'shortlink_default' },
-    });
-
-    if (shortlinkConfig) {
-      const slConfig = JSON.parse(shortlinkConfig.value);
-      if (slConfig.enabled) {
-        try {
-          const fileUrl = await minioService.getFileUrl(objectName);
-          const shortlinkService = getShortlinkService();
-          shortlinkService.setConfig(slConfig);
-          
-          // Use configured expires_in (hours), default to undefined for permanent
-          const expiresIn = slConfig.expiresIn && slConfig.expiresIn > 0 ? slConfig.expiresIn : undefined;
-          
-          let shortlink = null;
-          let retryCount = 0;
-          const maxRetries = 3;
-
-          while (retryCount < maxRetries && !shortlink) {
-            try {
-              shortlink = await shortlinkService.createShortlink(fileUrl, undefined, expiresIn);
-            } catch (err) {
-              retryCount++;
-              console.error(`Attempt ${retryCount} failed to generate shortlink:`, err);
-              if (retryCount < maxRetries) {
-                await new Promise(r => setTimeout(r, 1000));
-              }
-            }
-          }
-          
-          if (shortlink) {
-            // Update file record with shortlink
-            await prisma.file.update({
-              where: { id: fileRecord.id },
-              data: { shortlinkCode: shortlink.short_code },
-            });
-
-            return NextResponse.json({
-              ...fileRecord,
-              shortlinkCode: shortlink.short_code,
-              shortlink: shortlink.short_url,
-            });
-          }
-        } catch (error) {
-          console.error('Error in shortlink generation process:', error);
-          // Continue without shortlink
-        }
-      }
-    }
-
+    // Short links are now generated on-demand by users, not automatically
     return NextResponse.json(fileRecord);
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -197,10 +146,19 @@ export async function GET(request: NextRequest) {
       const configs = JSON.parse(configsRes.value);
       if (configs.length > 0) {
         if (activeIdRes && activeIdRes.value) {
-           filterConfigId = activeIdRes.value;
+          // Use the active config
+          filterConfigId = activeIdRes.value;
         } else {
-           // Fallback to first config if no active ID recorded (default behavior)
-           filterConfigId = configs[0].id;
+          // No active config - return empty list
+          return NextResponse.json({
+            files: [],
+            pagination: {
+              page,
+              pageSize,
+              total: 0,
+              totalPages: 0,
+            },
+          });
         }
       }
     }

@@ -6,7 +6,7 @@ import { getShortlinkService } from '@/lib/shortlink';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fileId, customCode } = body;
+    const { fileId, customCode, expiresIn, unit } = body;
 
     if (!fileId) {
       return NextResponse.json({ error: 'File ID required' }, { status: 400 });
@@ -74,9 +74,21 @@ export async function POST(request: NextRequest) {
     const shortlinkService = getShortlinkService();
     shortlinkService.setConfig(sConfig);
     
-    // Use configured expires_in (hours), default to undefined for permanent
-    const expiresIn = sConfig.expiresIn && sConfig.expiresIn > 0 ? sConfig.expiresIn : undefined;
-    const shortlink = await shortlinkService.createShortlink(fileUrl, customCode, expiresIn);
+    // Calculate expires_in based on user input
+    // Defaults to 24 hours if not provided (though frontend should always provide it)
+    let expiresInHours = 24; 
+    
+    if (expiresIn !== undefined && unit) {
+      if (unit === 'minutes') {
+        expiresInHours = expiresIn / 60;
+      } else if (unit === 'hours') {
+        expiresInHours = expiresIn;
+      } else if (unit === 'days') {
+        expiresInHours = expiresIn * 24;
+      }
+    }
+    
+    const shortlink = await shortlinkService.createShortlink(fileUrl, customCode, expiresInHours);
 
     // Update file record
     await prisma.file.update({

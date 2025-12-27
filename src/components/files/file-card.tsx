@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { FileItem } from '@/types/file';
 import Image from 'next/image';
-import { Check, Copy, Link2, Trash2 } from 'lucide-react';
+import { Check, Copy, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
@@ -29,11 +29,12 @@ interface FileCardProps {
   file: FileItem;
   isSelected: boolean;
   toggleSelect: (id: string) => void;
-  copyShortlink: (id: string, code: string | null) => void;
-  deleteFile: (id: string, name: string) => void;
+  copyDirectLink: (id: string) => void;
+  generateShortlink: (id: string) => void;
+  shortlinkEnabled: boolean;
 }
 
-export function FileCard({ file, isSelected, toggleSelect, copyShortlink, deleteFile }: FileCardProps) {
+export function FileCard({ file, isSelected, toggleSelect, copyDirectLink, generateShortlink, shortlinkEnabled }: FileCardProps) {
   const typeBorderStyle = file.fileType === 'video' 
     ? 'border-purple-500/20 dark:border-purple-500/40' 
     : file.fileType === 'audio'
@@ -127,20 +128,32 @@ export function FileCard({ file, isSelected, toggleSelect, copyShortlink, delete
               <div className="flex gap-1 md:gap-1.5" onClick={e => e.stopPropagation()}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button size="sm" variant="secondary" className="h-6 w-6 md:h-7 md:w-7 p-0 shadow-lg bg-white/10 hover:bg-white/20 border-white/10 text-white backdrop-blur-md" onClick={() => copyShortlink(file.id, file.shortlinkCode)}>
-                      {file.shortlinkCode ? <Copy className="w-2.5 h-2.5 md:w-3 md:h-3" /> : <Link2 className="w-2.5 h-2.5 md:w-3 md:h-3" />}
+                    <Button 
+                      size="sm" 
+                      variant="secondary" 
+                      className="h-6 w-6 md:h-7 md:w-7 p-0 shadow-lg bg-white/10 hover:bg-white/20 border-white/10 text-white backdrop-blur-md" 
+                      onClick={() => copyDirectLink(file.id)}
+                    >
+                      <Copy className="w-2.5 h-2.5 md:w-3 md:h-3" />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent side="top">{file.shortlinkCode ? '复制链接' : '生成链接'}</TooltipContent>
+                  <TooltipContent side="top">复制直链</TooltipContent>
                 </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button size="sm" variant="destructive" className="h-6 w-6 md:h-7 md:w-7 p-0 shadow-lg" onClick={() => deleteFile(file.id, file.filename)}>
-                      <Trash2 className="w-2.5 h-2.5 md:w-3 md:h-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">删除文件</TooltipContent>
-                </Tooltip>
+                {shortlinkEnabled && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        size="sm" 
+                        variant="secondary" 
+                        className="h-6 w-6 md:h-7 md:w-7 p-0 shadow-lg bg-white/10 hover:bg-white/20 border-white/10 text-white backdrop-blur-md" 
+                        onClick={() => generateShortlink(file.id)}
+                      >
+                        <Link2 className="w-2.5 h-2.5 md:w-3 md:h-3" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">生成短链</TooltipContent>
+                  </Tooltip>
+                )}
               </div>
             </div>
           </div>

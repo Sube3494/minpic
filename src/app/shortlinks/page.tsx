@@ -107,9 +107,9 @@ export default function ShortlinksPage() {
             <CardContent className="p-12 text-center">
               <Link2 className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-lg font-semibold mb-2">暂无短链</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                上传文件后会自动生成短链
-              </p>
+              <p className="text-muted-foreground text-xs md:text-lg">
+              用户按需生成的临时短链列表
+            </p>
               <Button asChild>
                 <Link href="/files">前往上传文件</Link>
               </Button>

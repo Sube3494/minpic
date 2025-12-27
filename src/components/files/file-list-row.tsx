@@ -8,7 +8,7 @@
 import { motion } from 'framer-motion';
 import { FileItem } from '@/types/file';
 import Image from 'next/image';
-import { CheckCircle2, Circle, Copy, Link2, Trash2 } from 'lucide-react';
+import { CheckCircle2, Circle, Copy, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn, formatFileSize } from '@/lib/utils'; 
 import { FileIcon } from './file-icon'; 
@@ -34,11 +34,12 @@ interface FileListRowProps {
   file: FileItem;
   isSelected: boolean;
   toggleSelect: (id: string) => void;
-  copyShortlink: (id: string, code: string | null) => void;
-  deleteFile: (id: string, name: string) => void;
+  copyDirectLink: (id: string) => void;
+  generateShortlink: (id: string) => void;
+  shortlinkEnabled: boolean;
 }
 
-export function FileListRow({ file, isSelected, toggleSelect, copyShortlink, deleteFile }: FileListRowProps) {
+export function FileListRow({ file, isSelected, toggleSelect, copyDirectLink, generateShortlink, shortlinkEnabled }: FileListRowProps) {
 
   return (
     <motion.div
@@ -106,20 +107,22 @@ export function FileListRow({ file, isSelected, toggleSelect, copyShortlink, del
             size="sm"
             variant="outline"
             className="h-8 md:h-10 px-2 md:px-5 rounded-full font-bold bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 shadow-sm"
-            onClick={() => copyShortlink(file.id, file.shortlinkCode)}
+            onClick={() => copyDirectLink(file.id)}
           >
-            {file.shortlinkCode ? <Copy className="w-3.5 h-3.5 md:mr-2" /> : <Link2 className="w-3.5 h-3.5 md:mr-2" />}
-            <span className="hidden sm:inline text-xs">{file.shortlinkCode ? '复制链接' : '生成链接'}</span>
+            <Copy className="w-3.5 h-3.5 md:mr-2" />
+            <span className="hidden sm:inline text-xs">复制直链</span>
           </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            className="h-8 w-8 md:h-10 md:w-auto md:px-5 rounded-full shadow-md shadow-destructive/10"
-            onClick={() => deleteFile(file.id, file.filename)}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline ml-2 text-xs font-bold">删除</span>
-          </Button>
+          {shortlinkEnabled && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 md:h-10 px-2 md:px-5 rounded-full font-bold bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 shadow-sm"
+              onClick={() => generateShortlink(file.id)}
+            >
+              <Link2 className="w-3.5 h-3.5 md:mr-2" />
+              <span className="hidden sm:inline text-xs">生成短链</span>
+            </Button>
+          )}
         </div>
       </div>
     </motion.div>
