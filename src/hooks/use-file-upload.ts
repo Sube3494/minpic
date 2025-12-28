@@ -122,7 +122,7 @@ export function useFileUpload(refreshFiles: () => void) {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [queue, refreshFiles]);
+  }, [queue, refreshFiles, startUploadTask]);
 
   return {
     queue,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { MinioConfigItem } from '@/types/config';
 
 export async function GET(
   request: NextRequest,
@@ -43,7 +44,7 @@ export async function GET(
              const configsRecord = await prisma.config.findUnique({ where: { key: 'minio_configs' } });
              if (configsRecord) {
                const configs = JSON.parse(configsRecord.value);
-               config = configs.find((c: any) => c.id === file.configId);
+               config = configs.find((c: MinioConfigItem) => c.id === file.configId);
              }
            }
            
@@ -94,8 +95,7 @@ export async function GET(
           const configsRecord = await prisma.config.findUnique({ where: { key: 'minio_configs' } });
           if (configsRecord) {
             const configs = JSON.parse(configsRecord.value);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            config = configs.find((c: any) => c.id === file.configId);
+            config = configs.find((c: MinioConfigItem) => c.id === file.configId);
           }
         }
         

@@ -43,7 +43,7 @@ export default function ShortlinksPage() {
           setShortlinkBaseUrl(config.apiUrl);
         }
       }
-    } catch (error) {
+    } catch {
       toast.error('加载短链列表失败', {
         description: '请检查网络连接或刷新页面'
       });
