@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const { configId } = await request.json();
 
     if (!configId) {
-      return NextResponse.json({ error: 'Config ID required' }, { status: 400 });
+      return NextResponse.json({ error: '缺少配置 ID' }, { status: 400 });
     }
 
     // Get MinIO config
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!config) {
-      return NextResponse.json({ error: 'Config not found' }, { status: 404 });
+      return NextResponse.json({ error: '未找到配置' }, { status: 404 });
     }
 
     // Connect to MinIO
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error syncing files:', error);
     return NextResponse.json(
-      { error: 'Failed to sync files', message: String(error) },
+      { error: '同步文件失败', message: String(error) },
       { status: 500 }
     );
   }

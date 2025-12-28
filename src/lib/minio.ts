@@ -209,7 +209,11 @@ export class MinioService {
           duration,
           error: `无法连接到 MinIO 服务器 "${this.config.endpoint}"，请检查 Endpoint 地址是否正确`
         };
-      } else if (errorMessage.includes('InvalidAccessKeyId') || errorMessage.includes('Access Denied')) {
+      } else if (
+        errorMessage.includes('InvalidAccessKeyId') || 
+        errorMessage.includes('Access Denied') ||
+        errorMessage.includes('The Access Key Id you provided does not exist')
+      ) {
         return { 
           success: false, 
           duration,

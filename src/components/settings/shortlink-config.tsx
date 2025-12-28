@@ -11,20 +11,41 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Link2, Loader2, PlugZap, Save } from 'lucide-react';
+import { Link2, Loader2, PlugZap } from 'lucide-react';
 
 interface ShortlinkConfigSectionProps {
   config: ShortlinkConfig;
   isTesting: boolean;
   isSaving: boolean;
   onUpdate: (updates: Partial<ShortlinkConfig>) => void;
-  onTest: () => void;
-  onSave: () => void;
+  onTest: (config?: ShortlinkConfig) => Promise<boolean>;
+  onSave: (updates?: Partial<ShortlinkConfig>, silent?: boolean) => Promise<void>;
 }
 
 export function ShortlinkConfigSection({ 
   config, isTesting, isSaving, onUpdate, onTest, onSave
 }: ShortlinkConfigSectionProps) {
+
+  const handleSwitchChange = async (checked: boolean) => {
+    if (checked) {
+      // 尝试启用：先测试连接
+      const success = await onTest(config);
+      if (success) {
+        // 测试通过，保存并启用
+        await onSave({ enabled: true });
+      }
+      // 测试失败，保持禁用状态 (不调用 onSave)
+    } else {
+      // 禁用：直接保存
+      await onSave({ enabled: false });
+    }
+  };
+
+  const handleBlur = () => {
+    // 输入框失去焦点时，静默保存当前配置（仅保存，不改变启用状态）
+    onSave(undefined, true);
+  };
+
   return (
     <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20">
       <CardHeader className="pb-1.5">
@@ -40,46 +61,36 @@ export function ShortlinkConfigSection({
                 </CardDescription>
             </div>
           </div>
-          <Switch 
-            checked={config.enabled}
-            onCheckedChange={(checked: boolean) => onUpdate({ enabled: checked })}
-            className="data-[state=checked]:bg-primary mt-1"
-          />
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2.5 pt-1.5 pb-1">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wider ml-1">配置信息</span>
-          <div className="flex items-center gap-1.5">
-            <Button 
+          <div className="flex items-center gap-2 mt-1">
+             <Button 
                 size="icon"
                 variant="ghost"
-                onClick={onTest}
-                disabled={isTesting || !config.enabled}
+                onClick={() => onTest(config)}
+                disabled={isTesting}
                 className="h-7 w-7 hover:bg-zinc-100 dark:hover:bg-white/10"
                 title="测试连接"
             >
                 {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlugZap className="w-4 h-4" />}
             </Button>
-            <Button 
-                size="sm"
-                onClick={() => onSave()}
-                disabled={isSaving}
-                className="h-7 border border-transparent bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
-            >
-                {isSaving ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
-                保存
-            </Button>
+            <Switch 
+              checked={config.enabled}
+              onCheckedChange={handleSwitchChange}
+              disabled={isTesting || isSaving}
+              className="data-[state=checked]:bg-primary"
+            />
           </div>
         </div>
+      </CardHeader>
+      <CardContent className="space-y-2.5 pt-1.5 pb-1">
         <div className="space-y-2">
             <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">API 地址 <span className="text-red-500">*</span></Label>
             <Input 
                 value={config.apiUrl}
                 onChange={(e) => onUpdate({ apiUrl: e.target.value })}
+                onBlur={handleBlur}
                 placeholder="https://api.example.com/shorten"
-                disabled={!config.enabled}
-                className="h-10 text-xs bg-white dark:bg-zinc-950/30 border-zinc-200 dark:border-white/10 focus-visible:ring-primary shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                // 移除 disabled，允许禁用状态下输入
+                className="h-10 text-xs bg-white dark:bg-zinc-950/30 border-zinc-200 dark:border-white/10 focus-visible:ring-primary shadow-sm"
             />
         </div>
 
@@ -89,9 +100,10 @@ export function ShortlinkConfigSection({
                 type="password"
                 value={config.apiKey}
                 onChange={(e) => onUpdate({ apiKey: e.target.value })}
+                onBlur={handleBlur}
                 placeholder="secret_token"
-                disabled={!config.enabled}
-                className="h-10 text-xs bg-white dark:bg-zinc-950/30 border-zinc-200 dark:border-white/10 focus-visible:ring-primary shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                // 移除 disabled
+                className="h-10 text-xs bg-white dark:bg-zinc-950/30 border-zinc-200 dark:border-white/10 focus-visible:ring-primary shadow-sm"
             />
         </div>
 

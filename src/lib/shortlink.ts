@@ -127,9 +127,9 @@ export class ShortlinkService {
     return response.json();
   }
 
-  async testConnection(): Promise<{ success: boolean; duration?: number }> {
+  async testConnection(): Promise<{ success: boolean; duration?: number; error?: string }> {
     if (!this.config) {
-      return { success: false };
+      return { success: false, error: 'Shortlink config not initialized' };
     }
 
     const startTime = Date.now();
@@ -145,17 +145,68 @@ export class ShortlinkService {
       });
       clearTimeout(timeoutId);
       const duration = Date.now() - startTime;
-      return { success: response.ok, duration };
+      
+      if (!response.ok) {
+          let errorMsg = `HTTP Error ${response.status}`;
+          try {
+             const text = await response.text();
+             if (text) {
+                 try {
+                     const json = JSON.parse(text);
+                     errorMsg = json.detail || json.error || json.message || text;
+                 } catch {
+                     errorMsg = text.slice(0, 100);
+                 }
+             }
+          } catch {
+              // Ignore body read error
+          }
+          return { success: false, duration, error: translateShortlinkError(errorMsg, response.status) };
+      }
+      
+      return { success: true, duration };
     } catch (error) {
       clearTimeout(timeoutId);
       const duration = Date.now() - startTime;
-      // 区分超时和其他错误
-      if (error instanceof Error && error.name === 'AbortError') {
-        return { success: false, duration: 30000 };
+      
+      let errorMsg = String(error);
+      if (error instanceof Error) {
+          if (error.name === 'AbortError') {
+            return { success: false, duration: 30000, error: '连接超时（30秒），请检查网络状况' };
+          }
+          errorMsg = error.message;
       }
-      return { success: false, duration };
+      return { success: false, duration, error: translateShortlinkError(errorMsg) };
     }
   }
+}
+
+function translateShortlinkError(error: string, statusCode?: number): string {
+  if (statusCode === 401 || error.includes('Unauthorized') || error.includes('invalid api key')) {
+    return '认证失败：API 密钥无效或过期';
+  }
+  if (statusCode === 403 || error.includes('Forbidden')) {
+    return '访问被拒绝：没有权限访问该接口';
+  }
+  if (statusCode === 404 || error.includes('Not Found')) {
+    return '接口不存在：请检查 API 地址是否正确';
+  }
+  if (statusCode === 500) {
+    return '短链服务内部错误 (500)';
+  }
+  if (error.includes('Failed to fetch') || error.includes('Network request failed') || error.includes('ENOTFOUND')) {
+    return '网络连接失败：无法访问 API 地址，请检查域名和网络';
+  }
+  if (error.includes('timeout') || error.includes('ETIMEDOUT')) {
+    return '连接超时：服务器响应过慢';
+  }
+  if (error.includes('Valid URL must be provided') || error.includes('Failed to parse URL')) {
+      return 'API 地址格式错误，请检查是否包含 http:// 或 https://';
+  }
+  
+  // 如果是未知错误，尝试保留原文但加个前缀或直接返回
+  // 如果原文很短且全英文，可以加个通用前缀
+  return error; // 这里直接返回，让用户看到具体英文可能更好，或者前面加 "错误: "
 }
 
 let shortlinkService: ShortlinkService | null = null;

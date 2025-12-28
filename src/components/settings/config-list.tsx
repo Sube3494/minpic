@@ -120,10 +120,6 @@ export function ConfigList({
                                 )}>
                                     <Server className="w-5 h-5" />
                                 </div>
-                                {/* Status Indicator */}
-                                <div className="absolute -top-0.5 -right-0.5">
-                                    <StatusIndicator status={config.status} />
-                                </div>
                             </div>
 
                             {/* Info */}
@@ -135,6 +131,7 @@ export function ConfigList({
                                     )}>
                                         {config.name}
                                     </span>
+                                    <StatusIndicator status={config.status} size="sm" />
                                 </div>
                                 <div className="text-xs text-zinc-500 dark:text-zinc-500 truncate flex items-center gap-1.5">
                                     <span className="text-zinc-600 dark:text-zinc-400 font-medium">{config.bucket}</span>

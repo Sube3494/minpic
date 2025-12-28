@@ -34,7 +34,7 @@ export const configService = {
   },
 
   // Connection Testing
-  async testConnection(type: 'minio' | 'shortlink', config: MinioConfigItem | ShortlinkConfig): Promise<{ success: boolean; duration?: number }> {
+  async testConnection(type: 'minio' | 'shortlink', config: MinioConfigItem | ShortlinkConfig): Promise<{ success: boolean; duration?: number; error?: string }> {
     const res = await fetch('/api/config/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
