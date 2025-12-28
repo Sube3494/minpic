@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { MinioService } from '@/lib/minio';
-import { getShortlinkService } from '@/lib/shortlink';
 import { generateThumbnail, generateVideoThumbnail, getImageDimensions, getFileType, generatePinyin } from '@/lib/image-utils';
 
 export async function POST(request: NextRequest) {
@@ -185,7 +184,6 @@ export async function GET(request: NextRequest) {
           mimeType: true,
           fileType: true,
           thumbnailPath: true,
-          shortlinkCode: true,
           width: true,
           height: true,
           duration: true,
@@ -282,25 +280,7 @@ export async function DELETE(request: NextRequest) {
       }
     }
 
-    // Step 3: Delete shortlinks (only if mode is 'full') and DB records
-    if (deleteMode === 'full') {
-      const shortlinkCodes = files.filter(f => f.shortlinkCode).map(f => f.shortlinkCode!);
-      if (shortlinkCodes.length > 0) {
-        try {
-          const sc = await prisma.config.findUnique({ where: { key: 'shortlink_default' } });
-          if (sc) {
-            const slConfig = JSON.parse(sc.value);
-            const service = getShortlinkService();
-            service.setConfig(slConfig);
-            // Delete in parallel
-            await Promise.all(shortlinkCodes.map(code => service.deleteShortlink(code).catch(() => {})));
-          }
-        } catch (err) {
-          console.error('Failed to delete shortlinks:', err);
-        }
-      }
-    }
-
+    // Delete database records
     await prisma.file.deleteMany({
       where: { id: { in: ids } },
     });

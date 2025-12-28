@@ -30,16 +30,6 @@ export function useShortlinkConfig() {
   };
 
   const saveShortlinkConfig = async (silent = false) => {
-    // 验证: 如果启用了短链服务,必须填写必填字段
-    if (shortlinkConfig.enabled) {
-      if (!shortlinkConfig.apiUrl || !shortlinkConfig.apiKey) {
-        toast.error('请填写完整配置信息', {
-          description: '启用短链服务需要提供 API 地址和 API 密钥'
-        });
-        return;
-      }
-    }
-    
     setLoading(true);
     try {
       await configService.saveShortlinkConfig(shortlinkConfig);

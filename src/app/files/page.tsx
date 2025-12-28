@@ -101,7 +101,6 @@ export default function FilesPage() {
       await navigator.clipboard.writeText(url);
       toast.success('短链已生成并复制到剪贴板', { id: loadingToast });
       setShortlinkDialog({ open: false, fileId: '' });
-      refreshFn(); // Refresh to update the file list
     } catch (err) {
       console.error('生成短链失败:', err);
       toast.error('生成短链失败，请检查短链服务配置', { id: loadingToast });

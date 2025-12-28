@@ -117,7 +117,17 @@
     }
   }
   
+  @keyframes pulse-slow {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+  }
+  
   --animate-shimmer: shimmer 2s ease-in-out infinite;
+  --animate-pulse-slow: pulse-slow 2s ease-in-out infinite;
 }
 
 @utility delay-0 { animation-delay: 0ms; }

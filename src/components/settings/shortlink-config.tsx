@@ -11,17 +11,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Link2, Loader2, PlugZap } from 'lucide-react';
+import { Link2, Loader2, PlugZap, Save } from 'lucide-react';
 
 interface ShortlinkConfigSectionProps {
   config: ShortlinkConfig;
   isTesting: boolean;
+  isSaving: boolean;
   onUpdate: (updates: Partial<ShortlinkConfig>) => void;
   onTest: () => void;
+  onSave: () => void;
 }
 
 export function ShortlinkConfigSection({ 
-  config, isTesting, onUpdate, onTest 
+  config, isTesting, isSaving, onUpdate, onTest, onSave
 }: ShortlinkConfigSectionProps) {
   return (
     <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20">
@@ -48,16 +50,27 @@ export function ShortlinkConfigSection({
       <CardContent className="space-y-2.5 pt-1.5 pb-1">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[10px] text-muted-foreground uppercase tracking-wider ml-1">配置信息</span>
-          <Button 
-              size="icon"
-              variant="ghost"
-              onClick={onTest}
-              disabled={isTesting || !config.enabled}
-              className="h-7 w-7 hover:bg-zinc-100 dark:hover:bg-white/10"
-              title="测试连接"
-          >
-              {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlugZap className="w-4 h-4" />}
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Button 
+                size="icon"
+                variant="ghost"
+                onClick={onTest}
+                disabled={isTesting || !config.enabled}
+                className="h-7 w-7 hover:bg-zinc-100 dark:hover:bg-white/10"
+                title="测试连接"
+            >
+                {isTesting ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlugZap className="w-4 h-4" />}
+            </Button>
+            <Button 
+                size="sm"
+                onClick={() => onSave()}
+                disabled={isSaving}
+                className="h-7 border border-transparent bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
+            >
+                {isSaving ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Save className="w-3.5 h-3.5 mr-1.5" />}
+                保存
+            </Button>
+          </div>
         </div>
         <div className="space-y-2">
             <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">API 地址 <span className="text-red-500">*</span></Label>

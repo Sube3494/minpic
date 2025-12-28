@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Loader2, Save, AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -34,19 +33,6 @@ export default function SettingsPage() {
   const selectedConfig = configs.find(c => c.id === selectedId);
   const loading = minioLoading || slLoading;
 
-  const handleSaveAll = async () => {
-    try {
-      await Promise.all([
-        saveConfigs(true), 
-        saveShortlinkConfig(true)
-      ]);
-      toast.success('所有配置已保存', {
-        description: 'MinIO 和短链服务配置已更新'
-      });
-    } catch {
-       // Error handled in hooks
-    }
-  };
 
   const handleSyncClick = (id: string) => {
     setSyncDialog({ open: true, configId: id });
@@ -95,16 +81,6 @@ export default function SettingsPage() {
             <p className="text-muted-foreground text-xs sm:text-sm md:text-lg">
               管理多图床源配置与外部服务集成
             </p>
-          </div>
-          <div className="flex items-center gap-2 md:gap-3">
-             <Button 
-                onClick={handleSaveAll} 
-                disabled={loading} 
-                className="h-9 md:h-11 rounded-full px-4 md:px-6 bg-linear-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white shadow-[0_0_20px_-5px_rgba(37,99,235,0.4)] hover:shadow-[0_0_25px_-5px_rgba(37,99,235,0.6)] border border-blue-400/20 hover:scale-105 active:scale-95 transition-all duration-300 text-xs md:text-sm font-bold tracking-wide"
-             >
-                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2 stroke-[2.5]" />}
-                保存更改
-              </Button>
           </div>
         </div>
 
@@ -162,8 +138,10 @@ export default function SettingsPage() {
                         <ShortlinkConfigSection
                             config={shortlinkConfig}
                             isTesting={slTesting}
+                            isSaving={slLoading}
                             onUpdate={updateShortlinkConfig}
                             onTest={testShortlinkConnection}
+                            onSave={saveShortlinkConfig}
                         />
                     </div>
                 </div>
@@ -175,9 +153,11 @@ export default function SettingsPage() {
                             config={selectedConfig}
                             isSyncing={syncing}
                             isTesting={minioTesting}
+                            isSaving={minioLoading}
                             onUpdate={updateSelectedConfig}
                             onSync={handleSyncClick}
                             onTest={testMinioConnection}
+                            onSave={saveConfigs}
                         />
                     )}
 
@@ -186,8 +166,10 @@ export default function SettingsPage() {
                         <ShortlinkConfigSection
                             config={shortlinkConfig}
                             isTesting={slTesting}
+                            isSaving={slLoading}
                             onUpdate={updateShortlinkConfig}
                             onTest={testShortlinkConnection}
+                            onSave={saveShortlinkConfig}
                         />
                     </div>
                 </div>

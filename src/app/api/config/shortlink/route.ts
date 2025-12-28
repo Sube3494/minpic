@@ -8,7 +8,13 @@ export async function GET() {
     });
 
     if (!config) {
-      return NextResponse.json(null, { status: 404 });
+      // Return default disabled state instead of 404
+      return NextResponse.json({
+        apiUrl: '',
+        apiKey: '',
+        enabled: false,
+        expiresIn: 0,
+      });
     }
 
     return NextResponse.json(JSON.parse(config.value));
@@ -28,17 +34,9 @@ export async function POST(request: NextRequest) {
 
     console.log('Shortlink config received:', { apiUrl, apiKey: apiKey ? '***' : 'empty', enabled, expiresIn });
 
-    if (!apiUrl || !apiKey) {
-      console.error('Validation failed - apiUrl:', apiUrl, 'apiKey:', apiKey ? 'present' : 'missing');
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
-
     const configValue = JSON.stringify({
-      apiUrl,
-      apiKey,
+      apiUrl: apiUrl || '',
+      apiKey: apiKey || '',
       enabled: enabled !== false, // Default to true
       expiresIn: expiresIn || 0, // Default to 0 (永久)
     });

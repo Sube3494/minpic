@@ -33,7 +33,6 @@ model File {
   width         Int?
   height        Int?
   duration      Float?
-  shortlinkCode String?  @unique
   tags          String   @default("[]")
   pinyin        String?
   configId      String?

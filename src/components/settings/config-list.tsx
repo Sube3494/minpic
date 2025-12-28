@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { StatusIndicator } from '@/components/ui/status-indicator';
 
 interface ConfigListProps {
   configs: MinioConfigItem[];
@@ -107,16 +108,22 @@ export function ConfigList({
                                     : "bg-transparent border-transparent hover:bg-zinc-100/80 dark:hover:bg-white/5 hover:border-zinc-200/50 dark:hover:border-white/5"
                             )}
                         >
-                            {/* Icon Box */}
-                            <div className={cn(
-                                "flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 shadow-sm",
-                                isSelected
-                                    ? "bg-primary/10 text-primary shadow-md ring-1 ring-primary/20"
-                                    : isActive 
-                                        ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm ring-1 ring-zinc-200 dark:ring-white/10" 
-                                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 group-hover:bg-white dark:group-hover:bg-zinc-700 group-hover:shadow-md dark:shadow-none"
-                            )}>
-                                <Server className="w-5 h-5" />
+                            {/* Icon Box with Status Indicator */}
+                            <div className="relative">
+                                <div className={cn(
+                                    "flex items-center justify-center w-10 h-10 rounded-full transition-all duration-300 shadow-sm",
+                                    isSelected
+                                        ? "bg-primary/10 text-primary shadow-md ring-1 ring-primary/20"
+                                        : isActive 
+                                            ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm ring-1 ring-zinc-200 dark:ring-white/10" 
+                                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 group-hover:bg-white dark:group-hover:bg-zinc-700 group-hover:shadow-md dark:shadow-none"
+                                )}>
+                                    <Server className="w-5 h-5" />
+                                </div>
+                                {/* Status Indicator */}
+                                <div className="absolute -top-0.5 -right-0.5">
+                                    <StatusIndicator status={config.status} />
+                                </div>
                             </div>
 
                             {/* Info */}

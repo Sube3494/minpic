@@ -5,12 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  DropdownMenu, 
-  DropdownMenuTrigger, 
+  DropdownMenu,
+  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-import { Check, RefreshCw, Loader2, Info, ChevronDown, Server, PlugZap, Shield, FolderTree, Settings2 } from 'lucide-react';
+import { Check, RefreshCw, Loader2, Info, ChevronDown, Server, PlugZap, Shield, FolderTree, Settings2, Save } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useState, useRef, useEffect } from 'react';
 
@@ -20,14 +20,16 @@ interface ConfigEditorProps {
   config: MinioConfigItem;
   isSyncing: boolean;
   isTesting: boolean;
+  isSaving: boolean;
   onUpdate: (updates: Partial<MinioConfigItem>) => void;
   onSync: (id: string) => void;
   onTest: () => void;
+  onSave: () => void;
 }
 
 export function ConfigEditor({ 
-  config, isSyncing, isTesting,
-  onUpdate, onSync, onTest 
+  config, isSyncing, isTesting, isSaving,
+  onUpdate, onSync, onTest, onSave
 }: ConfigEditorProps) {
   const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
   const advancedRef = useRef<HTMLDivElement>(null);
@@ -86,9 +88,9 @@ export function ConfigEditor({
               variant="outline"
               onClick={() => onSync(config.id)}
               disabled={isSyncing}
-              className="h-8 md:h-9 hover:bg-zinc-100 dark:hover:bg-white/10 text-[10px] md:text-xs"
+              className="h-9 hover:bg-zinc-100 dark:hover:bg-white/10 text-xs"
             >
-              {isSyncing ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
+              {isSyncing ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
               同步文件库
             </Button>
              
@@ -97,10 +99,20 @@ export function ConfigEditor({
               variant="outline"
               onClick={onTest}
               disabled={isTesting}
-              className="h-8 md:h-9 hover:bg-zinc-100 dark:hover:bg-white/10 text-[10px] md:text-xs"
+              className="h-9 hover:bg-zinc-100 dark:hover:bg-white/10 text-xs"
             >
-              {isTesting ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <PlugZap className="w-3.5 h-3.5 mr-1.5" />}
+              {isTesting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <PlugZap className="w-4 h-4 mr-1.5" />}
               测试连接
+            </Button>
+            
+            <Button 
+              size="sm"
+              onClick={() => onSave()}
+              disabled={isSaving}
+              className="h-9 border border-transparent bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Save className="w-4 h-4 mr-1.5" />}
+              保存配置
             </Button>
           </div>
         </div>

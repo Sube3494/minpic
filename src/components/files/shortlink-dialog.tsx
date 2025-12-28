@@ -49,14 +49,13 @@ export function ShortlinkDialog({ open, onOpenChange, onConfirm }: ShortlinkDial
   };
 
   const presets = [
+    { label: '10分钟', value: '10', unit: 'minutes' as const },
     { label: '30分钟', value: '30', unit: 'minutes' as const },
     { label: '1小时', value: '1', unit: 'hours' as const },
-    { label: '6小时', value: '6', unit: 'hours' as const },
+    { label: '3小时', value: '3', unit: 'hours' as const },
     { label: '12小时', value: '12', unit: 'hours' as const },
     { label: '1天', value: '1', unit: 'days' as const },
     { label: '3天', value: '3', unit: 'days' as const },
-    { label: '7天', value: '7', unit: 'days' as const },
-    { label: '30天', value: '30', unit: 'days' as const },
   ];
 
   return (
@@ -86,7 +85,7 @@ export function ShortlinkDialog({ open, onOpenChange, onConfirm }: ShortlinkDial
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="选择有效期" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper" side="bottom">
                 {presets.map((preset) => (
                   <SelectItem key={`${preset.value}-${preset.unit}`} value={`${preset.value}-${preset.unit}`}>
                     {preset.label}
@@ -113,7 +112,7 @@ export function ShortlinkDialog({ open, onOpenChange, onConfirm }: ShortlinkDial
                   <SelectTrigger className="w-[110px] rounded-xl shrink-0" style={{ height: '44px' }}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="min-w-[110px]">
+                  <SelectContent className="min-w-[110px]" position="popper" side="bottom">
                     <SelectItem value="minutes" className="text-sm py-1.5">分钟</SelectItem>
                     <SelectItem value="hours" className="text-sm py-1.5">小时</SelectItem>
                     <SelectItem value="days" className="text-sm py-1.5">天</SelectItem>

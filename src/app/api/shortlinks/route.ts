@@ -69,13 +69,12 @@ export async function POST(request: NextRequest) {
     await minioService.connect(minioConfig);
     const fileUrl = await minioService.getFileUrl(file.minioPath);
 
-    // Create shortlink
+    // Create shortlink (shortlink service will handle MD5 deduplication)
     const sConfig = JSON.parse(shortlinkConfig.value);
     const shortlinkService = getShortlinkService();
     shortlinkService.setConfig(sConfig);
     
     // Calculate expires_in based on user input
-    // Defaults to 24 hours if not provided (though frontend should always provide it)
     let expiresInHours = 24; 
     
     if (expiresIn !== undefined && unit) {
@@ -90,12 +89,6 @@ export async function POST(request: NextRequest) {
     
     const shortlink = await shortlinkService.createShortlink(fileUrl, customCode, expiresInHours);
 
-    // Update file record
-    await prisma.file.update({
-      where: { id: fileId },
-      data: { shortlinkCode: shortlink.short_code },
-    });
-
     return NextResponse.json(shortlink);
   } catch (error) {
     console.error('Error creating shortlink:', error);
@@ -108,14 +101,23 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const files = await prisma.file.findMany({
-      where: {
-        shortlinkCode: { not: null },
-      },
-      orderBy: { createdAt: 'desc' },
+    // Get shortlink config
+    const shortlinkConfig = await prisma.config.findUnique({
+      where: { key: 'shortlink_default' },
     });
 
-    return NextResponse.json({ shortlinks: files });
+    if (!shortlinkConfig) {
+      return NextResponse.json({ shortlinks: [] });
+    }
+
+    const sConfig = JSON.parse(shortlinkConfig.value);
+    const shortlinkService = getShortlinkService();
+    shortlinkService.setConfig(sConfig);
+
+    // Get all shortlinks from shortlink service
+    const shortlinks = await shortlinkService.listShortlinks();
+
+    return NextResponse.json({ shortlinks });
   } catch (error) {
     console.error('Error getting shortlinks:', error);
     return NextResponse.json(

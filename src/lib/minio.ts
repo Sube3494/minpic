@@ -29,12 +29,6 @@ export class MinioService {
       secretKey: config.secretKey,
       region: config.region || undefined,
     });
-
-    // Test connection
-    const bucketExists = await this.client.bucketExists(config.bucket);
-    if (!bucketExists) {
-      await this.client.makeBucket(config.bucket, config.region || 'us-east-1');
-    }
   }
 
   async uploadFile(
@@ -184,19 +178,80 @@ export class MinioService {
     });
   }
 
-  async testConnection(): Promise<{ success: boolean; duration?: number }> {
+  async testConnection(): Promise<{ success: boolean; duration?: number; error?: string }> {
     if (!this.client || !this.config) {
-      return { success: false };
+      return { success: false, error: 'MinIO 客户端未初始化' };
     }
 
     const startTime = Date.now();
     try {
-      await this.client.bucketExists(this.config.bucket);
+      const bucketExists = await this.client.bucketExists(this.config.bucket);
       const duration = Date.now() - startTime;
+      
+      if (!bucketExists) {
+        // Bucket doesn't exist - test failed
+        return { 
+          success: false, 
+          duration,
+          error: `存储桶 "${this.config.bucket}" 不存在，请先在 MinIO 后端创建该存储桶`
+        };
+      }
+      
       return { success: true, duration };
-    } catch {
+    } catch (error) {
       const duration = Date.now() - startTime;
-      return { success: false, duration };
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // 区分不同类型的错误并翻译为中文
+      if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('getaddrinfo')) {
+        return { 
+          success: false, 
+          duration,
+          error: `无法连接到 MinIO 服务器 "${this.config.endpoint}"，请检查 Endpoint 地址是否正确`
+        };
+      } else if (errorMessage.includes('InvalidAccessKeyId') || errorMessage.includes('Access Denied')) {
+        return { 
+          success: false, 
+          duration,
+          error: 'Access Key 或 Secret Key 错误，请检查凭证是否正确'
+        };
+      } else if (errorMessage.includes('SignatureDoesNotMatch') || errorMessage.includes('signature')) {
+        return { 
+          success: false, 
+          duration,
+          error: '签名验证失败，请检查 Access Key 和 Secret Key 是否正确'
+        };
+      } else if (errorMessage.includes('ECONNREFUSED')) {
+        return { 
+          success: false, 
+          duration,
+          error: `连接被拒绝，请检查 MinIO 服务是否运行在 ${this.config.endpoint}:${this.config.port}`
+        };
+      } else if (errorMessage.includes('ETIMEDOUT') || errorMessage.includes('timeout')) {
+        return { 
+          success: false, 
+          duration,
+          error: '连接超时，请检查网络连接或 MinIO 服务器状态'
+        };
+      } else if (errorMessage.includes('ECONNRESET')) {
+        return { 
+          success: false, 
+          duration,
+          error: '连接被重置，请检查网络连接或防火墙设置'
+        };
+      } else if (errorMessage.includes('certificate') || errorMessage.includes('SSL')) {
+        return { 
+          success: false, 
+          duration,
+          error: 'SSL 证书验证失败，请检查 useSSL 设置或证书配置'
+        };
+      } else {
+        return { 
+          success: false, 
+          duration,
+          error: `连接失败: ${errorMessage}`
+        };
+      }
     }
   }
 

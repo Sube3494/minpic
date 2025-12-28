@@ -135,7 +135,7 @@ export function useMinioConfig() {
         });
       }
     } catch (error) {
-       console.error(error);
+       console.error('Save error:', error);
        toast.error('保存 MinIO 配置失败', {
          description: '请检查网络连接后重试'
        });
@@ -164,16 +164,31 @@ export function useMinioConfig() {
             toast.success(`${config.name} 连接测试成功`, {
               description: `已验证存储桶 ${config.bucket}${durationText ? ` · ${durationText}` : ''}`
             });
+            
+            // 更新配置状态为成功
+            setConfigs(prev => prev.map(c => 
+              c.id === selectedId ? { ...c, status: 'success' as const } : c
+            ));
           } else {
             toast.error(`${config.name} 连接测试失败`, {
-              description: '建议检查 Endpoint、Access Key、Secret Key 和 Bucket 名称'
+              description: result.error || '建议检查 Endpoint、Access Key、Secret Key 和 Bucket 名称'
             });
+            
+            // 更新配置状态为失败
+            setConfigs(prev => prev.map(c => 
+              c.id === selectedId ? { ...c, status: 'error' as const } : c
+            ));
           }
       } catch {
           toast.dismiss(loadingToast);
           toast.error('连接测试发生错误', {
             description: '请检查网络连接后重试'
           });
+          
+          // 更新配置状态为失败
+          setConfigs(prev => prev.map(c => 
+            c.id === selectedId ? { ...c, status: 'error' as const } : c
+          ));
       } finally {
           setTesting(false);
       }

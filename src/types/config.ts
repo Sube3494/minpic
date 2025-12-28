@@ -13,6 +13,7 @@ export interface MinioConfigItem {
   baseDir?: string;
   archiveStrategy?: 'none' | 'year' | 'month' | 'day';
   expirationDays?: number; // 文件过期天数，0 表示永不过期
+  status?: 'unknown' | 'success' | 'error'; // 配置状态
 }
 
 export interface ShortlinkConfig {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getMinioService } from '@/lib/minio';
-import { getShortlinkService } from '@/lib/shortlink';
 import { generatePinyin } from '@/lib/image-utils';
 
 export async function GET(
@@ -98,38 +97,10 @@ export async function DELETE(
       await Promise.all(minioDeletePromises);
     }
 
-    // Delete shortlink if exists and mode is 'full' (parallel with database delete)
-    const deletePromises = [];
-    
-    if (deleteMode === 'full' && file.shortlinkCode) {
-      const shortlinkDeletePromise = (async () => {
-        const shortlinkConfig = await prisma.config.findUnique({
-          where: { key: 'shortlink_default' },
-        });
-
-        if (shortlinkConfig) {
-          try {
-            const config = JSON.parse(shortlinkConfig.value);
-            const shortlinkService = getShortlinkService();
-            shortlinkService.setConfig(config);
-            await shortlinkService.deleteShortlink(file.shortlinkCode!);
-          } catch (error) {
-            console.error('Error deleting shortlink:', error);
-          }
-        }
-      })();
-      
-      deletePromises.push(shortlinkDeletePromise);
-    }
-
     // Delete database record
-    deletePromises.push(
-      prisma.file.delete({
-        where: { id },
-      })
-    );
-
-    await Promise.all(deletePromises);
+    await prisma.file.delete({
+      where: { id },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
