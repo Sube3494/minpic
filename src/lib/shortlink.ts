@@ -13,6 +13,14 @@ export interface ShortlinkResponse {
   last_accessed: string | null;
 }
 
+interface ShortlinkRequestBody {
+  url: string;
+  custom_code?: string;
+  expires_in_minutes?: number;
+  expires_in_hours?: number;
+  expires_in_days?: number;
+}
+
 export class ShortlinkService {
   private config: ShortlinkConfig | null = null;
 
@@ -20,9 +28,32 @@ export class ShortlinkService {
     this.config = config;
   }
 
-  async createShortlink(url: string, customCode?: string, expiresInHours?: number): Promise<ShortlinkResponse> {
+
+
+  async createShortlink(
+    url: string, 
+    customCode?: string, 
+    expiresIn?: number,
+    unit: 'minutes' | 'hours' | 'days' = 'hours'
+  ): Promise<ShortlinkResponse> {
     if (!this.config) {
       throw new Error('Shortlink config not initialized');
+    }
+
+    const body: ShortlinkRequestBody = { url };
+
+    if (customCode) {
+      body.custom_code = customCode;
+    }
+
+    if (expiresIn !== undefined && expiresIn > 0) {
+      if (unit === 'minutes') {
+        body.expires_in_minutes = expiresIn;
+      } else if (unit === 'days') {
+        body.expires_in_days = expiresIn;
+      } else {
+        body.expires_in_hours = expiresIn;
+      }
     }
 
     const response = await fetch(`${this.config.apiUrl}/api/shorten`, {
@@ -31,11 +62,7 @@ export class ShortlinkService {
         'Content-Type': 'application/json',
         'X-API-Key': this.config.apiKey,
       },
-      body: JSON.stringify({
-        url,
-        ...(customCode && { custom_code: customCode }),
-        ...(expiresInHours && { expires_in_hours: expiresInHours }),
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {

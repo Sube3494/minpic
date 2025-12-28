@@ -157,7 +157,6 @@ export default function SettingsPage() {
                             onUpdate={updateSelectedConfig}
                             onSync={handleSyncClick}
                             onTest={testMinioConnection}
-                            onTest={testMinioConnection}
                             onSave={() => saveConfigs(selectedConfig.name)}
                         />
                     )}
