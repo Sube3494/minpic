@@ -118,7 +118,7 @@ export function useMinioConfig() {
     }
   };
 
-  const saveConfigs = async (silent = false) => {
+  const saveConfigs = async (feedbackName?: string, silent = false) => {
     setLoading(true);
     try {
       const finalActiveId = activeIdChanged ? activeId : originalActiveId;
@@ -129,9 +129,10 @@ export function useMinioConfig() {
       setActiveIdChanged(false);
       
       if (!silent) {
-        const activeConfig = configs.find(c => c.id === finalActiveId);
         toast.success(`MinIO 配置已保存`, {
-          description: `当前激活 ${activeConfig?.name || '未命名'}`
+          description: feedbackName 
+            ? `已更新配置：${feedbackName}` 
+            : '所有更改已保存'
         });
       }
     } catch (error) {
