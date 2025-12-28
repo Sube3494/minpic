@@ -8,7 +8,6 @@ export function useShortlinkConfig() {
     apiUrl: '',
     apiKey: '',
     enabled: true,
-    expiresIn: 0,
   });
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -61,18 +60,31 @@ export function useShortlinkConfig() {
 
   const testShortlinkConnection = async () => {
       setTesting(true);
+      const loadingToast = toast.loading('正在测试连接，请稍候...', {
+        description: '这可能需要一些时间，取决于网络状况'
+      });
+      
       try {
-          const success = await configService.testConnection('shortlink', shortlinkConfig);
-          if (success) {
+          const result = await configService.testConnection('shortlink', shortlinkConfig);
+          toast.dismiss(loadingToast);
+          
+          if (result.success) {
+            const durationText = result.duration 
+              ? `耗时 ${(result.duration / 1000).toFixed(1)} 秒`
+              : '';
             toast.success('短链服务连接成功', {
-              description: `API ${shortlinkConfig.apiUrl}`
+              description: `API ${shortlinkConfig.apiUrl}${durationText ? ` · ${durationText}` : ''}`
             });
           } else {
+            const timeoutHint = result.duration && result.duration >= 30000 
+              ? '连接超时（30秒）' 
+              : '建议检查 API 地址、API 密钥和网络连接';
             toast.error('短链服务连接失败', {
-              description: '建议检查 API 地址、API 密钥和网络连接'
+              description: timeoutHint
             });
           }
       } catch {
+          toast.dismiss(loadingToast);
           toast.error('连接测试发生错误', {
             description: '请检查网络连接后重试'
           });

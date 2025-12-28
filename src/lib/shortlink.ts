@@ -81,20 +81,33 @@ export class ShortlinkService {
     }
   }
 
-  async testConnection(): Promise<boolean> {
+  async testConnection(): Promise<{ success: boolean; duration?: number }> {
     if (!this.config) {
-      return false;
+      return { success: false };
     }
+
+    const startTime = Date.now();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 秒超时
 
     try {
       const response = await fetch(`${this.config.apiUrl}/api/list`, {
         headers: {
           'X-API-Key': this.config.apiKey,
         },
+        signal: controller.signal,
       });
-      return response.ok;
-    } catch {
-      return false;
+      clearTimeout(timeoutId);
+      const duration = Date.now() - startTime;
+      return { success: response.ok, duration };
+    } catch (error) {
+      clearTimeout(timeoutId);
+      const duration = Date.now() - startTime;
+      // 区分超时和其他错误
+      if (error instanceof Error && error.name === 'AbortError') {
+        return { success: false, duration: 30000 };
+      }
+      return { success: false, duration };
     }
   }
 }

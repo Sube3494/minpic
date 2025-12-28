@@ -34,14 +34,14 @@ export const configService = {
   },
 
   // Connection Testing
-  async testConnection(type: 'minio' | 'shortlink', config: MinioConfigItem | ShortlinkConfig): Promise<boolean> {
+  async testConnection(type: 'minio' | 'shortlink', config: MinioConfigItem | ShortlinkConfig): Promise<{ success: boolean; duration?: number }> {
     const res = await fetch('/api/config/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, ...config }),
     });
     const data = await res.json();
-    return data.success;
+    return data;
   },
 
   // Sync

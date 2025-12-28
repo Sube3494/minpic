@@ -149,13 +149,20 @@ export function useMinioConfig() {
       if (!config) return;
 
       setTesting(true);
+      const loadingToast = toast.loading('正在测试连接，请稍候...', {
+        description: '这可能需要一些时间，取决于网络状况'
+      });
+      
       try {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { id, name, ...rest } = config; 
-          const success = await configService.testConnection('minio', rest);
-          if (success) {
+          const result = await configService.testConnection('minio', config);
+          toast.dismiss(loadingToast);
+          
+          if (result.success) {
+            const durationText = result.duration 
+              ? `耗时 ${(result.duration / 1000).toFixed(1)} 秒`
+              : '';
             toast.success(`${config.name} 连接测试成功`, {
-              description: `已验证存储桶 ${config.bucket}`
+              description: `已验证存储桶 ${config.bucket}${durationText ? ` · ${durationText}` : ''}`
             });
           } else {
             toast.error(`${config.name} 连接测试失败`, {
@@ -163,6 +170,7 @@ export function useMinioConfig() {
             });
           }
       } catch {
+          toast.dismiss(loadingToast);
           toast.error('连接测试发生错误', {
             description: '请检查网络连接后重试'
           });

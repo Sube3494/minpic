@@ -21,17 +21,17 @@ export async function POST(request: NextRequest) {
         region,
       });
 
-      const isConnected = await minioService.testConnection();
+      const result = await minioService.testConnection();
       
-      return NextResponse.json({ success: isConnected });
+      return NextResponse.json(result);
     } else if (type === 'shortlink') {
       const { apiUrl, apiKey } = body;
       const shortlinkService = getShortlinkService();
       
       shortlinkService.setConfig({ apiUrl, apiKey });
-      const isConnected = await shortlinkService.testConnection();
+      const result = await shortlinkService.testConnection();
       
-      return NextResponse.json({ success: isConnected });
+      return NextResponse.json(result);
     } else {
       return NextResponse.json(
         { error: 'Invalid type' },

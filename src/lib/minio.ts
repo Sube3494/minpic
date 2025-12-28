@@ -184,16 +184,19 @@ export class MinioService {
     });
   }
 
-  async testConnection(): Promise<boolean> {
+  async testConnection(): Promise<{ success: boolean; duration?: number }> {
     if (!this.client || !this.config) {
-      return false;
+      return { success: false };
     }
 
+    const startTime = Date.now();
     try {
       await this.client.bucketExists(this.config.bucket);
-      return true;
+      const duration = Date.now() - startTime;
+      return { success: true, duration };
     } catch {
-      return false;
+      const duration = Date.now() - startTime;
+      return { success: false, duration };
     }
   }
 

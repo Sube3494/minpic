@@ -34,6 +34,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
           error: "bg-white/10! dark:bg-white/10! text-red-700! dark:text-red-300!",
           warning: "bg-white/10! dark:bg-white/10! text-amber-700! dark:text-amber-300!",
           info: "bg-white/10! dark:bg-white/10! text-sky-700! dark:text-sky-300!",
+          loading: "bg-white/10! dark:bg-white/10! text-primary! dark:text-primary!",
         },
       }}
       icons={{
