@@ -83,7 +83,10 @@ export default function FilesPage() {
     try {
       const url = await fileService.getDirectLink(fileId);
       await navigator.clipboard.writeText(url);
-      toast.success('直链已复制到剪贴板');
+      const displayUrl = url.length > 80 ? url.substring(0, 80) + '...' : url;
+      toast.success('直链已复制到剪贴板', {
+        description: displayUrl
+      });
     } catch (err) {
       console.error('获取直链失败:', err);
       toast.error('获取直链失败');
@@ -99,7 +102,10 @@ export default function FilesPage() {
     try {
       const url = await fileService.generateShortlink(shortlinkDialog.fileId, expiresIn, unit);
       await navigator.clipboard.writeText(url);
-      toast.success('短链已生成并复制到剪贴板', { id: loadingToast });
+      toast.success('短链已生成并复制到剪贴板', { 
+        id: loadingToast,
+        description: url
+      });
       setShortlinkDialog({ open: false, fileId: '' });
     } catch (err) {
       console.error('生成短链失败:', err);

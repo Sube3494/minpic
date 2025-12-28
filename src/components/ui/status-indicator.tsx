@@ -1,3 +1,10 @@
+/*
+ * @Date: 2025-12-28 17:14:44
+ * @Author: Sube
+ * @FilePath: status-indicator.tsx
+ * @LastEditTime: 2025-12-28 22:10:18
+ * @Description: 
+ */
 'use client';
 
 import { cn } from '@/lib/utils';
