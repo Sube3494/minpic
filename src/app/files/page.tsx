@@ -6,8 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Server, ChevronDown, Check, Trash2 } from 'lucide-react';
-import Link from 'next/link';
+import { Loader2, Server, ChevronDown, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -250,26 +249,28 @@ export default function FilesPage() {
           </div>
           <div className="flex items-center gap-2 md:gap-3">
              <div className="flex-1 md:flex-none">
-               <DropdownMenu>
+                <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button 
                       variant="outline" 
-                      className="h-10 w-full md:w-auto gap-2 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 hover:bg-zinc-100 dark:hover:bg-white/10 px-4 min-w-[120px] md:min-w-[140px] justify-between shadow-sm transition-all active:scale-[0.98] rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0"
+                      className="h-10 w-full md:w-auto gap-2 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900 px-3 min-w-[120px] md:min-w-[140px] justify-between shadow-sm transition-all active:scale-[0.98] rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0 group"
                     >
-                      <div className="flex items-center gap-2">
-                        <Server className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
-                        <span className="text-xs md:text-sm font-bold text-zinc-700 dark:text-zinc-200">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex items-center justify-center w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 group-hover:text-foreground transition-colors">
+                          <Server className="w-3 h-3" />
+                        </div>
+                        <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate max-w-[100px]">
                           {selectedConfigName}
                         </span>
                       </div>
-                      <ChevronDown className="w-4 h-4 text-zinc-400" />
+                      <ChevronDown className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-500 transition-colors" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56 p-2 rounded-2xl glass-strong border-zinc-200/50 dark:border-white/10 shadow-2xl animate-in zoom-in-95 duration-200">
+                  <DropdownMenuContent align="end" className="w-72 p-1.5 rounded-xl glass-strong border-zinc-200/50 dark:border-white/10 shadow-xl animate-in zoom-in-95 slide-in-from-top-2 duration-200">
                     <div className="px-2 py-1.5 mb-1">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">选择存储源</p>
+                      <p className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 pl-1">切换存储源</p>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       {configs.map((config) => {
                         const isSelected = selectedConfigId === config.id;
                         return (
@@ -277,26 +278,47 @@ export default function FilesPage() {
                             key={config.id} 
                             onClick={() => setSelectedConfigId(config.id)}
                             className={cn(
-                              "text-xs py-2.5 px-4 rounded-xl cursor-pointer transition-all focus:bg-zinc-100 dark:focus:bg-white/10 flex items-center justify-between group",
-                              isSelected ? "bg-primary/5 text-primary font-bold dark:bg-primary/10" : "text-zinc-600 dark:text-zinc-300"
+                              "relative py-2 px-2 rounded-lg cursor-pointer transition-all outline-none flex items-center justify-between group gap-3",
+                              isSelected 
+                                ? "bg-zinc-100 dark:bg-white/10" 
+                                : "hover:bg-zinc-50 dark:hover:bg-white/5"
                             )}
                           >
-                            <div className="flex items-center gap-2">
-                              <Server className={cn("w-3.5 h-3.5", isSelected ? "text-primary" : "text-zinc-400")} />
-                              {config.name}
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={cn(
+                                "flex items-center justify-center w-8 h-8 rounded-lg shrink-0 transition-colors border",
+                                isSelected 
+                                  ? "bg-white dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 shadow-sm text-primary" 
+                                  : "bg-zinc-50 dark:bg-zinc-900 border-transparent text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300"
+                              )}>
+                                <Server className="w-4 h-4" />
+                              </div>
+                              <div className="flex flex-col min-w-0">
+                                <span className={cn(
+                                  "text-sm font-medium truncate transition-colors",
+                                  isSelected ? "text-foreground" : "text-zinc-600 dark:text-zinc-300 group-hover:text-foreground"
+                                )}>
+                                  {config.name}
+                                </span>
+                                {(config.endpoint || config.bucket) && (
+                                  <span className="text-[10px] text-zinc-400 truncate tracking-tight opacity-80">
+                                    {config.endpoint?.replace(/^https?:\/\//, '') || config.bucket}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            {isSelected && <Check className="w-3.5 h-3.5 animate-in zoom-in-50 duration-300" />}
+                            {isSelected && (
+                              <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)] shrink-0 mr-1" />
+                            )}
                           </DropdownMenuItem>
                         );
                       })}
                     </div>
                   </DropdownMenuContent>
-               </DropdownMenu>
+                </DropdownMenu>
              </div>
 
-            <Button variant="outline" className="border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 hover:bg-zinc-100 dark:hover:bg-white/10 h-10 rounded-full px-4 md:px-6 outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0 shadow-sm transition-all active:scale-[0.98] shrink-0" asChild>
-              <Link href="/">返回首页</Link>
-            </Button>
+
           </div>
         </div>
 

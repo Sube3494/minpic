@@ -29,4 +29,6 @@ export interface UploadTask {
 export interface MinioConfig {
   id: string;
   name: string;
+  endpoint?: string;
+  bucket?: string;
 }

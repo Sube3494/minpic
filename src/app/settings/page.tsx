@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Info, RefreshCw, Database, FileImage, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -182,24 +182,44 @@ export default function SettingsPage() {
             onOpenChange={(open) => !open && setSyncDialog({ open: false, configId: '' })}
             title="同步文件库"
             description={
-                <div className="space-y-4 py-1">
-                    <p className="text-zinc-600 dark:text-zinc-300">确定要扫描并同步此配置的所有文件吗？此操作将：</p>
-                    <div className="bg-zinc-50/80 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-100 dark:border-white/5 space-y-2">
-                        {[
-                            '扫描 MinIO 存储桶中的所有文件',
-                            '自动识别文件类型并生成缩略图',
-                            '批量导入到数据库',
-                            '跳过已存在的文件'
-                        ].map((item, i) => (
-                            <div key={i} className="flex items-center gap-2.5 text-sm text-zinc-600 dark:text-zinc-400">
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500/50 shrink-0" />
-                                <span>{item}</span>
-                            </div>
-                        ))}
+                <div className="flex flex-col items-center gap-6 py-4">
+                    {/* Hero Icon */}
+                    <div className="relative flex items-center justify-center w-20 h-20">
+                        <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-400/10 rounded-full animate-ping opacity-20 duration-3000" />
+                        <div className="relative flex items-center justify-center w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full border border-blue-100 dark:border-blue-800/30">
+                            <RefreshCw className="w-10 h-10 text-blue-600 dark:text-blue-400 animate-spin-slow" />
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3 text-amber-600 dark:text-amber-500 text-sm bg-amber-50/80 dark:bg-amber-950/30 p-4 rounded-xl border border-amber-100/50 dark:border-amber-900/10">
-                        <Info className="w-5 h-5 shrink-0" />
-                        <span className="leading-tight">这可能需要一些时间，特别是如果存储桶中有大量文件。</span>
+
+                    <div className="space-y-4 w-full">
+                        <div className="text-center space-y-1">
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">准备同步文件</h3>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-[280px] mx-auto">
+                                将会对接 MinIO 存储桶并执行全量扫描
+                            </p>
+                        </div>
+
+                        <div className="bg-zinc-50/50 dark:bg-white/5 p-4 rounded-2xl border border-zinc-100/50 dark:border-white/5 space-y-3">
+                            {[
+                                { icon: Database, text: "扫描存储桶中的所有文件", color: "text-purple-500" },
+                                { icon: FileImage, text: "自动生成文件缩略图", color: "text-amber-500" },
+                                { icon: Share2, text: "智能识别并跳过已有记录", color: "text-emerald-500" }
+                            ].map((item, i) => (
+                                <div key={i} className="flex items-center gap-3.5 p-2 rounded-xl hover:bg-white dark:hover:bg-white/5 transition-colors group">
+                                    <div className={`p-2 rounded-lg bg-white dark:bg-white/5 shadow-sm border border-zinc-100 dark:border-white/5 group-hover:scale-105 transition-transform ${item.color}`}>
+                                        <item.icon className="w-4 h-4" />
+                                    </div>
+                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{item.text}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="flex items-start gap-3 text-zinc-500 dark:text-zinc-400 text-xs bg-zinc-50 dark:bg-zinc-900/50 p-3.5 rounded-xl">
+                            <Info className="w-4 h-4 shrink-0 mt-0.5 text-zinc-400" />
+                            <p className="leading-normal opacity-80">
+                                同步耗时取决于文件数量。任务将在后台执行，期间请勿关闭服务器。
+                            </p>
+                        </div>
                     </div>
                 </div>
             }

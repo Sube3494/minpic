@@ -1,3 +1,10 @@
+/*
+ * @Date: 2025-12-24 21:26:18
+ * @Author: Sube
+ * @FilePath: layout.tsx
+ * @LastEditTime: 2025-12-29 19:26:51
+ * @Description: 
+ */
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
@@ -53,6 +60,7 @@ export default function RootLayout({
               position="top-right"
               expand={false}
               richColors={false}
+              duration={2000}
             />
         </ThemeProvider>
       </body>

@@ -66,7 +66,7 @@ export function FilterBar({ search, setSearch, filter, setFilter, viewMode, setV
                 }}
                 onClick={() => setFilter(option.id)}
                 className={cn(
-                  "relative px-3 py-1.5 rounded-full text-xs font-bold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/20 whitespace-nowrap shrink-0",
+                  "relative px-3 py-1.5 rounded-full text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/20 whitespace-nowrap shrink-0",
                   isActive ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
                 )}
               >
