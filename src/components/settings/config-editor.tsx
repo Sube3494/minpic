@@ -423,9 +423,9 @@ export function ConfigEditor({
                                 className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 h-11 px-3 font-normal shadow-sm group"
                             >
                                 <span className="text-sm text-zinc-700 dark:text-zinc-200">
-                                    {config.duplicateHandling === 'skip' && '跳过 (Skip)'}
-                                    {config.duplicateHandling === 'overwrite' && '覆盖 (Overwrite)'}
-                                    {(config.duplicateHandling === 'keep-both' || !config.duplicateHandling) && '保留两者 (Keep Both)'}
+                                    {config.duplicateHandling === 'skip' && '跳过'}
+                                    {config.duplicateHandling === 'overwrite' && '覆盖'}
+                                    {(config.duplicateHandling === 'keep-both' || !config.duplicateHandling) && '保留两者'}
                                 </span>
                                 <ChevronDown className="w-4 h-4 text-zinc-400 transition-transform group-data-[state=open]:rotate-180" />
                             </Button>
@@ -441,7 +441,7 @@ export function ConfigEditor({
                                     className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
                                 >
                                     <div className="flex flex-col flex-1">
-                                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">跳过 (Skip)</span>
+                                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">跳过</span>
                                         <span className="text-[10px] text-zinc-500">如果文件已存在，则不进行上传</span>
                                     </div>
                                     {config.duplicateHandling === 'skip' && <Check className="w-4 h-4 text-primary" />}
@@ -452,7 +452,7 @@ export function ConfigEditor({
                                     className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
                                 >
                                     <div className="flex flex-col flex-1">
-                                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">覆盖 (Overwrite)</span>
+                                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">覆盖</span>
                                         <span className="text-[10px] text-zinc-500">强制覆盖已存在的同名文件</span>
                                     </div>
                                     {config.duplicateHandling === 'overwrite' && <Check className="w-4 h-4 text-primary" />}
@@ -463,7 +463,7 @@ export function ConfigEditor({
                                     className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer focus:bg-zinc-100 dark:focus:bg-white/10 transition-colors"
                                 >
                                     <div className="flex flex-col flex-1">
-                                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">保留两者 (Keep Both)</span>
+                                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">保留两者</span>
                                         <span className="text-[10px] text-zinc-500">自动重命名新文件以避免冲突</span>
                                     </div>
                                     {(config.duplicateHandling === 'keep-both' || !config.duplicateHandling) && <Check className="w-4 h-4 text-primary" />}

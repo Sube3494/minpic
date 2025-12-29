@@ -301,3 +301,8 @@
     mix-blend-mode: normal;
   }
 }
+
+/* Optimized badge toggling */
+.hide-type-badges .file-type-badge {
+  display: none;
+}

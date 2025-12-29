@@ -6,61 +6,78 @@ import { toast } from 'sonner';
 export function useFiles(initialFilter: FilterType = 'all', initialViewMode: ViewMode = 'grid') {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterType>(initialFilter);
   const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
-  
-  // Cache for storing fetched results: key = "${filter}-${search}"
-  const cache = useRef<Record<string, FileItem[]>>({});
+  const pageRef = useRef(1); // 使用 Ref 追踪真实页码，避免 useCallback 闭包循环
+  const [hasMore, setHasMore] = useState(true);
+  const hasMoreRef = useRef(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const isLoadingMoreRef = useRef(false);
+  const isInitialLoading = useRef(false);
+  const hasDataRef = useRef(false);
+  const pageSize = 30;
 
-  const loadFiles = useCallback(async (force = false) => {
-    const cacheKey = `${filter}-${search}`;
-
-    // Return from cache if available and not forced
-    if (!force && cache.current[cacheKey]) {
-      setFiles(cache.current[cacheKey]);
-      setLoading(false);
-      return;
+  const fetchFiles = useCallback(async (targetPage: number, isAppend: boolean) => {
+    if (isInitialLoading.current) return;
+    
+    if (isAppend) {
+      if (isLoadingMoreRef.current || !hasMoreRef.current) return;
+      setLoadingMore(true);
+      isLoadingMoreRef.current = true;
+    } else {
+      if (hasDataRef.current) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      isInitialLoading.current = true;
+      setHasMore(true);
+      hasMoreRef.current = true;
     }
 
-    setLoading(true);
-    const startTime = Date.now();
     try {
-      const data = await fileService.getFiles(filter, search);
+      const data = await fileService.getFiles(filter, search, targetPage, pageSize);
       
-      // Calculate remaining time to satisfy minimum loading duration of 300ms
-      // Only delay if it was a real network request (not cache)
-      const elapsed = Date.now() - startTime;
-      const minLoadTime = 300; 
-      if (elapsed < minLoadTime) {
-        await new Promise(resolve => setTimeout(resolve, minLoadTime - elapsed));
+      if (isAppend) {
+        setFiles(prev => {
+          const newFiles = [...prev, ...data.files];
+          hasDataRef.current = newFiles.length > 0;
+          return newFiles;
+        });
+      } else {
+        setFiles(data.files);
+        hasDataRef.current = data.files.length > 0;
       }
       
-      cache.current[cacheKey] = data;
-      setFiles(data);
+      const newHasMore = data.pagination.totalPages > targetPage;
+      setHasMore(newHasMore);
+      hasMoreRef.current = newHasMore;
+      pageRef.current = targetPage;
     } catch {
-      toast.error('加载文件列表失败', {
-        description: '请检查网络连接或刷新页面重试'
-      });
+      toast.error('加载文件列表失败');
     } finally {
-      setLoading(false);
+      if (!isAppend) {
+        setLoading(false);
+        setIsRefreshing(false);
+        isInitialLoading.current = false;
+      }
+      setLoadingMore(false);
+      isLoadingMoreRef.current = false;
     }
   }, [filter, search]);
 
+  // 仅在搜索或过滤变化时重置
   useEffect(() => {
-    loadFiles();
-  }, [loadFiles]);
-
-  const refreshFiles = useCallback(() => {
-    cache.current = {}; // Clear cache on force refresh
-    loadFiles(true);
-  }, [loadFiles]);
+    fetchFiles(1, false);
+  }, [filter, search, fetchFiles]);
 
   const removeFile = useCallback((id: string) => {
-    setFiles(prev => prev.filter(f => f.id !== id));
-    // Update cache to reflect deletion
-    Object.keys(cache.current).forEach(key => {
-      cache.current[key] = cache.current[key].filter(f => f.id !== id);
+    setFiles(prev => {
+      const newFiles = prev.filter(f => f.id !== id);
+      hasDataRef.current = newFiles.length > 0;
+      return newFiles;
     });
   }, []);
 
@@ -88,10 +105,10 @@ export function useFiles(initialFilter: FilterType = 'all', initialViewMode: Vie
   const batchDelete = async (ids: string[], deleteMode: 'full' | 'record-only' = 'record-only') => {
     try {
         await fileService.batchDeleteFiles(ids, deleteMode);
-        setFiles(prev => prev.filter(f => !ids.includes(f.id)));
-        // Update cache for batch deletion
-        Object.keys(cache.current).forEach(key => {
-          cache.current[key] = cache.current[key].filter(f => !ids.includes(f.id));
+        setFiles(prev => {
+          const newFiles = prev.filter(f => !ids.includes(f.id));
+          hasDataRef.current = newFiles.length > 0;
+          return newFiles;
         });
         
         const message = deleteMode === 'full'
@@ -114,13 +131,17 @@ export function useFiles(initialFilter: FilterType = 'all', initialViewMode: Vie
   return {
     files,
     loading,
+    isRefreshing,
     search,
     setSearch,
     filter,
     setFilter,
     viewMode,
     setViewMode,
-    refreshFn: refreshFiles,
+    hasMore,
+    loadingMore,
+    loadMore: useCallback(() => fetchFiles(pageRef.current + 1, true), [fetchFiles]),
+    refreshFn: useCallback(() => fetchFiles(1, false), [fetchFiles]),
     deleteFile,
     batchDelete
   };

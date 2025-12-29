@@ -20,18 +20,25 @@ export function NavBar() {
   const itemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
 
   useEffect(() => {
-    const activeIndex = navItems.findIndex(item => item.href === pathname);
-    const activeEl = itemsRef.current[activeIndex];
+    const updatePosition = () => {
+      const activeIndex = navItems.findIndex(item => item.href === pathname);
+      const activeEl = itemsRef.current[activeIndex];
 
-    if (activeEl) {
-      setIndicatorStyle({
-        left: activeEl.offsetLeft,
-        width: activeEl.offsetWidth,
-        opacity: 1
-      });
-    } else {
-      setIndicatorStyle(prev => ({ ...prev, opacity: 0 }));
-    }
+      if (activeEl) {
+        setIndicatorStyle({
+          left: activeEl.offsetLeft,
+          width: activeEl.offsetWidth,
+          opacity: 1
+        });
+      } else {
+        setIndicatorStyle(prev => ({ ...prev, opacity: 0 }));
+      }
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    
+    return () => window.removeEventListener('resize', updatePosition);
   }, [pathname]);
 
   return (

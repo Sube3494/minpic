@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Server, ChevronDown, Check, X } from 'lucide-react';
+import { Loader2, Server, ChevronDown, Check, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import {
   DropdownMenu,
@@ -27,10 +29,20 @@ import { fileService } from '@/services/file.service';
 import { PageWrapper } from '@/components/layout/page-wrapper';
 import { toast } from 'sonner';
 
+// Portal helper component
+function Portal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return createPortal(children, document.body);
+}
+
 export default function FilesPage() {
   const { 
-    files, loading, search, setSearch, filter, setFilter, viewMode, setViewMode, 
-    refreshFn, deleteFile, batchDelete 
+    files, loading, isRefreshing, search, setSearch, filter, setFilter, viewMode, setViewMode,
+    refreshFn, deleteFile, batchDelete,
+    hasMore, loadingMore, loadMore 
   } = useFiles();
   
   const { 
@@ -44,6 +56,21 @@ export default function FilesPage() {
   const { 
     uploading, queue, aggregateProgress, uploadFiles 
   } = useFileUpload(refreshFn);
+
+  const [, startTransition] = useTransition();
+  const [optimisticFilter, setOptimisticFilter] = useState(filter);
+
+  // Sync optimistic filter with actual filter (e.g. on mount or external change)
+  useEffect(() => {
+    setOptimisticFilter(filter);
+  }, [filter]);
+
+  const handleFilterChange = (value: typeof filter) => {
+    setOptimisticFilter(value);
+    startTransition(() => {
+      setFilter(value);
+    });
+  };
 
   const [deleteDialog, setDeleteDialog] = useState<{ 
     open: boolean; 
@@ -64,6 +91,29 @@ export default function FilesPage() {
   }>({ open: false, fileId: '' });
 
   const [shortlinkEnabled, setShortlinkEnabled] = useState(false);
+  const [columns, setColumns] = useState(1);
+
+  // 响应式列数计算
+  useEffect(() => {
+    if (viewMode !== 'grid') return;
+    
+    const updateColumns = () => {
+      const width = window.innerWidth;
+      if (width < 640) setColumns(2);
+      else if (width < 1024) setColumns(3);
+      else if (width < 1440) setColumns(4);
+      else setColumns(5);
+    };
+
+    requestAnimationFrame(updateColumns);
+    window.addEventListener('resize', updateColumns);
+    return () => window.removeEventListener('resize', updateColumns);
+  }, [viewMode]);
+
+  // 将文件分配到列中
+  const fileColumns = Array.from({ length: columns }, (_, i: number) => 
+    files.filter((__, index: number) => index % columns === i)
+  );
 
   // Load shortlink config on mount
   useEffect(() => {
@@ -78,8 +128,18 @@ export default function FilesPage() {
     loadShortlinkConfig();
   }, []);
 
+  const isAllSelected = files.length > 0 && files.every(f => selectedIds.includes(f.id));
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(files.map(f => f.id));
+    }
+  };
+
   // Handlers
-  const handleCopyDirectLink = async (fileId: string) => {
+  const handleCopyDirectLink = useCallback(async (fileId: string) => {
     try {
       const url = await fileService.getDirectLink(fileId);
       await navigator.clipboard.writeText(url);
@@ -91,11 +151,11 @@ export default function FilesPage() {
       console.error('获取直链失败:', err);
       toast.error('获取直链失败');
     }
-  };
+  }, []);
 
-  const handleGenerateShortlink = (fileId: string) => {
+  const handleGenerateShortlink = useCallback((fileId: string) => {
     setShortlinkDialog({ open: true, fileId });
-  };
+  }, []);
 
   const handleConfirmGenerateShortlink = async (expiresIn: number, unit: 'minutes' | 'hours' | 'days') => {
     const loadingToast = toast.loading('正在生成短链...');
@@ -151,11 +211,28 @@ export default function FilesPage() {
     return () => document.removeEventListener('paste', handlePaste);
   }, [uploadFiles, selectedConfigId]);
 
-  // Derived state
   const selectedConfigName = configs.find(c => c.id === selectedConfigId)?.name || '加载中...';
 
+  // 无限滚动 Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: '200px' }
+    );
+
+    const sentinel = document.getElementById('scroll-sentinel');
+    if (sentinel) observer.observe(sentinel);
+
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loading, loadMore]);
+
   return (
-    <PageWrapper>
+    <>
+      <PageWrapper>
       <div className="min-h-screen p-4 md:p-12 pb-32 safe-area-bottom">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
         
@@ -236,132 +313,187 @@ export default function FilesPage() {
         <FilterBar 
             search={search}
             setSearch={setSearch}
-            filter={filter}
-            setFilter={setFilter}
+            filter={optimisticFilter} 
+            setFilter={handleFilterChange}
             viewMode={viewMode}
             setViewMode={setViewMode}
         />
 
         {/* Files Grid/List */}
-        <AnimatePresence mode="wait">
-          {loading ? (
+        <div className="relative min-h-[400px]">
+          <AnimatePresence mode="wait">
+            {loading && files.length === 0 ? (
+                <motion.div 
+                  key="loader"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-center py-24"
+                >
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+                  <p className="text-muted-foreground mt-4 font-medium uppercase tracking-widest text-xs">正在载入资源...</p>
+                </motion.div>
+            ) : files.length === 0 ? (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Card className="glass">
+                    <CardContent className="p-12 text-center">
+                      <p className="text-muted-foreground">暂无文件</p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+            ) : (
               <motion.div 
-                key="loader"
+                key={filter + search + viewMode} 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="text-center py-12"
+                transition={{ duration: 0.3 }}
+                className={cn(
+                  "transition-[opacity,filter] duration-300",
+                  isRefreshing ? "opacity-40 grayscale-[0.5] pointer-events-none" : "opacity-100",
+                  optimisticFilter !== 'all' && "hide-type-badges",
+                  viewMode === 'grid' 
+                    ? "flex flex-row gap-4 items-start" 
+                    : "flex flex-col gap-2"
+                )}
               >
-                <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
-                <p className="text-muted-foreground mt-2">加载中...</p>
+                  {viewMode === 'grid' ? (
+                    Array.from({ length: columns }).map((_, colIndex: number) => (
+                      <div key={colIndex} className="flex-1 flex flex-col gap-4">
+                        {fileColumns[colIndex].map((file) => (
+                           <FileCard 
+                              key={file.id} 
+                              file={file} 
+                              isSelected={selectedIds.includes(file.id)} 
+                              isSelectionMode={selectedIds.length > 0}
+                              toggleSelect={toggleSelect} 
+                              copyDirectLink={handleCopyDirectLink} 
+                              generateShortlink={handleGenerateShortlink}
+                              shortlinkEnabled={shortlinkEnabled}
+                          />
+                        ))}
+                      </div>
+                    ))
+                  ) : (
+                    files.map((file) => (
+                      <FileListRow 
+                          key={file.id} 
+                          file={file} 
+                          isSelected={selectedIds.includes(file.id)} 
+                          toggleSelect={toggleSelect} 
+                          copyDirectLink={handleCopyDirectLink} 
+                          generateShortlink={handleGenerateShortlink}
+                          shortlinkEnabled={shortlinkEnabled}
+                      />
+                    ))
+                  )}
               </motion.div>
-          ) : files.length === 0 ? (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-              >
-                <Card className="glass">
-                  <CardContent className="p-12 text-center">
-                    <p className="text-muted-foreground">暂无文件</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-          ) : (
-            <motion.div 
-              key="content"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className={cn(
-                viewMode === 'grid' 
-                  ? "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3 md:gap-4" 
-                  : "flex flex-col gap-2"
-              )}
-            >
-                {files.map((file) => {
-                   const isSelected = selectedIds.includes(file.id);
-                   return viewMode === 'grid' ? (
-                       <FileCard 
-                           key={file.id} 
-                           file={file} 
-                           isSelected={isSelected} 
-                           toggleSelect={toggleSelect} 
-                           copyDirectLink={handleCopyDirectLink} 
-                           generateShortlink={handleGenerateShortlink}
-                           shortlinkEnabled={shortlinkEnabled}
-                       />
-                   ) : (
-                       <FileListRow 
-                           key={file.id} 
-                           file={file} 
-                           isSelected={isSelected} 
-                           toggleSelect={toggleSelect} 
-                           copyDirectLink={handleCopyDirectLink} 
-                           generateShortlink={handleGenerateShortlink}
-                           shortlinkEnabled={shortlinkEnabled}
-                       />
-                   );
-                })}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-      
-      {/* Bulk Action Toolbar */}
-      {selectedIds.length > 0 && (
-        <div className="fixed bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-300 w-max max-w-[95vw]">
-          <div className="bg-zinc-900/90 dark:bg-zinc-800/95 backdrop-blur-xl border border-white/10 rounded-2xl md:rounded-full px-4 md:px-6 py-2.5 md:py-3 shadow-2xl flex items-center justify-between gap-4 md:gap-6">
-            <div className="flex items-center gap-2 md:gap-3 pr-2 md:pr-4 border-r border-white/10">
-              <span className="text-white font-bold text-xs md:text-sm whitespace-nowrap">已选 {selectedIds.length} 项</span>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-6 w-6 md:h-8 md:w-8 p-0 text-white/60 hover:text-white hover:bg-white/10 rounded-full"
-                onClick={() => setSelectedIds([])}
-              >
-                <X className="w-3.5 h-3.5 md:w-5 md:h-5" />
-              </Button>
-            </div>
+            )}
+          </AnimatePresence>
 
-            <div className="flex items-center gap-1.5 md:gap-2">
-               <Button
+        </div>
+
+        {/* Infinite Scroll Sentinel & Loading More State */}
+        <div id="scroll-sentinel" className="h-20 flex items-center justify-center">
+          {loadingMore && (
+             <div className="flex items-center gap-3 bg-zinc-100/50 dark:bg-white/5 px-6 py-3 rounded-full backdrop-blur-sm animate-in fade-in zoom-in duration-300">
+               <Loader2 className="w-4 h-4 animate-spin text-primary" />
+               <span className="text-sm font-medium text-muted-foreground">加载更多资源...</span>
+             </div>
+          )}
+          {!hasMore && files.length > 0 && !loading && (
+             <div className="text-zinc-400 dark:text-zinc-600 text-[11px] font-bold uppercase tracking-[0.2em] py-8">
+               已经到底啦
+             </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </PageWrapper>
+
+    {/* Bulk Action Toolbar - Clean & Balanced UI */}
+    <Portal>
+      <AnimatePresence>
+        {selectedIds.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: 30, x: "-50%", scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, x: "-50%", scale: 1 }}
+            exit={{ opacity: 0, y: 20, x: "-50%", scale: 0.98 }}
+            transition={{ type: "spring", damping: 25, stiffness: 400 }}
+            className="fixed bottom-6 left-1/2 z-9999 pointer-events-auto w-[92vw] md:w-auto"
+          >
+            <div className="flex items-center justify-between gap-2 md:gap-4 p-2 pl-3 md:pl-3 rounded-2xl md:rounded-full bg-white/90 dark:bg-zinc-900/90 backdrop-blur-2xl border border-zinc-200 dark:border-white/10 shadow-xl ring-1 ring-black/5 dark:ring-white/5">
+              {/* Info section */}
+              <div className="flex items-center gap-2 pl-0 pr-3 py-1.5 border-r border-zinc-200 dark:border-white/10 shrink-0">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-[11px] font-bold">
+                  {selectedIds.length}
+                </div>
+                <span className="text-zinc-900 dark:text-zinc-100 font-bold text-sm tracking-tight">已选文件</span>
+              </div>
+
+              {/* Functional Buttons */}
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  className="h-8 px-3.5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-900 dark:text-zinc-100 font-bold text-xs border-0 transition-all active:scale-95"
+                  onClick={handleSelectAll}
+                >
+                  {isAllSelected ? '取消全选' : '全选'}
+                </Button>
+
+                <Button 
+                  variant="secondary" 
+                  size="sm" 
+                  className="h-8 px-3.5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-900 dark:text-zinc-100 font-bold text-xs border-0 transition-all active:scale-95"
+                  onClick={() => setSelectedIds([])}
+                >
+                  清除
+                </Button>
+              </div>
+
+              {/* Crucial Action */}
+              <Button
                 variant="destructive"
                 size="sm"
-                className="rounded-full h-8 md:h-9 px-3 md:px-5 font-bold text-xs md:text-sm shadow-lg shadow-red-500/20"
+                className="h-9 px-5 rounded-full font-bold text-xs tracking-wide shadow-md shadow-red-500/10 hover:shadow-red-500/20 transition-all active:scale-95"
                 onClick={handleBatchDeleteClick}
                 disabled={isDeleting}
               >
-                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '批量删除'}
+                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Trash2 className="w-3.5 h-3.5 mr-2" />}
+                批量删除
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Portal>
 
-      {/* Delete Dialog */}
-      <ConfirmDialog
-        open={deleteDialog.open}
-        onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
-        title={deleteDialog.fileId === 'batch' ? "确认批量删除" : "确认删除文件"}
-        description={`确定要删除 "${deleteDialog.filename}" 吗？`}
-        deleteMode={deleteDialog.deleteMode}
-        onDeleteModeChange={(mode) => setDeleteDialog(prev => ({ ...prev, deleteMode: mode }))}
-        onConfirm={confirmDelete}
-        isLoading={isDeleting}
-      />
+    {/* Delete Dialog */}
+    <ConfirmDialog
+      open={deleteDialog.open}
+      onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
+      title={deleteDialog.fileId === 'batch' ? "确认批量删除" : "确认删除文件"}
+      description={`确定要删除 "${deleteDialog.filename}" 吗？`}
+      deleteMode={deleteDialog.deleteMode}
+      onDeleteModeChange={(mode) => setDeleteDialog(prev => ({ ...prev, deleteMode: mode }))}
+      onConfirm={confirmDelete}
+      isLoading={isDeleting}
+    />
 
-      {/* Shortlink Dialog */}
-      <ShortlinkDialog
-        open={shortlinkDialog.open}
-        onOpenChange={(open) => setShortlinkDialog(prev => ({ ...prev, open }))}
-        onConfirm={handleConfirmGenerateShortlink}
-      />
-    </div>
-    </PageWrapper>
+    {/* Shortlink Dialog */}
+    <ShortlinkDialog
+      open={shortlinkDialog.open}
+      onOpenChange={(open) => setShortlinkDialog(prev => ({ ...prev, open }))}
+      onConfirm={handleConfirmGenerateShortlink}
+    />
+  </>
   );
 }

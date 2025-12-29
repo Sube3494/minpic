@@ -1,15 +1,20 @@
 import { FileItem, MinioConfig } from '@/types/file';
 
 export const fileService = {
-  async getFiles(filter: string = 'all', search: string = ''): Promise<FileItem[]> {
+  async getFiles(filter: string = 'all', search: string = '', page: number = 1, pageSize: number = 20): Promise<{ files: FileItem[]; pagination: { total: number; totalPages: number } }> {
     const params = new URLSearchParams();
     if (filter !== 'all') params.append('fileType', filter);
     if (search) params.append('search', search);
+    params.append('page', page.toString());
+    params.append('pageSize', pageSize.toString());
 
     const response = await fetch(`/api/files?${params}`);
     if (!response.ok) throw new Error('Failed to fetch files');
     const data = await response.json();
-    return data.files || [];
+    return {
+      files: data.files || [],
+      pagination: data.pagination
+    };
   },
 
   async getConfigs(): Promise<{ configs: MinioConfig[]; activeId?: string }> {
