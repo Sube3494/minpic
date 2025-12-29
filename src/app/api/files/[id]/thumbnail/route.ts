@@ -26,7 +26,7 @@ export async function GET(
 
     if (file.thumbnailData) {
       // Serve from DB
-      return new NextResponse(file.thumbnailData, {
+      return new NextResponse(new Uint8Array(file.thumbnailData), {
         headers: {
           'Content-Type': 'image/webp',
           'Cache-Control': 'public, max-age=31536000, immutable',
@@ -72,7 +72,7 @@ export async function GET(
                   }
                });
 
-               return new NextResponse(thumbnailBuffer, {
+               return new NextResponse(new Uint8Array(thumbnailBuffer), {
                  headers: {
                    'Content-Type': 'image/webp',
                    'Cache-Control': 'public, max-age=31536000, immutable',
@@ -120,7 +120,7 @@ export async function GET(
              }
           });
 
-          return new NextResponse(thumbnailBuffer, {
+          return new NextResponse(new Uint8Array(thumbnailBuffer), {
             headers: {
               'Content-Type': 'image/webp',
               'Cache-Control': 'public, max-age=31536000, immutable',

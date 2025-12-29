@@ -46,8 +46,12 @@ export function ConfigList({
       }
     };
 
-    const rafId = requestAnimationFrame(updatePosition);
-    return () => cancelAnimationFrame(rafId);
+    // Add a delay to ensure DOM is fully rendered after animation
+    const timeoutId = setTimeout(() => {
+      requestAnimationFrame(updatePosition);
+    }, 250);
+    
+    return () => clearTimeout(timeoutId);
   }, [selectedId, configs]);
 
   return (
@@ -97,8 +101,12 @@ export function ConfigList({
                     const isSelected = config.id === selectedId;
 
                     return (
-                        <div
+                        <motion.div
                             key={config.id}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
                             ref={el => { itemsRef.current[index] = el }}
                             onClick={() => onSelect(config.id)}
                             className={cn(
@@ -182,7 +190,7 @@ export function ConfigList({
                                     <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                             </div>
-                        </div>
+                        </motion.div>
                     );
                 })}
             </div>

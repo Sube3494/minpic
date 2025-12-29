@@ -58,7 +58,7 @@ export async function GET(
     // 正确编码中文文件名 (RFC 5987)
     const encodedFilename = encodeURIComponent(file.filename);
 
-    return new NextResponse(fileBuffer, {
+    return new NextResponse(new Uint8Array(fileBuffer), {
       headers: {
         'Content-Type': file.mimeType,
         'Content-Disposition': `inline; filename="${file.filename.replace(/[^\x00-\x7F]/g, '_')}"; filename*=UTF-8''${encodedFilename}`,

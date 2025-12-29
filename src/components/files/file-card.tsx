@@ -83,7 +83,7 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
         <div 
           className={cn(
             "absolute top-2 right-2 z-30 transition-all duration-300 cursor-pointer w-10 h-10 flex items-center justify-center", // Increased hit area
-            isSelected ? "opacity-100 scale-100" : "opacity-0 scale-75 md:group-hover:opacity-100 md:group-hover:scale-100"
+            isSelected ? "opacity-100" : "opacity-0 md:group-hover:opacity-100"
           )}
           onClick={(e) => {
             e.stopPropagation();
@@ -91,10 +91,10 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
           }}
         >
           <div className={cn(
-            "rounded-full w-6 h-6 flex items-center justify-center transition-all duration-200 shadow-lg backdrop-blur-md ring-1 ring-white/20 dark:ring-white/10",
+            "rounded-full w-6 h-6 flex items-center justify-center transition-all duration-300 shadow-lg ring-1 ring-white/20 dark:ring-white/10",
             isSelected 
               ? "bg-primary border border-primary text-white scale-110" 
-              : "bg-black/20 hover:bg-black/40 border border-white/50 text-transparent"
+              : "bg-black/30 hover:bg-black/40 border border-white/50 text-transparent"
           )}>
             <Check className="w-3.5 h-3.5" strokeWidth={3} />
           </div>
@@ -115,9 +115,14 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
               loading="lazy"
             />
           ) : (
-            <div className="flex flex-col items-center justify-center gap-3 py-10 h-full">
+            <div className="flex flex-col items-center justify-center gap-3 p-4 h-full">
               <FileIcon fileType={file.fileType} className="w-12 h-12 text-primary/60" />
-              <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">{file.fileType}</span>
+              <div className="flex flex-col items-center gap-1 min-w-0 w-full">
+                <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400 truncate w-full text-center px-2">
+                  {file.filename}
+                </span>
+                <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest">{file.fileType}</span>
+              </div>
             </div>
           )}
         </div>
@@ -125,14 +130,14 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
         {/* Info Overlay - Scheme C */}
         {/* Info Overlay - Scheme C (Ultra Compact) */}
         <div className="absolute inset-x-0 bottom-0 z-20 pointer-events-none">
-          <div className="absolute inset-x-0 bottom-0 h-16 bg-linear-to-t from-black/80 via-black/40 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300" />
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-black/60 via-black/20 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300" />
           
           <div className="relative p-3 flex items-center justify-between opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 translate-y-0 md:translate-y-2 md:group-hover:translate-y-0">
             {/* Left: Info Badges */}
             <div className="flex items-center gap-2">
                 {formatExpiryTime(file.expiresAt) && (
                    <span className={cn(
-                     "text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-black/40 text-white backdrop-blur-md border border-white/10",
+                     "text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-black/30 text-white border border-white/20 shadow-sm",
                      formatExpiryTime(file.expiresAt) === '已过期' ? 'text-red-300' : 'text-amber-300'
                    )}>
                      {formatExpiryTime(file.expiresAt)}
@@ -141,7 +146,7 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
                 
                 <span className={cn(
                     "file-type-badge",
-                    "text-[9px] px-1.5 py-0.5 rounded-md backdrop-blur-md font-bold uppercase tracking-wider border", 
+                    "text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border", 
                     badgeStyle
                 )}>
                     {file.fileType}
@@ -153,7 +158,7 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
                 <Button 
                 size="sm" 
                 variant="secondary" 
-                className="h-6 w-6 p-0 rounded-full shadow-lg bg-white/20 hover:bg-white/40 border-white/20 text-white backdrop-blur-md transition-all hover:scale-110 active:scale-90" 
+                className="h-6 w-6 p-0 rounded-full shadow-lg bg-white/25 hover:bg-white/40 border-white/30 text-white transition-all hover:scale-110 active:scale-90" 
                 onClick={() => copyDirectLink(file.id)}
                 >
                 <Copy className="w-3 h-3" />
@@ -163,7 +168,7 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
                   <Button 
                       size="sm" 
                       variant="secondary" 
-                      className="h-6 w-6 p-0 rounded-full shadow-lg bg-white/20 hover:bg-white/40 border-white/20 text-white backdrop-blur-md transition-all hover:scale-110 active:scale-90" 
+                      className="h-6 w-6 p-0 rounded-full shadow-lg bg-white/25 hover:bg-white/40 border-white/30 text-white transition-all hover:scale-110 active:scale-90" 
                       onClick={() => generateShortlink(file.id)}
                   >
                       <Link2 className="w-3 h-3" />

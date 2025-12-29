@@ -234,13 +234,43 @@ export default function SettingsPage() {
             onOpenChange={(open) => !open && setDeleteDialog({ open: false, configId: '' })}
             title="删除配置"
             description={
-                <div className="space-y-4 py-1">
-                    <p className="text-zinc-600 dark:text-zinc-300">确定要删除此存储配置吗？</p>
-                    <div className="flex items-start gap-3 text-red-600 dark:text-red-400 text-sm bg-red-50/80 dark:bg-red-950/30 p-4 rounded-xl border border-red-100/50 dark:border-red-900/10 shadow-sm">
-                        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-                        <div className="space-y-1.5">
-                            <p className="font-bold text-base tracking-tight">此操作不可撤销</p>
-                            <p className="opacity-90 leading-relaxed">虽然 MinIO 中的文件不会被删除，但此应用中的相关配置和数据库引用将被移除。</p>
+                <div className="flex flex-col items-center gap-6 py-4">
+                    {/* Hero Icon */}
+                    <div className="relative flex items-center justify-center w-20 h-20">
+                        <div className="absolute inset-0 bg-red-500/10 dark:bg-red-400/10 rounded-full animate-ping opacity-20 duration-3000" />
+                        <div className="relative flex items-center justify-center w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full border border-red-100 dark:border-red-800/30">
+                            <AlertTriangle className="w-10 h-10 text-red-600 dark:text-red-400" />
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 w-full">
+                        <div className="text-center space-y-1">
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">确定删除此配置？</h3>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-[280px] mx-auto">
+                                此操作将移除配置和数据库引用
+                            </p>
+                        </div>
+
+                        <div className="bg-zinc-50/50 dark:bg-white/5 p-4 rounded-2xl border border-zinc-100/50 dark:border-white/5 space-y-3">
+                            <div className="flex items-center gap-3.5 p-2 rounded-xl hover:bg-white dark:hover:bg-white/5 transition-colors group">
+                                <div className="p-2 rounded-lg bg-white dark:bg-white/5 shadow-sm border border-zinc-100 dark:border-white/5 group-hover:scale-105 transition-transform text-red-500">
+                                    <Database className="w-4 h-4" />
+                                </div>
+                                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">删除配置和数据库记录</span>
+                            </div>
+                            <div className="flex items-center gap-3.5 p-2 rounded-xl hover:bg-white dark:hover:bg-white/5 transition-colors group">
+                                <div className="p-2 rounded-lg bg-white dark:bg-white/5 shadow-sm border border-zinc-100 dark:border-white/5 group-hover:scale-105 transition-transform text-emerald-500">
+                                    <FileImage className="w-4 h-4" />
+                                </div>
+                                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">MinIO 中的文件保持不变</span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-start gap-3 text-red-600 dark:text-red-400 text-xs bg-red-50 dark:bg-red-950/30 p-3.5 rounded-xl border border-red-100/50 dark:border-red-900/10">
+                            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                            <p className="leading-normal font-medium">
+                                此操作不可撤销，请谨慎操作
+                            </p>
                         </div>
                     </div>
                 </div>

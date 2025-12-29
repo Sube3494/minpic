@@ -1,9 +1,9 @@
 import { useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 
 import { cn } from '@/lib/utils';
 import { Search, Grid3x3, List, ImageIcon, Video, Music } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { FilterType, ViewMode } from '@/types/file';
 
 interface FilterBarProps {
@@ -53,7 +53,7 @@ export function FilterBar({ search, setSearch, filter, setFilter, viewMode, setV
       <div className="flex items-center justify-between gap-4">
         <div 
           ref={containerRef}
-          className="flex items-center gap-1 p-1 bg-zinc-100/50 dark:bg-white/5 rounded-full border border-black/5 dark:border-white/5 overflow-x-auto scrollbar-none max-w-[70vw] md:max-w-none"
+          className="relative flex items-center gap-1 p-1 bg-muted/50 rounded-full border border-zinc-200/50 dark:border-white/10 overflow-x-auto scrollbar-none max-w-[70vw] md:max-w-none shadow-inner"
         >
           {FILTER_OPTIONS.map((option) => {
             const isActive = filter === option.id;
@@ -71,8 +71,10 @@ export function FilterBar({ search, setSearch, filter, setFilter, viewMode, setV
                 )}
               >
                 {isActive && (
-                  <div
+                  <motion.div
+                    layoutId="activeFilter"
                     className="absolute inset-0 bg-primary shadow-md shadow-primary/20 rounded-full"
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
                   />
                 )}
                 <span className="relative z-10 flex items-center">
@@ -83,23 +85,33 @@ export function FilterBar({ search, setSearch, filter, setFilter, viewMode, setV
             );
           })}
         </div>
-        <div className="flex gap-1 border rounded-full p-1 bg-muted/50 shrink-0 shadow-inner">
-          <Button
-            size="sm"
-            variant={viewMode === 'grid' ? 'default' : 'ghost'}
+        <div className="relative flex gap-1 border rounded-full p-1 bg-muted/50 shrink-0 shadow-inner">
+          {/* Sliding background indicator */}
+          <div 
+            className="absolute top-1 bottom-1 w-8 bg-primary rounded-full transition-all duration-300 ease-out shadow-md shadow-primary/20"
+            style={{
+              left: viewMode === 'grid' ? '4px' : 'calc(50% + 2px)',
+            }}
+          />
+          
+          <button
             onClick={() => setViewMode('grid')}
-            className="h-8 w-8 p-0 rounded-full"
+            className={cn(
+              "relative z-10 h-8 w-8 rounded-full flex items-center justify-center transition-colors duration-200",
+              viewMode === 'grid' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+            )}
           >
             <Grid3x3 className="w-4 h-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant={viewMode === 'list' ? 'default' : 'ghost'}
+          </button>
+          <button
             onClick={() => setViewMode('list')}
-            className="h-8 w-8 p-0 rounded-full"
+            className={cn(
+              "relative z-10 h-8 w-8 rounded-full flex items-center justify-center transition-colors duration-200",
+              viewMode === 'list' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+            )}
           >
             <List className="w-4 h-4" />
-          </Button>
+          </button>
         </div>
       </div>
     </div>

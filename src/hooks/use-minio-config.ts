@@ -74,7 +74,9 @@ export function useMinioConfig() {
     setConfigs(newConfigs);
     
     if (selectedId === id) {
-      setSelectedId(newConfigs.length > 0 ? newConfigs[0].id : '');
+      // 优先跳转到当前激活的配置，如果没有激活的则跳转到剩余的第一项
+      const nextId = activeId && activeId !== id ? activeId : (newConfigs.length > 0 ? newConfigs[0].id : '');
+      setSelectedId(nextId);
     }
     
     if (activeId === id) {

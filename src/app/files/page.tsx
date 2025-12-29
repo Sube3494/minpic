@@ -253,7 +253,7 @@ export default function FilesPage() {
                   <DropdownMenuTrigger asChild>
                     <Button 
                       variant="outline" 
-                      className="h-10 w-full md:w-auto gap-2 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900 px-3 min-w-[120px] md:min-w-[140px] justify-between shadow-sm transition-all active:scale-[0.98] rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0 group"
+                      className="h-10 w-full md:w-auto gap-2 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900 px-3 min-w-[160px] md:min-w-[200px] justify-between shadow-sm transition-all active:scale-[0.98] rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0 group"
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="flex items-center justify-center w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 group-hover:text-foreground transition-colors">
@@ -266,7 +266,7 @@ export default function FilesPage() {
                       <ChevronDown className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-500 transition-colors" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-72 p-1.5 rounded-xl glass-strong border-zinc-200/50 dark:border-white/10 shadow-xl animate-in zoom-in-95 slide-in-from-top-2 duration-200">
+                  <DropdownMenuContent align="end" className="w-(--radix-dropdown-menu-trigger-width) p-1.5 rounded-xl glass-strong border-zinc-200/50 dark:border-white/10 shadow-xl animate-in zoom-in-95 slide-in-from-top-2 duration-200">
                     <div className="px-2 py-1.5 mb-1">
                       <p className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 pl-1">切换存储源</p>
                     </div>
@@ -276,7 +276,12 @@ export default function FilesPage() {
                         return (
                           <DropdownMenuItem 
                             key={config.id} 
-                            onClick={() => setSelectedConfigId(config.id)}
+                            onClick={() => {
+                              if (selectedConfigId !== config.id) {
+                                setSelectedConfigId(config.id);
+                                toast.success(`已切换存储源: ${config.name}`);
+                              }
+                            }}
                             className={cn(
                               "relative py-2 px-2 rounded-lg cursor-pointer transition-all outline-none flex items-center justify-between group gap-3",
                               isSelected 
@@ -344,7 +349,7 @@ export default function FilesPage() {
         {/* Files Grid/List */}
         <div className="relative min-h-[400px]">
           <AnimatePresence mode="wait">
-            {loading && files.length === 0 ? (
+            {(loading || isRefreshing) && files.length === 0 ? (
                 <motion.div 
                   key="loader"
                   initial={{ opacity: 0 }}

@@ -10,7 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-import { Check, RefreshCw, Loader2, Info, ChevronDown, Server, PlugZap, Shield, Settings2, Save } from 'lucide-react';
+import { Check, RefreshCw, Loader2, Info, ChevronDown, Server, PlugZap, Settings2, Save } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useState, useRef, useEffect } from 'react';
 
@@ -67,7 +67,7 @@ export function ConfigEditor({
   }
 
   return (
-    <AnimatePresence>
+    <AnimatePresence mode="wait">
       <motion.div
         key={config.id}
         initial={{ opacity: 0, scale: 0.98 }}
@@ -133,9 +133,9 @@ export function ConfigEditor({
         
         <div className="h-px bg-zinc-200 dark:bg-white/5 my-6" />
 
-        {/* Server & Port */}
+        {/* Server & Port & SSL */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-          <div className="md:col-span-8 space-y-2">
+          <div className="md:col-span-6 space-y-2">
             <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">服务器地址 (Endpoint) <span className="text-red-500">*</span></Label>
             <Input 
               value={config.endpoint} 
@@ -144,7 +144,7 @@ export function ConfigEditor({
               className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
             />
           </div>
-          <div className="md:col-span-4 space-y-2">
+          <div className="md:col-span-2 space-y-2">
             <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">端口 (Port)</Label>
             <Input 
               type="number"
@@ -156,6 +156,19 @@ export function ConfigEditor({
               placeholder="9000"
               className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
+          </div>
+          <div className="md:col-span-4 space-y-2">
+            <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">安全连接 (SSL)</Label>
+            <div className="flex items-center justify-between px-3 h-11 rounded-md border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 shadow-sm">
+                <div className="flex items-center gap-2">
+                    <span className="text-sm text-zinc-700 dark:text-zinc-200">SSL / HTTPS</span>
+                </div>
+                <Switch
+                  checked={config.useSSL}
+                  onCheckedChange={(checked: boolean) => onUpdate({ useSSL: checked })}
+                  className="data-[state=checked]:bg-primary scale-90"
+                />
+            </div>
           </div>
         </div>
 
@@ -261,8 +274,8 @@ export function ConfigEditor({
                        <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 uppercase tracking-wider">访问设置</h4>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                        <div className="md:col-span-8 space-y-2">
+                    <div className="grid grid-cols-1 gap-5">
+                        <div className="space-y-2">
                             <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1 flex items-center gap-2">
                             自定义访问域名 (可选)
                             <Tooltip>
@@ -280,21 +293,6 @@ export function ConfigEditor({
                             placeholder="https://img.example.com"
                             className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
                             />
-                        </div>
-
-                        <div className="md:col-span-4 space-y-2">
-                            <Label className="text-zinc-800 dark:text-zinc-200 font-semibold text-xs uppercase tracking-wider ml-1">安全连接</Label>
-                            <div className="flex items-center justify-between px-3 h-11 rounded-md border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 shadow-sm">
-                            <div className="flex items-center gap-2">
-                                <Shield className="w-4 h-4 text-zinc-500" />
-                                <span className="text-sm text-zinc-700 dark:text-zinc-200">SSL / HTTPS</span>
-                            </div>
-                            <Switch
-                                checked={config.useSSL}
-                                onCheckedChange={(checked: boolean) => onUpdate({ useSSL: checked })}
-                                className="data-[state=checked]:bg-primary scale-90 origin-right"
-                            />
-                            </div>
                         </div>
                     </div>
                   </div>

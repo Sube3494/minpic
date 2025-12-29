@@ -14,9 +14,6 @@ export async function GET() {
       _sum: { fileSize: true },
     });
 
-    const totalShortlinks = await prisma.file.count({
-      where: { shortlinkCode: { not: null } },
-    });
 
     const recentFiles = await prisma.file.findMany({
       orderBy: { createdAt: 'desc' },
@@ -29,7 +26,6 @@ export async function GET() {
       totalVideos,
       totalAudios,
       totalSize: totalSize._sum.fileSize || 0,
-      totalShortlinks,
       recentFiles,
     });
   } catch (error) {
