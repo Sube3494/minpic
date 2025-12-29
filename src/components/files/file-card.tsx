@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { FileItem } from '@/types/file';
 import { Check, Copy, Link2 } from 'lucide-react';
@@ -48,6 +48,25 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
     : 'text-zinc-200 border-white/10 bg-white/5';
 
 
+  const touchTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const startTouchTimer = () => {
+    if (touchTimer.current) clearTimeout(touchTimer.current);
+    touchTimer.current = setTimeout(() => {
+      toggleSelect(file.id);
+      // Optional: try to trigger haptic feedback if supported
+      if ('vibrate' in navigator) navigator.vibrate(50);
+      touchTimer.current = null;
+    }, 600);
+  };
+
+  const clearTouchTimer = () => {
+    if (touchTimer.current) {
+      clearTimeout(touchTimer.current);
+      touchTimer.current = null;
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -70,8 +89,16 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
       }}
       onContextMenu={(e) => {
         e.preventDefault();
-        toggleSelect(file.id);
+        // Skip context menu on mobile if our custom timer already handled it,
+        // but keep it for desktop right-click.
+        if (!touchTimer.current) {
+            toggleSelect(file.id);
+        }
       }}
+      onTouchStart={startTouchTimer}
+      onTouchEnd={clearTouchTimer}
+      onTouchMove={clearTouchTimer}
+      onTouchCancel={clearTouchTimer}
     >
       {/* Inner Content Container - Scale Effect on Selection */}
       <div className={cn(

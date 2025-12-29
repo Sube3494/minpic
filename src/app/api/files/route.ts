@@ -130,34 +130,38 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get('pageSize') || '20');
     const fileType = searchParams.get('fileType');
     const search = searchParams.get('search');
+    const configId = searchParams.get('configId');
 
     // Determine effective active config ID for strict filtering
-    let filterConfigId: string | undefined = undefined;
+    let filterConfigId: string | undefined = configId || undefined;
     
-    // Check if we are in multi-config mode
-    const [configsRes, activeIdRes] = await Promise.all([
-      prisma.config.findUnique({ where: { key: 'minio_configs' } }),
-      prisma.config.findUnique({ where: { key: 'minio_active_id' } }),
-    ]);
+    // If no explicit configId, fallback to active one from database
+    if (!filterConfigId) {
+      // Check if we are in multi-config mode
+      const [configsRes, activeIdRes] = await Promise.all([
+        prisma.config.findUnique({ where: { key: 'minio_configs' } }),
+        prisma.config.findUnique({ where: { key: 'minio_active_id' } }),
+      ]);
 
-    if (configsRes && configsRes.value) {
-      // Multi-config mode active
-      const configs = JSON.parse(configsRes.value);
-      if (configs.length > 0) {
-        if (activeIdRes && activeIdRes.value) {
-          // Use the active config
-          filterConfigId = activeIdRes.value;
-        } else {
-          // No active config - return empty list
-          return NextResponse.json({
-            files: [],
-            pagination: {
-              page,
-              pageSize,
-              total: 0,
-              totalPages: 0,
-            },
-          });
+      if (configsRes && configsRes.value) {
+        // Multi-config mode active
+        const configs = JSON.parse(configsRes.value);
+        if (configs.length > 0) {
+          if (activeIdRes && activeIdRes.value) {
+            // Use the active config
+            filterConfigId = activeIdRes.value;
+          } else {
+            // No active config - return empty list
+            return NextResponse.json({
+              files: [],
+              pagination: {
+                page,
+                pageSize,
+                total: 0,
+                totalPages: 0,
+              },
+            });
+          }
         }
       }
     }

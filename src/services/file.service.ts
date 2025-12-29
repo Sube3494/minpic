@@ -1,10 +1,17 @@
 import { FileItem, MinioConfig } from '@/types/file';
 
 export const fileService = {
-  async getFiles(filter: string = 'all', search: string = '', page: number = 1, pageSize: number = 20): Promise<{ files: FileItem[]; pagination: { total: number; totalPages: number } }> {
+  async getFiles(
+    filter: string = 'all', 
+    search: string = '', 
+    page: number = 1, 
+    pageSize: number = 20,
+    configId?: string
+  ): Promise<{ files: FileItem[]; pagination: { total: number; totalPages: number } }> {
     const params = new URLSearchParams();
     if (filter !== 'all') params.append('fileType', filter);
     if (search) params.append('search', search);
+    if (configId) params.append('configId', configId);
     params.append('page', page.toString());
     params.append('pageSize', pageSize.toString());
 
@@ -21,6 +28,15 @@ export const fileService = {
     const response = await fetch('/api/config/minio');
     if (!response.ok) throw new Error('Failed to fetch configs');
     return response.json();
+  },
+
+  async setActiveConfig(activeId: string, configs: MinioConfig[]): Promise<void> {
+    const response = await fetch('/api/config/minio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ configs, activeId }),
+    });
+    if (!response.ok) throw new Error('Failed to set active config');
   },
 
   async deleteFile(id: string, deleteMode: 'full' | 'record-only' = 'record-only'): Promise<void> {

@@ -3,7 +3,11 @@ import { FileItem, FilterType, ViewMode } from '@/types/file';
 import { fileService } from '@/services/file.service';
 import { toast } from 'sonner';
 
-export function useFiles(initialFilter: FilterType = 'all', initialViewMode: ViewMode = 'grid') {
+export function useFiles(
+  initialFilter: FilterType = 'all', 
+  initialViewMode: ViewMode = 'grid',
+  selectedConfigId?: string
+) {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -38,7 +42,7 @@ export function useFiles(initialFilter: FilterType = 'all', initialViewMode: Vie
     }
 
     try {
-      const data = await fileService.getFiles(filter, search, targetPage, pageSize);
+      const data = await fileService.getFiles(filter, search, targetPage, pageSize, selectedConfigId);
       
       if (isAppend) {
         setFiles(prev => {
@@ -66,12 +70,13 @@ export function useFiles(initialFilter: FilterType = 'all', initialViewMode: Vie
       setLoadingMore(false);
       isLoadingMoreRef.current = false;
     }
-  }, [filter, search]);
+  }, [filter, search, selectedConfigId]);
 
-  // 仅在搜索或过滤变化时重置
+  // 仅在搜索、过滤或配置变化时重置
   useEffect(() => {
+    hasDataRef.current = false; // 强制重设数据状态，确保切换配置时显示全屏加载
     fetchFiles(1, false);
-  }, [filter, search, fetchFiles]);
+  }, [filter, search, selectedConfigId, fetchFiles]);
 
   const removeFile = useCallback((id: string) => {
     setFiles(prev => {

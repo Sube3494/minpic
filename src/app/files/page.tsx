@@ -39,19 +39,19 @@ function Portal({ children }: { children: React.ReactNode }) {
 
 export default function FilesPage() {
   const { 
+    configs, selectedConfigId, setSelectedConfigId 
+  } = useConfigs();
+
+  const { 
     files, loading, isRefreshing, search, setSearch, filter, setFilter, viewMode, setViewMode,
     refreshFn, deleteFile, batchDelete,
     hasMore, loadingMore, loadMore 
-  } = useFiles();
+  } = useFiles('all', 'grid', selectedConfigId);
   
   const { 
     selectedIds, toggleSelect, setSelectedIds 
   } = useFileSelection();
-
-  const { 
-    configs, selectedConfigId, setSelectedConfigId 
-  } = useConfigs();
-
+  
   const { 
     uploading, queue, aggregateProgress, uploadFiles 
   } = useFileUpload(refreshFn);
@@ -253,7 +253,7 @@ export default function FilesPage() {
                   <DropdownMenuTrigger asChild>
                     <Button 
                       variant="outline" 
-                      className="h-10 w-full md:w-auto gap-2 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 hover:bg-zinc-50 dark:hover:bg-zinc-900 px-3 min-w-[160px] md:min-w-[200px] justify-between shadow-sm transition-all active:scale-[0.98] rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0 group"
+                      className="h-10 w-full md:w-auto gap-2 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-900/50 backdrop-blur-md hover:bg-zinc-50 dark:hover:bg-zinc-900/80 px-3 min-w-[160px] md:min-w-[200px] justify-between shadow-sm transition-all active:scale-[0.98] rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0 group"
                     >
                       <div className="flex items-center gap-2.5">
                         <div className="flex items-center justify-center w-5 h-5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 group-hover:text-foreground transition-colors">
@@ -276,10 +276,15 @@ export default function FilesPage() {
                         return (
                           <DropdownMenuItem 
                             key={config.id} 
-                            onClick={() => {
+                            onClick={async () => {
                               if (selectedConfigId !== config.id) {
                                 setSelectedConfigId(config.id);
-                                toast.success(`已切换存储源: ${config.name}`);
+                                try {
+                                  await fileService.setActiveConfig(config.id, configs);
+                                  toast.success(`已切换存储源: ${config.name}`);
+                                } catch {
+                                  toast.error('同步存储配置失败');
+                                }
                               }
                             }}
                             className={cn(
