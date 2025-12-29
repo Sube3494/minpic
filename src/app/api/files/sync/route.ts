@@ -56,13 +56,36 @@ export async function POST(request: NextRequest) {
         });
 
         if (existing) {
-          // If file exists but has different configId (or null), update it to current configId
-          if (existing.configId !== configId) {
+          // Check if the existing file belongs to the same storage group
+          // form a storage identity group: Same AccessKey + Bucket + BaseDir
+          const isSameStorageGroup = await (async () => {
+            if (existing.configId === configId) return true;
+            if (!existing.configId) return false;
+
+            const configsRecord = await prisma.config.findUnique({ where: { key: 'minio_configs' } });
+            if (!configsRecord) return false;
+            
+            const allConfigs = JSON.parse(configsRecord.value);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const currentCfg = allConfigs.find((c: any) => c.id === configId);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const existingCfg = allConfigs.find((c: any) => c.id === existing.configId);
+
+            if (currentCfg && existingCfg) {
+              return currentCfg.accessKey === existingCfg.accessKey && 
+                     currentCfg.bucket === existingCfg.bucket &&
+                     (currentCfg.baseDir || '') === (existingCfg.baseDir || '');
+            }
+            return false;
+          })();
+
+          if (!isSameStorageGroup) {
+            // Only update ID if it's truly a different storage or currently unassigned
             await prisma.file.update({
               where: { id: existing.id },
               data: { configId },
             });
-            imported++; // Count as imported since we "recovered" it for this view
+            imported++;
           } else {
             skipped++;
           }

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { MinioService } from '@/lib/minio';
+import { MinioService, MinioConfig } from '@/lib/minio';
 import { generateThumbnail, generateVideoThumbnail, getImageDimensions, getFileType, generatePinyin } from '@/lib/image-utils';
 
 export async function POST(request: NextRequest) {
   try {
-    // ... existing metadata extraction ...
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const configId = formData.get('configId') as string;
@@ -15,68 +14,59 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    // Determine MinIO config to use
-    let minioConfigValue = null;
+    interface StoredMinioConfig extends MinioConfig {
+      id: string;
+      name: string;
+    }
+
+    // Determine config to use
+    let config: StoredMinioConfig | null = null;
     let usedConfigId = 'minio_default';
 
-    if (configId) {
-      // Try to find specific config from the list
+    if (configId === 'minio_default') {
+      const dbConfig = await prisma.config.findUnique({
+        where: { key: 'minio_default' },
+      });
+      if (dbConfig) {
+        config = JSON.parse(dbConfig.value);
+      }
+    } else {
       const configsRecord = await prisma.config.findUnique({
         where: { key: 'minio_configs' },
       });
-      
-      if (configsRecord && configsRecord.value) {
-        const configs = JSON.parse(configsRecord.value);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const targetConfig = configs.find((c: any) => c.id === configId);
-        if (targetConfig) {
-          minioConfigValue = targetConfig;
+      if (configsRecord) {
+        const configs: StoredMinioConfig[] = JSON.parse(configsRecord.value);
+        const target = configs.find(c => c.id === configId);
+        if (target) {
+          config = target;
           usedConfigId = configId;
         }
       }
     }
 
-    // Fallback to default if no specific config found or requested
-    if (!minioConfigValue) {
-        const minioDefault = await prisma.config.findUnique({
-          where: { key: 'minio_default' },
-        });
-        
-        if (minioDefault) {
-            minioConfigValue = JSON.parse(minioDefault.value);
-        }
+    if (!config) {
+      return NextResponse.json({ error: 'Invalid config' }, { status: 400 });
     }
 
-    if (!minioConfigValue) {
-      return NextResponse.json(
-        { error: 'MinIO not configured' },
-        { status: 400 }
-      );
-    }
-
-    // Use a new instance to avoid singleton side effects with concurrent requests using different configs
-    const minioService = new MinioService();
-    await minioService.connect(minioConfigValue);
-
-    // Upload file
+    // Process file
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const mimeType = file.type;
     const fileType = getFileType(mimeType);
 
     if (!fileType) {
-      return NextResponse.json(
-        { error: 'Unsupported file type' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 });
     }
 
+    // Upload to MinIO
+    const minioService = new MinioService();
+    await minioService.connect(config);
     const { objectName, expiresAt } = await minioService.uploadFile(
       fileBuffer,
       file.name,
       mimeType
     );
 
-    // Generate thumbnail
+    // Generate metadata
     let thumbnailData: Buffer | null = null;
     let width: number | null = null;
     let height: number | null = null;
@@ -87,33 +77,30 @@ export async function POST(request: NextRequest) {
         width = dimensions.width;
         height = dimensions.height;
       }
-
       thumbnailData = await generateThumbnail(fileBuffer, mimeType);
     } else if (fileType === 'video') {
-      // Generate thumbnail for video
       thumbnailData = await generateVideoThumbnail(fileBuffer);
     }
 
-    // Create database record
-    const fileRecord = await prisma.file.create({
+    // Create record
+    const result = await prisma.file.create({
       data: {
         filename: file.name,
         minioPath: objectName,
         fileSize: file.size,
         mimeType,
         fileType,
-        thumbnailData, // Store binary data
-        thumbnailPath: thumbnailData ? 'database' : null, // Mark that we have thumbnail in DB
+        thumbnailData,
+        thumbnailPath: thumbnailData ? 'database' : null,
         pinyin: generatePinyin(file.name),
         width,
         height,
         configId: usedConfigId,
-        expiresAt: expiresAtStr || expiresAt ? new Date(expiresAtStr || expiresAt!) : null,
+        expiresAt: expiresAt || (expiresAtStr ? new Date(expiresAtStr) : null),
       },
     });
 
-    // Short links are now generated on-demand by users, not automatically
-    return NextResponse.json(fileRecord);
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error uploading file:', error);
     return NextResponse.json(
@@ -132,43 +119,45 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const configId = searchParams.get('configId');
 
-    // Determine effective active config ID for strict filtering
-    let filterConfigId: string | undefined = configId || undefined;
-    
-    // If no explicit configId, fallback to active one from database
-    if (!filterConfigId) {
-      // Check if we are in multi-config mode
-      const [configsRes, activeIdRes] = await Promise.all([
-        prisma.config.findUnique({ where: { key: 'minio_configs' } }),
-        prisma.config.findUnique({ where: { key: 'minio_active_id' } }),
-      ]);
+    interface StoredMinioConfig extends MinioConfig {
+      id: string;
+      name: string;
+    }
 
-      if (configsRes && configsRes.value) {
-        // Multi-config mode active
-        const configs = JSON.parse(configsRes.value);
-        if (configs.length > 0) {
-          if (activeIdRes && activeIdRes.value) {
-            // Use the active config
-            filterConfigId = activeIdRes.value;
-          } else {
-            // No active config - return empty list
-            return NextResponse.json({
-              files: [],
-              pagination: {
-                page,
-                pageSize,
-                total: 0,
-                totalPages: 0,
-              },
-            });
-          }
-        }
+    // Determine effective config IDs for filtering (Storage Identity Sharing)
+    let filterConfigIds: string[] | undefined = undefined;
+    
+    // Check if we are in multi-config mode
+    const [configsRes, activeIdRes] = await Promise.all([
+      prisma.config.findUnique({ where: { key: 'minio_configs' } }),
+      prisma.config.findUnique({ where: { key: 'minio_active_id' } }),
+    ]);
+
+    const activeConfigId = configId || activeIdRes?.value;
+
+    if (activeConfigId && configsRes && configsRes.value) {
+      const allConfigs: StoredMinioConfig[] = JSON.parse(configsRes.value);
+      const targetConfig = allConfigs.find(c => c.id === activeConfigId);
+
+      if (targetConfig) {
+        // Form a storage identity group: Same AccessKey + Bucket + BaseDir
+        // This allows sharing files between Local and Remote endpoints for same bucket
+        const sharedGroup = allConfigs.filter(c => 
+          c.accessKey === targetConfig.accessKey && 
+          c.bucket === targetConfig.bucket &&
+          (c.baseDir || '') === (targetConfig.baseDir || '')
+        );
+        filterConfigIds = sharedGroup.map(c => c.id);
+      } else if (activeConfigId === 'minio_default') {
+        filterConfigIds = ['minio_default'];
       }
+    } else if (activeConfigId) {
+      filterConfigIds = [activeConfigId];
     }
 
     const where = {
       ...(fileType && { fileType }),
-      ...(filterConfigId !== undefined && { configId: filterConfigId }),
+      ...(filterConfigIds && { configId: { in: filterConfigIds } }),
       ...(search && {
         OR: [
           { filename: { contains: search } },

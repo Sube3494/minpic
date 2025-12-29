@@ -23,14 +23,17 @@ export function useFiles(
   const hasDataRef = useRef(false);
   const pageSize = 30;
 
+  const fetchIdRef = useRef(0);
+
   const fetchFiles = useCallback(async (targetPage: number, isAppend: boolean) => {
-    if (isInitialLoading.current) return;
+    const requestId = ++fetchIdRef.current;
     
     if (isAppend) {
       if (isLoadingMoreRef.current || !hasMoreRef.current) return;
       setLoadingMore(true);
       isLoadingMoreRef.current = true;
     } else {
+      // 切换过滤/搜索/配置时，始终允许发起新请求，不被 isInitialLoading 阻塞
       if (hasDataRef.current) {
         setIsRefreshing(true);
       } else {
@@ -43,6 +46,11 @@ export function useFiles(
 
     try {
       const data = await fileService.getFiles(filter, search, targetPage, pageSize, selectedConfigId);
+      
+      // 丢弃过时的请求结果
+      if (requestId !== fetchIdRef.current) {
+        return;
+      }
       
       if (isAppend) {
         setFiles(prev => {
@@ -60,15 +68,19 @@ export function useFiles(
       hasMoreRef.current = newHasMore;
       pageRef.current = targetPage;
     } catch {
-      toast.error('加载文件列表失败');
-    } finally {
-      if (!isAppend) {
-        setLoading(false);
-        setIsRefreshing(false);
-        isInitialLoading.current = false;
+      if (requestId === fetchIdRef.current) {
+        toast.error('加载文件列表失败');
       }
-      setLoadingMore(false);
-      isLoadingMoreRef.current = false;
+    } finally {
+      if (requestId === fetchIdRef.current) {
+        if (!isAppend) {
+          setLoading(false);
+          setIsRefreshing(false);
+          isInitialLoading.current = false;
+        }
+        setLoadingMore(false);
+        isLoadingMoreRef.current = false;
+      }
     }
   }, [filter, search, selectedConfigId]);
 
