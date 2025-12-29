@@ -1,4 +1,5 @@
-import { FileItem, MinioConfig } from '@/types/file';
+import { FileItem } from '@/types/file';
+import { MinioConfigItem } from '@/types/config';
 
 export const fileService = {
   async getFiles(
@@ -24,13 +25,13 @@ export const fileService = {
     };
   },
 
-  async getConfigs(): Promise<{ configs: MinioConfig[]; activeId?: string }> {
+  async getConfigs(): Promise<{ configs: MinioConfigItem[]; activeId?: string }> {
     const response = await fetch('/api/config/minio');
     if (!response.ok) throw new Error('Failed to fetch configs');
     return response.json();
   },
 
-  async setActiveConfig(activeId: string, configs: MinioConfig[]): Promise<void> {
+  async setActiveConfig(activeId: string, configs: MinioConfigItem[]): Promise<void> {
     const response = await fetch('/api/config/minio', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

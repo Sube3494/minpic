@@ -25,7 +25,7 @@ export default function SettingsPage() {
     loading: slLoading, testing: slTesting
   } = useShortlinkConfig();
 
-  const { syncing, syncFiles } = useSync();
+  const { syncing, syncProgress, syncFiles } = useSync();
 
   const [syncDialog, setSyncDialog] = useState<{ open: boolean; configId: string }>({ open: false, configId: '' });
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; configId: string }>({ open: false, configId: '' });
@@ -39,18 +39,15 @@ export default function SettingsPage() {
   };
 
   const confirmSync = async () => {
-      const { configId } = syncDialog;
-      setSyncDialog({ open: false, configId: '' });
-      if (configId) {
-          const success = await syncFiles(configId);
-          if (success) {
-            // Reload to show new files in file manager
-            setTimeout(() => {
-                // Optional: redirect or just refresh
-                // window.location.href = '/files'; 
-            }, 1000);
-          }
-      }
+    const { configId } = syncDialog;
+    if (configId) {
+        await syncFiles(configId);
+        // We keep dialog open to show 100% progress, then user can close it
+        // Or we could auto-close after 1.5s
+        setTimeout(() => {
+          setSyncDialog({ open: false, configId: '' });
+        }, 2000);
+    }
   };
 
   const handleDeleteClick = (id: string) => {
@@ -185,39 +182,81 @@ export default function SettingsPage() {
                 <div className="flex flex-col items-center gap-6 py-4">
                     {/* Hero Icon */}
                     <div className="relative flex items-center justify-center w-20 h-20">
-                        <div className="absolute inset-0 bg-blue-500/10 dark:bg-blue-400/10 rounded-full animate-ping opacity-20 duration-3000" />
+                        <div className={`absolute inset-0 bg-blue-500/10 dark:bg-blue-400/10 rounded-full animate-ping opacity-20 duration-3000 ${syncing ? 'block' : 'hidden'}`} />
                         <div className="relative flex items-center justify-center w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full border border-blue-100 dark:border-blue-800/30">
-                            <RefreshCw className="w-10 h-10 text-blue-600 dark:text-blue-400 animate-spin-slow" />
+                            <RefreshCw className={`w-10 h-10 text-blue-600 dark:text-blue-400 ${syncing ? 'animate-spin' : 'animate-spin-slow'}`} />
                         </div>
                     </div>
 
                     <div className="space-y-4 w-full">
                         <div className="text-center space-y-1">
-                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">准备同步文件</h3>
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                                {syncing ? '正在同步文件...' : '准备同步文件'}
+                            </h3>
                             <p className="text-sm text-zinc-500 dark:text-zinc-400 max-w-[280px] mx-auto">
-                                将会对接 MinIO 存储桶并执行全量扫描
+                                {syncing ? '扫描并导入 MinIO 存储桶中的内容' : '将会对接 MinIO 存储桶并执行全量扫描'}
                             </p>
                         </div>
 
-                        <div className="bg-zinc-50/50 dark:bg-white/5 p-4 rounded-2xl border border-zinc-100/50 dark:border-white/5 space-y-3">
-                            {[
-                                { icon: Database, text: "扫描存储桶中的所有文件", color: "text-purple-500" },
-                                { icon: FileImage, text: "自动生成文件缩略图", color: "text-amber-500" },
-                                { icon: Share2, text: "智能识别并跳过已有记录", color: "text-emerald-500" }
-                            ].map((item, i) => (
-                                <div key={i} className="flex items-center gap-3.5 p-2 rounded-xl hover:bg-white dark:hover:bg-white/5 transition-colors group">
-                                    <div className={`p-2 rounded-lg bg-white dark:bg-white/5 shadow-sm border border-zinc-100 dark:border-white/5 group-hover:scale-105 transition-transform ${item.color}`}>
-                                        <item.icon className="w-4 h-4" />
+                        {syncing && syncProgress ? (
+                            <div className="space-y-4 px-2 w-full max-w-[320px] sm:max-w-[400px] mx-auto overflow-hidden">
+                                {/* Progress Bar */}
+                                <div className="space-y-2 w-full">
+                                    <div className="flex justify-between text-[10px] font-medium text-zinc-400 uppercase tracking-wider">
+                                        <span>当前进度</span>
+                                        <span>{Math.round((syncProgress.current || 0) / syncProgress.total * 100)}%</span>
                                     </div>
-                                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{item.text}</span>
+                                    <div className="h-2 w-full bg-zinc-100 dark:bg-white/5 rounded-full overflow-hidden border border-zinc-200/50 dark:border-white/5">
+                                        <motion.div 
+                                            className="h-full bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.5)]"
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${(syncProgress.current || 0) / syncProgress.total * 100}%` }}
+                                        />
+                                    </div>
+                                    {syncProgress.currentFilename && (
+                                        <div className="text-xs text-zinc-500 dark:text-zinc-400 truncate text-center animate-pulse w-full px-1" title={syncProgress.currentFilename}>
+                                            正在处理: {syncProgress.currentFilename}
+                                        </div>
+                                    )}
                                 </div>
-                            ))}
-                        </div>
+
+                                {/* Stats Grid */}
+                                <div className="grid grid-cols-3 gap-2">
+                                    <div className="bg-emerald-50/50 dark:bg-emerald-500/5 p-2 rounded-xl border border-emerald-100/50 dark:border-emerald-500/10 text-center">
+                                        <div className="text-emerald-600 dark:text-emerald-400 text-lg font-bold">{syncProgress.imported}</div>
+                                        <div className="text-[10px] text-emerald-600/60 dark:text-emerald-400/60 font-medium">已导入</div>
+                                    </div>
+                                    <div className="bg-zinc-50/50 dark:bg-white/5 p-2 rounded-xl border border-zinc-100/50 dark:border-white/10 text-center">
+                                        <div className="text-zinc-600 dark:text-zinc-400 text-lg font-bold">{syncProgress.skipped}</div>
+                                        <div className="text-[10px] text-zinc-600/60 dark:text-zinc-400/60 font-medium">已跳过</div>
+                                    </div>
+                                    <div className="bg-red-50/50 dark:bg-red-500/5 p-2 rounded-xl border border-red-100/50 dark:border-red-500/10 text-center">
+                                        <div className="text-red-600 dark:text-red-400 text-lg font-bold">{syncProgress.errors}</div>
+                                        <div className="text-[10px] text-red-600/60 dark:text-red-400/60 font-medium">失败</div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-zinc-50/50 dark:bg-white/5 p-4 rounded-2xl border border-zinc-100/50 dark:border-white/5 space-y-3">
+                                {[
+                                    { icon: Database, text: "扫描存储桶中的所有文件", color: "text-purple-500" },
+                                    { icon: FileImage, text: "自动生成文件缩略图", color: "text-amber-500" },
+                                    { icon: Share2, text: "智能识别并跳过已有记录", color: "text-emerald-500" }
+                                ].map((item, i) => (
+                                    <div key={i} className="flex items-center gap-3.5 p-2 rounded-xl hover:bg-white dark:hover:bg-white/5 transition-colors group">
+                                        <div className={`p-2 rounded-lg bg-white dark:bg-white/5 shadow-sm border border-zinc-100 dark:border-white/5 group-hover:scale-105 transition-transform ${item.color}`}>
+                                            <item.icon className="w-4 h-4" />
+                                        </div>
+                                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{item.text}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         <div className="flex items-start gap-3 text-zinc-500 dark:text-zinc-400 text-xs bg-zinc-50 dark:bg-zinc-900/50 p-3.5 rounded-xl">
                             <Info className="w-4 h-4 shrink-0 mt-0.5 text-zinc-400" />
                             <p className="leading-normal opacity-80">
-                                同步耗时取决于文件数量。任务将在后台执行，期间请勿关闭服务器。
+                                {syncing ? '正在实时同步，请勿离开此页面以确保任务完成。' : '同步耗时取决于文件数量。任务将在后台执行，期间请勿关闭服务器。'}
                             </p>
                         </div>
                     </div>

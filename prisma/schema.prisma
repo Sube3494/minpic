@@ -43,5 +43,6 @@ model File {
   @@index([fileType])
   @@index([createdAt])
   @@index([pinyin])
+  @@index([configId])
   @@map("files")
 }

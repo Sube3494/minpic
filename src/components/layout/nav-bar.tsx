@@ -94,8 +94,8 @@ export function NavBar() {
           );
         })}
       
-      {/* Divider - hidden on mobile */}
-      <div className="hidden sm:block w-px h-6 bg-zinc-200 dark:bg-white/10 mx-1 z-10" />
+      {/* Divider */}
+      <div className="w-px h-4 sm:h-6 bg-zinc-200 dark:bg-white/10 mx-0.5 sm:mx-1 z-10" />
       
       {/* GitHub Link */}
       <a

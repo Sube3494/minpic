@@ -26,7 +26,16 @@ export interface SyncProgress {
   total: number;
   imported: number;
   skipped: number;
+  errors: number;
+  current?: number;
+  currentFilename?: string;
+  status?: 'syncing' | 'completed' | 'error';
 }
+
+export type SyncEvent = 
+  | { type: 'progress'; data: SyncProgress }
+  | { type: 'done'; data: SyncProgress }
+  | { type: 'error'; message: string };
 
 export const DEFAULT_MINIO_CONFIG: Omit<MinioConfigItem, 'id' | 'name'> = {
   endpoint: 'localhost',

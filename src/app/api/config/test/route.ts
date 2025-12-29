@@ -12,6 +12,8 @@ export async function POST(request: NextRequest) {
       const minioService = getMinioService();
       
       await minioService.connect({
+        id: 'test',
+        name: 'Test Connection',
         endpoint,
         port: port || 9000,
         useSSL: useSSL === true, // 明确转换为布尔值

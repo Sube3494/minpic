@@ -1,19 +1,9 @@
 import * as Minio from 'minio';
+import { MinioConfigItem } from '@/types/config';
 
-export interface MinioConfig {
-  endpoint: string;
-  port: number;
-  useSSL: boolean;
-  accessKey: string;
-  secretKey: string;
-  bucket: string;
-  region?: string;
-  customDomain?: string;
-  duplicateHandling?: 'skip' | 'overwrite' | 'keep-both'; // 同名文件处理
-  baseDir?: string;
-  archiveStrategy?: 'none' | 'year' | 'month' | 'day';
-  expirationDays?: number; // 文件过期天数
-}
+// 为 MinIO 服务使用的配置类型（继承自 MinioConfigItem）
+export type MinioConfig = MinioConfigItem;
+
 
 export class MinioService {
   private client: Minio.Client | null = null;
@@ -23,7 +13,7 @@ export class MinioService {
     this.config = config;
     this.client = new Minio.Client({
       endPoint: config.endpoint,
-      port: config.port,
+      port: config.port ?? 9000, // 默认端口 9000
       useSSL: config.useSSL,
       accessKey: config.accessKey,
       secretKey: config.secretKey,

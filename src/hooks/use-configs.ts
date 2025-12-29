@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { MinioConfig } from '@/types/file';
+import { MinioConfigItem } from '@/types/config';
 import { fileService } from '@/services/file.service';
 
 export function useConfigs() {
-  const [configs, setConfigs] = useState<MinioConfig[]>([]);
+  const [configs, setConfigs] = useState<MinioConfigItem[]>([]);
   const [selectedConfigId, setSelectedConfigId] = useState<string>('');
   const [configLoading, setConfigLoading] = useState(true);
 

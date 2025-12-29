@@ -217,6 +217,11 @@ export async function DELETE(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const deleteMode = searchParams.get('deleteMode') || 'record-only'; // 'full' | 'record-only'
     
+    interface StoredMinioConfig extends MinioConfig {
+      id: string;
+      name: string;
+    }
+    
     if (!Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ error: 'No IDs provided' }, { status: 400 });
     }
@@ -248,9 +253,8 @@ export async function DELETE(request: NextRequest) {
           } else {
             const mc = await prisma.config.findUnique({ where: { key: 'minio_configs' } });
             if (mc) {
-              const list = JSON.parse(mc.value);
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              config = list.find((c: any) => c.id === configId);
+              const list: StoredMinioConfig[] = JSON.parse(mc.value);
+              config = list.find((c) => c.id === configId);
             }
           }
 

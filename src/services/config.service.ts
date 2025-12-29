@@ -1,4 +1,4 @@
-import { MinioConfigItem, ShortlinkConfig } from '@/types/config';
+import { MinioConfigItem, ShortlinkConfig, SyncEvent, SyncProgress } from '@/types/config';
 
 export const configService = {
   // MinIO Configs
@@ -45,12 +45,43 @@ export const configService = {
   },
 
   // Sync
-  async syncFiles(configId: string): Promise<{ success: boolean; total: number; imported: number; skipped: number; shortlinksCreated?: number; shortlinksFailed?: number; error?: string }> {
+  async syncFiles(configId: string, onProgress?: (event: SyncEvent) => void): Promise<SyncProgress> {
     const res = await fetch('/api/files/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ configId }),
     });
-    return res.json();
+
+    if (!res.ok) throw new Error('同步请求失败');
+    
+    const reader = res.body?.getReader();
+    const decoder = new TextDecoder();
+    let finalProgress: SyncProgress = { total: 0, imported: 0, skipped: 0, errors: 0 };
+
+    if (!reader) throw new Error('无法读取响应流');
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split('\n').filter(l => l.trim());
+
+      for (const line of lines) {
+        try {
+          const event: SyncEvent = JSON.parse(line);
+          if (event.type === 'progress' || event.type === 'done') {
+            finalProgress = event.data;
+            if (onProgress) onProgress(event);
+          } else if (event.type === 'error') {
+            throw new Error(event.message);
+          }
+        } catch (e) {
+          console.error('解析同步进度失败:', e);
+        }
+      }
+    }
+
+    return finalProgress;
   }
 };

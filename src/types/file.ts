@@ -10,10 +10,13 @@ export interface FileItem {
   mimeType: string;
   fileType: string;
   thumbnailPath: string | null;
-  shortlinkCode: string | null;
   createdAt: string;
   updatedAt?: string;
   expiresAt?: string | null; // 文件过期时间 (ISO 字符串)
+  width?: number | null;
+  height?: number | null;
+  duration?: number | null;
+  configId?: string | null;
 }
 
 export interface UploadTask {
@@ -26,9 +29,3 @@ export interface UploadTask {
   configId?: string;
 }
 
-export interface MinioConfig {
-  id: string;
-  name: string;
-  endpoint?: string;
-  bucket?: string;
-}

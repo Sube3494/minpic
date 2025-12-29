@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { configService } from '@/services/config.service';
-import { SyncProgress } from '@/types/config';
+import { SyncProgress, SyncEvent } from '@/types/config';
 import { toast } from 'sonner';
 
 export function useSync() {
@@ -12,29 +12,26 @@ export function useSync() {
     setSyncProgress(null);
 
     try {
-      const data = await configService.syncFiles(configId);
+      const finalProgress = await configService.syncFiles(configId, (event: SyncEvent) => {
+        if (event.type === 'progress') {
+          setSyncProgress(event.data);
+        } else if (event.type === 'done') {
+          setSyncProgress(event.data);
+          toast.success('同步完成', {
+            description: `共扫描 ${event.data.total} 个文件,导入 ${event.data.imported} 个,跳过 ${event.data.skipped} 个`
+          });
+        } else if (event.type === 'error') {
+          toast.error('同步错误', {
+            description: event.message
+          });
+        }
+      });
 
-      if (data.success) {
-        setSyncProgress({
-          total: data.total,
-          imported: data.imported,
-          skipped: data.skipped,
-        });
-        
-        toast.success('同步完成', {
-          description: `共扫描 ${data.total} 个文件,导入 ${data.imported} 个,跳过 ${data.skipped} 个`
-        });
-        return true;
-      } else {
-        toast.error('同步失败', {
-          description: data.error || '请检查存储配置和网络连接'
-        });
-        return false;
-      }
+      return !!finalProgress;
     } catch (error) {
       console.error(error);
       toast.error('同步时发生错误', {
-        description: '请检查网络连接和 MinIO 配置'
+        description: error instanceof Error ? error.message : '请检查网络连接和 MinIO 配置'
       });
       return false;
     } finally {
