@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { cache, CacheKeys } from '@/lib/cache';
 
 // Schema for setting member quota
 const setQuotaSchema = z.object({
@@ -157,6 +158,9 @@ export async function PATCH(request: Request) {
         fileQuota,
       },
     });
+
+    // Invalidate user quota cache
+    await cache.del(CacheKeys.userQuota(targetUserId));
 
     return NextResponse.json({
       success: true,

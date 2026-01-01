@@ -40,7 +40,12 @@ export async function GET() {
     });
 
     if (ownedTeam) {
-      return NextResponse.json({ members: ownedTeam.members });
+      const sortedMembers = ownedTeam.members.sort((a, b) => {
+        if (a.userId === userId) return -1;
+        if (b.userId === userId) return 1;
+        return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+      });
+      return NextResponse.json({ members: sortedMembers });
     }
 
     const membership = await prisma.teamMember.findUnique({
@@ -60,7 +65,6 @@ export async function GET() {
                   },
                 },
               },
-              orderBy: { joinedAt: 'asc' },
             },
           },
         },
@@ -68,7 +72,13 @@ export async function GET() {
     });
 
     if (membership) {
-      return NextResponse.json({ members: membership.team.members });
+      const ownerId = membership.team.ownerId;
+      const sortedMembers = membership.team.members.sort((a, b) => {
+        if (a.userId === ownerId) return -1;
+        if (b.userId === ownerId) return 1;
+        return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+      });
+      return NextResponse.json({ members: sortedMembers });
     }
 
     return NextResponse.json({ error: '您不在任何团队中' }, { status: 404 });

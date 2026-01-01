@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { serializeBigInt } from '@/lib/utils';
+import { cache, CacheKeys } from '@/lib/cache';
 
 // 创建团队的Schema
 const createTeamSchema = z.object({
@@ -14,6 +15,24 @@ const createTeamSchema = z.object({
 const updateTeamSchema = z.object({
   name: z.string().min(1).max(50).optional(),
   description: z.string().max(200).optional(),
+  storageQuota: z.union([z.string(), z.number()]).transform((v) => BigInt(v)).optional(),
+  storageQuotaMB: z.number().nonnegative().optional(), // Frontend sends MB
+  fileQuota: z.number().int().nonnegative().optional(),
+  autoAllocateQuota: z.boolean().optional(),
+  defaultStorageQuota: z.union([z.string(), z.number()]).transform((v) => BigInt(v)).optional(),
+  defaultStorageQuotaMB: z.number().nonnegative().optional(), // Frontend sends MB
+  defaultFileQuota: z.number().int().nonnegative().optional(),
+}).transform((data) => {
+  // Convert MB to Bytes if present
+  if (data.storageQuotaMB !== undefined) {
+    data.storageQuota = BigInt(Math.floor(data.storageQuotaMB * 1024 * 1024));
+    delete data.storageQuotaMB;
+  }
+  if (data.defaultStorageQuotaMB !== undefined) {
+    data.defaultStorageQuota = BigInt(Math.floor(data.defaultStorageQuotaMB * 1024 * 1024));
+    delete data.defaultStorageQuotaMB;
+  }
+  return data;
 });
 
 // GET /api/teams - 获取当前用户的团队信息
@@ -275,6 +294,20 @@ export async function PATCH(request: NextRequest) {
         },
       },
     });
+
+    // Invalidate cache
+    await cache.del(CacheKeys.team(team.id));
+    await cache.del(CacheKeys.teamQuota(team.id));
+    
+    // Invalidate quota cache for all members and owner
+    // Since we included members in the update response, we can use that list
+    const memberIds = updatedTeam.members.map(m => m.userId);
+    // Add owner if not in members list (though usually owner is a member with OWNER/ADMIN role)
+    if (!memberIds.includes(updatedTeam.ownerId)) {
+        memberIds.push(updatedTeam.ownerId);
+    }
+    
+    await Promise.all(memberIds.map(uid => cache.del(CacheKeys.userQuota(uid))));
 
     return NextResponse.json(serializeBigInt({ team: updatedTeam }));
   } catch (error) {

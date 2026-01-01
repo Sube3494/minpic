@@ -3,6 +3,8 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { randomBytes } from 'crypto';
+import { serializeBigInt } from '@/lib/utils';
+import { cache, CacheKeys } from '@/lib/cache';
 
 // 生成邀请码schema
 const generateInviteSchema = z.object({
@@ -15,29 +17,7 @@ const joinTeamSchema = z.object({
   inviteCode: z.string().length(32),
 });
 
-interface SerializedUser {
-  storageUsed: bigint | string;
-  [key: string]: unknown;
-}
-
-interface SerializedTeam {
-  storageQuota?: bigint | string | null;
-  owner?: SerializedUser | null;
-  [key: string]: unknown;
-}
-
-// Helper function to convert BigInt to string for JSON serialization
-function serializeTeam(team: SerializedTeam) {
-  if (!team) return team;
-  
-  return {
-    ...team,
-    owner: team.owner ? {
-      ...team.owner,
-      storageUsed: team.owner.storageUsed?.toString(),
-    } : undefined,
-  };
-}
+// 移除 SerializedUser, SerializedTeam 和 serializeTeam
 
 // POST /api/teams/invite - 生成邀请码
 export async function POST(request: NextRequest) {
@@ -147,12 +127,17 @@ export async function PUT(request: NextRequest) {
 
     const { inviteCode } = validation.data;
 
-    // 查找有效的邀请码
+    // 查找有效的邀请码，加入团队配额设置
     const invite = await prisma.inviteCode.findUnique({
       where: { code: inviteCode },
       include: {
         team: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            autoAllocateQuota: true,
+            defaultStorageQuota: true,
+            defaultFileQuota: true,
             owner: {
               select: {
                 id: true,
@@ -191,12 +176,23 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // 计算初始配额
+    let initialStorageQuota: bigint | null = null;
+    let initialFileQuota: number | null = null;
+
+    if (invite.team.autoAllocateQuota) {
+      initialStorageQuota = invite.team.defaultStorageQuota;
+      initialFileQuota = invite.team.defaultFileQuota;
+    }
+
     // 创建团队成员记录
     const member = await prisma.teamMember.create({
       data: {
         teamId: invite.teamId,
         userId,
         role: 'MEMBER',
+        storageQuota: initialStorageQuota,
+        fileQuota: initialFileQuota,
       },
       include: {
         team: {
@@ -225,8 +221,10 @@ export async function PUT(request: NextRequest) {
         },
       },
     });
-
-    // 更新邀请码使用次数
+    
+    // Invalidate user quota cache to ensure new settings take effect immediately
+    await cache.del(CacheKeys.userQuota(userId));
+// 更新邀请码使用次数
     await prisma.inviteCode.update({
       where: { id: invite.id },
       data: {
@@ -237,7 +235,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: '成功加入团队',
-      team: serializeTeam(member.team as unknown as SerializedTeam),
+      team: serializeBigInt(member.team),
     });
   } catch (error) {
     console.error('加入团队失败:', error);

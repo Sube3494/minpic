@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Database, Files, Info } from 'lucide-react';
+import { Database, Files, Info, AlertTriangle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { TeamMember } from '@/services/team.service';
@@ -132,8 +132,9 @@ export function MemberQuotaCard({ memberInfo, totalTeamStorage, totalTeamFiles, 
                 />
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   {storagePercent > 90 ? (
-                    <span className="text-red-600 dark:text-red-400 font-medium">
-                      ⚠️ 配额即将用尽
+                    <span className="text-red-600 dark:text-red-400 font-medium flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      配额即将用尽
                     </span>
                   ) : (
                     `已使用 ${storagePercent.toFixed(1)}%`
@@ -174,8 +175,9 @@ export function MemberQuotaCard({ memberInfo, totalTeamStorage, totalTeamFiles, 
                 />
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   {filePercent > 90 ? (
-                    <span className="text-red-600 dark:text-red-400 font-medium">
-                      ⚠️ 配额即将用尽
+                    <span className="text-red-600 dark:text-red-400 font-medium flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      配额即将用尽
                     </span>
                   ) : (
                     `已使用 ${filePercent.toFixed(1)}%`
