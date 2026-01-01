@@ -1,15 +1,12 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { MinioService, MinioConfig } from '@/lib/minio';
+import { MinioService } from '@/lib/minio';
 import { generateThumbnail, generateVideoThumbnail, getImageDimensions, getFileType, generatePinyin } from '@/lib/image-utils';
 import { SyncEvent } from '@/types/config';
 import { auth } from '@/lib/auth';
-import { checkStorageQuota, checkFileQuota, updateStorageUsage, updateFileCount } from '@/lib/quota';
-
-interface StoredMinioConfig extends MinioConfig {
-  id: string;
-  name: string;
-}
+import { checkStorageQuota, checkFileQuota, updateStorageUsage, updateFileCount } from '@/lib/team-quota';
+import { getUserMinioConfig } from '@/lib/get-user-minio-config';
+import { serializeBigInt } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
   // Get user session
@@ -25,41 +22,36 @@ export async function POST(request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       const sendEvent = (event: SyncEvent) => {
-        controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'));
+        controller.enqueue(encoder.encode(JSON.stringify(serializeBigInt(event)) + '\n'));
       };
 
       try {
-        const { configId } = await request.json();
+        const body = await request.json();
+        const targetConfigId = body.configId;
 
-        if (!configId) {
+        if (!targetConfigId) {
           sendEvent({ type: 'error', message: '缺少配置 ID' });
           controller.close();
           return;
         }
 
-        // 获取用户的 MinIO 配置（新格式）
-        const configRecord = await prisma.config.findUnique({
-          where: {
-            userId_key: { userId, key: `minio_${configId}` }
-          },
-        });
+        // 获取解密后的 MinIO 配置
+        const minioConfig = await getUserMinioConfig(userId, targetConfigId);
         
-        if (!configRecord) {
-          sendEvent({ type: 'error', message: '未找到配置' });
+        if (!minioConfig) {
+          sendEvent({ type: 'error', message: '未找到配置或由于权限原因无法访问' });
           controller.close();
           return;
         }
 
-        const config: StoredMinioConfig = JSON.parse(configRecord.value);
-
         // Connect to MinIO
         const minioService = new MinioService();
-        await minioService.connect(config);
+        await minioService.connect(minioConfig);
 
         // 构建用户路径前缀:baseDir/users/{userId}/
         let userPrefix = '';
-        if (config.baseDir) {
-          userPrefix = `${config.baseDir}/`;
+        if (minioConfig.baseDir) {
+          userPrefix = `${minioConfig.baseDir}/`;
         }
         userPrefix += `users/${userId}/`;
 
@@ -71,9 +63,9 @@ export async function POST(request: NextRequest) {
         let skipped = 0;
         let errors = 0;
         let current = 0;
-        let totalSizeImported = 0;  // 跟踪已导入文件的总大小
-        let newFilesCount = 0;      // 跟踪新导入的文件数量
-        let hasError = false;       // 跟踪是否发生阻断性错误
+        let batchTotalSize = BigInt(0); // 兼容性写法，不直接使用 0n
+        let newFilesCount = 0;
+        let hasError = false;
 
         for (const fileObj of files) {
           current++;
@@ -103,51 +95,17 @@ export async function POST(request: NextRequest) {
               },
             });
 
-
-
             const needsMetadata = existing && (!existing.thumbnailData || !existing.pinyin);
 
             if (existing && !needsMetadata) {
-              const isSameStorageGroup = await (async () => {
-                if (existing.configId === configId) return true;
-                if (!existing.configId) return false;
-
-                // 获取当前配置和已存在文件的配置
-                const [currentConfigRecord, existingConfigRecord] = await Promise.all([
-                  prisma.config.findUnique({
-                    where: { userId_key: { userId, key: `minio_${configId}` } }
-                  }),
-                  prisma.config.findUnique({
-                    where: { userId_key: { userId, key: `minio_${existing.configId}` } }
-                  })
-                ]);
-
-                if (!currentConfigRecord || !existingConfigRecord) return false;
-
-                const currentCfg: StoredMinioConfig = JSON.parse(currentConfigRecord.value);
-                const existingCfg: StoredMinioConfig = JSON.parse(existingConfigRecord.value);
-
-                return currentCfg.accessKey === existingCfg.accessKey && 
-                       currentCfg.bucket === existingCfg.bucket &&
-                       (currentCfg.baseDir || '') === (existingCfg.baseDir || '');
-              })();
-
-              if (!isSameStorageGroup) {
-                await prisma.file.update({
-                  where: { id: existing.id },
-                  data: { configId },
-                });
-                imported++;
-              } else {
-                skipped++;
-              }
+              skipped++;
               continue;
             }
 
             // 对于不存在的文件,进行限额检查
-            // 对于不存在的文件,进行限额检查
+            const fileSizeBigInt = BigInt(fileObj.size || 0);
             if (!existing) {
-              // 检查文件数量限额 (传入当前批次已新增的文件数)
+              // 检查文件数量限额
               const fileQuotaCheck = await checkFileQuota(userId, newFilesCount);
               if (!fileQuotaCheck.allowed) {
                 sendEvent({
@@ -162,8 +120,8 @@ export async function POST(request: NextRequest) {
                 break; // 停止同步
               }
 
-              // 检查存储空间限额 (传入当前批次已累积的大小)
-              const storageQuotaCheck = await checkStorageQuota(userId, fileObj.size || 0, totalSizeImported);
+              // 检查存储空间限额
+              const storageQuotaCheck = await checkStorageQuota(userId, fileSizeBigInt, batchTotalSize);
               if (!storageQuotaCheck.allowed) {
                 sendEvent({
                   type: 'quota_exceeded',
@@ -178,7 +136,7 @@ export async function POST(request: NextRequest) {
               }
             }
 
-            // Download file to process (either new file or backfilling metadata)
+            // Download file to process
             const fileBuffer = await minioService.downloadFile(fileObj.name!);
             
             const extension = fileObj.name?.split('.').pop()?.toLowerCase() || '';
@@ -236,35 +194,33 @@ export async function POST(request: NextRequest) {
                   width,
                   height,
                   pinyin: pinyinValue,
-                  configId, // Update configId as well
+                  configId: targetConfigId,
                 }
               });
             } else {
               // Create new record
               await prisma.file.create({
                 data: {
-                  userId,  // Add user association
+                  userId,
                   filename,
                   minioPath: fileObj.name!,
-                  fileSize: fileObj.size || 0,
+                  fileSize: fileSizeBigInt,
                   mimeType,
                   fileType,
                   thumbnailData,
                   width,
                   height,
-                  configId,
+                  configId: targetConfigId,
                   pinyin: pinyinValue,
                 },
               });
             }
             
-            // 如果是新导入的文件,统计大小和数量
             if (!existing) {
-              totalSizeImported += fileObj.size || 0;
+              batchTotalSize += fileSizeBigInt;
               newFilesCount++;
-              imported++;  // 只有新文件才算imported
+              imported++;
             } else {
-              // 已存在的文件,只是更新元数据,不计入配额
               skipped++;
             }
           } catch (error) {
@@ -274,21 +230,12 @@ export async function POST(request: NextRequest) {
         }
 
         // 批量更新用户配额
-        if (newFilesCount > 0 || totalSizeImported > 0) {
-          console.log('[同步配额更新]', {
-            userId,
-            newFilesCount,
-            totalSizeImported,
-            imported,
-            skipped,
-            errors
-          });
+        if (newFilesCount > 0 || batchTotalSize > BigInt(0)) {
           try {
             await Promise.all([
-              updateStorageUsage(userId, totalSizeImported),
+              updateStorageUsage(userId, batchTotalSize),
               updateFileCount(userId, newFilesCount),
             ]);
-            console.log('[同步配额更新成功]');
           } catch (quotaError) {
             console.error('[同步配额更新失败]', quotaError);
           }

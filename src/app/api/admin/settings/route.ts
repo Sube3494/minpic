@@ -18,19 +18,11 @@ export async function GET() {
         data: {
           registrationEnabled: true,
           requireWhitelist: false,
-          defaultStorageQuota: BigInt(5368709120), // 5GB
-          defaultFileQuota: 10000,
         },
       });
     }
 
-    // 序列化 BigInt
-    const serializedSettings = {
-      ...settings,
-      defaultStorageQuota: settings.defaultStorageQuota.toString(),
-    };
-
-    return NextResponse.json(serializedSettings);
+    return NextResponse.json(settings);
   } catch (error) {
     console.error('Error fetching settings:', error);
     return NextResponse.json(
@@ -49,9 +41,7 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const { 
       registrationEnabled, 
-      requireWhitelist, 
-      defaultStorageQuota, 
-      defaultFileQuota,
+      requireWhitelist,
       siteName,
       siteDescription
     } = body;
@@ -64,8 +54,6 @@ export async function PATCH(request: NextRequest) {
         data: {
           registrationEnabled: true,
           requireWhitelist: false,
-          defaultStorageQuota: BigInt(5368709120),
-          defaultFileQuota: 10000,
         },
       });
     }
@@ -74,8 +62,6 @@ export async function PATCH(request: NextRequest) {
     const updateData: Prisma.SystemSettingsUpdateInput = {};
     if (registrationEnabled !== undefined) updateData.registrationEnabled = registrationEnabled;
     if (requireWhitelist !== undefined) updateData.requireWhitelist = requireWhitelist;
-    if (defaultStorageQuota !== undefined) updateData.defaultStorageQuota = BigInt(defaultStorageQuota);
-    if (defaultFileQuota !== undefined) updateData.defaultFileQuota = defaultFileQuota;
     if (siteName !== undefined) updateData.siteName = siteName;
     if (siteDescription !== undefined) updateData.siteDescription = siteDescription;
 
@@ -91,21 +77,12 @@ export async function PATCH(request: NextRequest) {
         action: 'SETTINGS_UPDATED',
         ipAddress: getClientIp(request),
         metadata: JSON.stringify({ 
-          changes: {
-            ...updateData,
-            defaultStorageQuota: updateData.defaultStorageQuota?.toString()
-          } 
+          changes: updateData
         }),
       },
     });
 
-    // 序列化 BigInt
-    const serializedSettings = {
-      ...updatedSettings,
-      defaultStorageQuota: updatedSettings.defaultStorageQuota.toString(),
-    };
-
-    return NextResponse.json(serializedSettings);
+    return NextResponse.json(updatedSettings);
   } catch (error) {
     console.error('Error updating settings:', error);
     return NextResponse.json(

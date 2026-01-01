@@ -6,10 +6,15 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
   try {
     const session = await requireAuth();
-    const userId = session.user.id;
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: '未授权' }, { status: 401 });
+    }
 
     // 检查用户是否是团队主
-    const team = await prisma.team.findUnique({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const team = await (prisma as any).team.findUnique({
       where: { ownerId: userId },
     });
 
@@ -21,8 +26,23 @@ export async function GET() {
     }
 
     // 获取团队所有邀请码
-    const invites = await prisma.inviteCode.findMany({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const invites = await (prisma as any).inviteCode.findMany({
       where: { teamId: team.id },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                name: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -32,11 +52,17 @@ export async function GET() {
     return NextResponse.json({ error: '获取邀请码列表失败' }, { status: 500 });
   }
 }
+
 // DELETE /api/teams/invites?id={id} - 删除邀请码
 export async function DELETE(request: NextRequest) {
   try {
     const session = await requireAuth();
-    const userId = session.user.id;
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: '未授权' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -45,7 +71,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 检查用户是否是团队主
-    const team = await prisma.team.findUnique({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const team = await (prisma as any).team.findUnique({
       where: { ownerId: userId },
     });
 
@@ -57,7 +84,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 检查邀请码是否存在且属于该团队
-    const invite = await prisma.inviteCode.findUnique({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const invite = await (prisma as any).inviteCode.findUnique({
       where: { id },
     });
 
@@ -70,7 +98,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 删除邀请码
-    await prisma.inviteCode.delete({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (prisma as any).inviteCode.delete({
       where: { id },
     });
 

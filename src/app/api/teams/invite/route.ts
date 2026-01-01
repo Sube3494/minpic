@@ -15,17 +15,25 @@ const joinTeamSchema = z.object({
   inviteCode: z.string().length(32),
 });
 
+interface SerializedUser {
+  storageUsed: bigint | string;
+  [key: string]: unknown;
+}
+
+interface SerializedTeam {
+  storageQuota?: bigint | string | null;
+  owner?: SerializedUser | null;
+  [key: string]: unknown;
+}
+
 // Helper function to convert BigInt to string for JSON serialization
-// Helper function to convert BigInt to string for JSON serialization
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function serializeTeam(team: any) {
+function serializeTeam(team: SerializedTeam) {
   if (!team) return team;
   
   return {
     ...team,
     owner: team.owner ? {
       ...team.owner,
-      storageQuota: team.owner.storageQuota?.toString(),
       storageUsed: team.owner.storageUsed?.toString(),
     } : undefined,
   };
@@ -42,8 +50,7 @@ export async function POST(request: NextRequest) {
     const userId = session.user.id;
 
     // 检查用户是否是团队主
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const team = await (prisma as any).team.findUnique({
+    const team = await prisma.team.findUnique({
       where: { ownerId: userId },
     });
 
@@ -59,8 +66,7 @@ export async function POST(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        { error: '参数验证失败', details: (validation.error as any).errors },
+        { error: '参数验证失败', details: validation.error.issues },
         { status: 400 }
       );
     }
@@ -73,8 +79,7 @@ export async function POST(request: NextRequest) {
     expiresAt.setMinutes(expiresAt.getMinutes() + expiresInMinutes);
 
     // 创建邀请码记录
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const invite = await (prisma as any).inviteCode.create({
+    const invite = await prisma.inviteCode.create({
       data: {
         code: inviteCode,
         teamId: team.id,
@@ -107,8 +112,7 @@ export async function PUT(request: NextRequest) {
     const userId = session.user.id;
 
     // 检查用户是否已经在团队中
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const existingMembership = await (prisma as any).teamMember.findUnique({
+    const existingMembership = await prisma.teamMember.findUnique({
       where: { userId },
     });
 
@@ -120,8 +124,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // 检查用户是否已经拥有团队
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ownedTeam = await (prisma as any).team.findUnique({
+    const ownedTeam = await prisma.team.findUnique({
       where: { ownerId: userId },
     });
 
@@ -137,8 +140,7 @@ export async function PUT(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        { error: '参数验证失败', details: (validation.error as any).errors },
+        { error: '参数验证失败', details: validation.error.issues },
         { status: 400 }
       );
     }
@@ -146,8 +148,7 @@ export async function PUT(request: NextRequest) {
     const { inviteCode } = validation.data;
 
     // 查找有效的邀请码
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const invite = await (prisma as any).inviteCode.findUnique({
+    const invite = await prisma.inviteCode.findUnique({
       where: { code: inviteCode },
       include: {
         team: {
@@ -159,9 +160,7 @@ export async function PUT(request: NextRequest) {
                 name: true,
                 avatar: true,
                 githubId: true,
-                storageQuota: true,
                 storageUsed: true,
-                fileQuota: true,
                 fileCount: true,
               },
             },
@@ -193,8 +192,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // 创建团队成员记录
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const member = await (prisma as any).teamMember.create({
+    const member = await prisma.teamMember.create({
       data: {
         teamId: invite.teamId,
         userId,
@@ -210,9 +208,7 @@ export async function PUT(request: NextRequest) {
                 name: true,
                 avatar: true,
                 githubId: true,
-                storageQuota: true,
                 storageUsed: true,
-                fileQuota: true,
                 fileCount: true,
               },
             },
@@ -225,15 +221,13 @@ export async function PUT(request: NextRequest) {
             name: true,
             avatar: true,
             githubId: true,
-            storageQuota: true,
           },
         },
       },
     });
 
     // 更新邀请码使用次数
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (prisma as any).inviteCode.update({
+    await prisma.inviteCode.update({
       where: { id: invite.id },
       data: {
         usedCount: { increment: 1 },
@@ -243,7 +237,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: '成功加入团队',
-      team: serializeTeam(member.team),
+      team: serializeTeam(member.team as unknown as SerializedTeam),
     });
   } catch (error) {
     console.error('加入团队失败:', error);
@@ -262,8 +256,7 @@ export async function DELETE() {
     const userId = session.user.id;
 
     // 检查用户是否是团队成员
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const membership = await (prisma as any).teamMember.findUnique({
+    const membership = await prisma.teamMember.findUnique({
       where: { userId },
       include: { team: true },
     });
@@ -284,8 +277,7 @@ export async function DELETE() {
     }
 
     // 删除成员记录
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (prisma as any).teamMember.delete({
+    await prisma.teamMember.delete({
       where: { userId },
     });
 

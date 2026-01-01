@@ -72,8 +72,6 @@ export const authConfig: NextAuthConfig = {
       const DEFAULT_SETTINGS = {
         registrationEnabled: true,
         requireWhitelist: false,
-        defaultStorageQuota: BigInt(5368709120), // 5GB
-        defaultFileQuota: 10000,
       };
 
       // Check if user exists
@@ -150,7 +148,7 @@ export const authConfig: NextAuthConfig = {
       
       const ghProfile = profile as unknown as GithubProfile;
       
-      // Create new user
+      // Create new user (no quota - quotas are managed at team level)
       const newUser = await prisma.user.create({
         data: {
           githubId,
@@ -160,8 +158,6 @@ export const authConfig: NextAuthConfig = {
           avatar: ghProfile.avatar_url,
           role: isAdmin ? 'ADMIN' : 'USER',
           status: 'ACTIVE',
-          storageQuota: settings.defaultStorageQuota,
-          fileQuota: settings.defaultFileQuota,
           lastLoginAt: new Date(),
         }
       });

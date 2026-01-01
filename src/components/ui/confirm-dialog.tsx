@@ -20,7 +20,7 @@ interface ConfirmDialogProps {
   description: React.ReactNode;
   confirmText?: string;
   cancelText?: string;
-  onConfirm: () => void;
+  onConfirm?: () => void;
   variant?: 'default' | 'destructive';
   isLoading?: boolean;
   confirmDisabled?: boolean;
@@ -28,6 +28,7 @@ interface ConfirmDialogProps {
   deleteMode?: 'full' | 'record-only';
   onDeleteModeChange?: (mode: 'full' | 'record-only') => void;
   hideCancelButton?: boolean;
+  footer?: React.ReactNode;
 }
 
 export function ConfirmDialog({
@@ -45,15 +46,16 @@ export function ConfirmDialog({
   deleteMode,
   onDeleteModeChange,
   hideCancelButton,
+  footer,
 }: ConfirmDialogProps) {
   // 根据删除模式动态决定按钮变体
   const activeVariant = deleteMode === 'full' ? 'destructive' : variant;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="sm:max-w-[500px] gap-6">
+      <AlertDialogContent className="w-[90vw] sm:max-w-[500px] gap-6">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-xl font-bold">{title}</AlertDialogTitle>
+          <AlertDialogTitle className="text-xl font-semibold">{title}</AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="whitespace-pre-line text-base text-muted-foreground/80">
               {description}
@@ -88,7 +90,7 @@ export function ConfirmDialog({
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center justify-between">
                     <Label className={cn(
-                      "text-base font-bold cursor-pointer transition-colors",
+                      "text-base font-semibold cursor-pointer transition-colors",
                       deleteMode === 'record-only' ? "text-blue-600 dark:text-blue-400" : "text-foreground"
                     )}>
                       仅删除记录
@@ -129,14 +131,14 @@ export function ConfirmDialog({
                 <div className="flex-1 space-y-1">
                   <div className="flex items-center justify-between">
                     <Label className={cn(
-                      "text-base font-bold cursor-pointer transition-colors",
+                      "text-base font-semibold cursor-pointer transition-colors",
                       deleteMode === 'full' ? "text-red-600 dark:text-red-400" : "text-foreground"
                     )}>
                       完全删除
                     </Label>
                   </div>
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    同时删除数据库记录、MinIO文件和短链，<span className="font-bold text-red-500/80">无法恢复</span>
+                    同时删除数据库记录、MinIO文件和短链，<span className="font-semibold text-red-500/80">无法恢复</span>
                   </p>
                 </div>
 
@@ -147,29 +149,31 @@ export function ConfirmDialog({
           </div>
         )}
         
-        <AlertDialogFooter className="gap-3 sm:gap-4">
-          {!hideCancelButton && (
-            <AlertDialogCancel disabled={cancelDisabled ?? isLoading} className="rounded-full h-10 px-6 font-medium">
-              {cancelText}
-            </AlertDialogCancel>
-          )}
-          <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault();
-              onConfirm();
-            }}
-            disabled={confirmDisabled ?? isLoading}
-            className={cn(
-              "rounded-full h-10 px-6 font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none",
-              activeVariant === 'destructive' 
-                ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20' 
-                : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/20'
+        {footer ? footer : (
+          <AlertDialogFooter className="gap-3 sm:gap-4">
+            {!hideCancelButton && (
+              <AlertDialogCancel disabled={cancelDisabled ?? isLoading} className="rounded-full h-10 px-6 font-medium">
+                {cancelText}
+              </AlertDialogCancel>
             )}
-          >
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {confirmText}
-          </AlertDialogAction>
-        </AlertDialogFooter>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                onConfirm?.();
+              }}
+              disabled={confirmDisabled ?? isLoading}
+              className={cn(
+                "rounded-full h-10 px-6 font-semibold shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none",
+                activeVariant === 'destructive' 
+                  ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20' 
+                  : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/20'
+              )}
+            >
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {confirmText}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        )}
       </AlertDialogContent>
     </AlertDialog>
   );

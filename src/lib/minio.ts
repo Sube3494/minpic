@@ -10,8 +10,8 @@ export class MinioService {
   private client: Minio.Client | null = null;
   private config: MinioConfig | null = null;
 
-  async connect(config: MinioConfig): Promise<void> {
-    this.config = config;
+  async connect(config: Omit<MinioConfig, 'name'>): Promise<void> {
+    this.config = config as MinioConfig;
     this.client = new Minio.Client({
       endPoint: config.endpoint,
       port: config.port ?? 9000, // 默认端口 9000
@@ -80,9 +80,8 @@ export class MinioService {
         await this.client.statObject(this.config.bucket, objectName);
         // File exists, skip upload by throwing error
         throw new Error('FILE_EXISTS');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        if (error.message === 'FILE_EXISTS') {
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message === 'FILE_EXISTS') {
           throw error;
         }
         // File doesn't exist (statObject threw 404), continue upload
@@ -166,8 +165,7 @@ export class MinioService {
     const files: Minio.BucketItem[] = [];
 
     return new Promise((resolve, reject) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      stream.on('data', (obj: any) => files.push(obj));
+      stream.on('data', (obj: Minio.BucketItem) => files.push(obj));
       stream.on('end', () => resolve(files));
       stream.on('error', reject);
     });
@@ -308,6 +306,12 @@ export class MinioService {
           duration,
           error: '连接被重置，请检查网络连接或防火墙设置'
         };
+      } else if (errorMessage.includes('S3 API Requests must be made to API port')) {
+        return { 
+          success: false, 
+          duration,
+          error: 'API 端口配置错误'
+        };
       } else if (errorMessage.includes('certificate') || errorMessage.includes('SSL')) {
         return { 
           success: false, 
@@ -318,22 +322,97 @@ export class MinioService {
         return { 
           success: false, 
           duration,
-          error: `连接失败: ${errorMessage}`
+          error: errorMessage
         };
       }
     }
   }
 
+  /**
+   * 初始化分片上传
+   */
+  async initiateMultipartUpload(
+    bucket: string,
+    objectName: string,
+    contentType: string
+  ): Promise<string> {
+    if (!this.client) {
+      throw new Error('MinIO client not initialized');
+    }
+
+    return await this.client.initiateNewMultipartUpload(
+      bucket,
+      objectName,
+      { 'Content-Type': contentType }
+    );
+  }
+
+  /**
+   * 上传单个分片
+   */
+  async uploadPart(
+    bucket: string,
+    objectName: string,
+    uploadId: string,
+    partNumber: number,
+    data: Buffer
+  ): Promise<{ etag: string }> {
+    if (!this.client) {
+      throw new Error('MinIO client not initialized');
+    }
+
+    // 使用 MinIO SDK 的 uploadPart
+    const result = await this.client.uploadPart({
+      bucketName: bucket,
+      objectName,
+      uploadID: uploadId,
+      partNumber,
+      headers: {},
+    }, data);
+
+    return { etag: result.etag };
+  }
+
+  /**
+   * 完成分片上传
+   */
+  async completeMultipartUpload(
+    bucket: string,
+    objectName: string,
+    uploadId: string,
+    parts: Array<{ part: number; etag: string }>
+  ): Promise<void> {
+    if (!this.client) {
+      throw new Error('MinIO client not initialized');
+    }
+
+    // 按 part 排序
+    const sortedParts = parts.sort((a, b) => a.part - b.part);
+
+    await this.client.completeMultipartUpload(
+      bucket,
+      objectName,
+      uploadId,
+      sortedParts
+    );
+  }
+
+  /**
+   * 取消分片上传
+   */
+  async abortMultipartUpload(
+    bucket: string,
+    objectName: string,
+    uploadId: string
+  ): Promise<void> {
+    if (!this.client) {
+      throw new Error('MinIO client not initialized');
+    }
+
+    await this.client.abortMultipartUpload(bucket, objectName, uploadId);
+  }
+
   getClient(): Minio.Client | null {
     return this.client;
   }
-}
-
-let minioService: MinioService | null = null;
-
-export function getMinioService(): MinioService {
-  if (!minioService) {
-    minioService = new MinioService();
-  }
-  return minioService;
 }

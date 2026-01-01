@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
-import { getMinioService } from '@/lib/minio';
+import { MinioService } from '@/lib/minio';
 import { generatePinyin } from '@/lib/image-utils';
 import { getUserMinioConfig } from '@/lib/get-user-minio-config';
+import { serializeBigInt } from '@/lib/utils';
 
 export async function GET(
   request: NextRequest,
@@ -27,7 +28,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    return NextResponse.json(file);
+    return NextResponse.json(serializeBigInt(file));
   } catch (error) {
     console.error('Error getting file:', error);
     return NextResponse.json(
@@ -67,7 +68,7 @@ export async function DELETE(
 
     // Only delete MinIO files if mode is 'full'
     if (deleteMode === 'full' && config) {
-      const minioService = getMinioService();
+      const minioService = new MinioService();
       await minioService.connect(config);
 
       const minioDeletePromises = [];
@@ -143,7 +144,7 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json(file);
+    return NextResponse.json(serializeBigInt(file));
   } catch (error) {
     console.error('Error updating file:', error);
     return NextResponse.json(

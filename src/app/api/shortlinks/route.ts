@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
-import { getMinioService } from '@/lib/minio';
-import { getShortlinkService } from '@/lib/shortlink';
+import { MinioService } from '@/lib/minio';
+import { ShortlinkService } from '@/lib/shortlink';
 import { getUserMinioConfig } from '@/lib/get-user-minio-config';
 
 export async function POST(request: NextRequest) {
@@ -55,13 +55,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Get file URL
-    const minioService = getMinioService();
+    const minioService = new MinioService();
     await minioService.connect(minioConfig);
     const fileUrl = await minioService.getFileUrl(file.minioPath);
 
     // Create shortlink (shortlink service will handle MD5 deduplication)
     const sConfig = JSON.parse(shortlinkConfig.value);
-    const shortlinkService = getShortlinkService();
+    const shortlinkService = new ShortlinkService();
     shortlinkService.setConfig(sConfig);
     
     // Pass expires_in and unit directly to service
@@ -99,7 +99,7 @@ export async function GET() {
     }
 
     const sConfig = JSON.parse(shortlinkConfig.value);
-    const shortlinkService = getShortlinkService();
+    const shortlinkService = new ShortlinkService();
     shortlinkService.setConfig(sConfig);
 
     // Get all shortlinks from shortlink service

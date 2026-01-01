@@ -30,11 +30,9 @@ model User {
   role   String @default("USER") // ADMIN | USER
   status String @default("ACTIVE") // ACTIVE | SUSPENDED | BANNED
 
-  // Quota settings
-  storageQuota BigInt @default(524288000) // 500MB
-  storageUsed  BigInt @default(0)
-  fileQuota    Int    @default(1000)
-  fileCount    Int    @default(0)
+  // Usage statistics (for display only)
+  storageUsed BigInt @default(0)
+  fileCount   Int    @default(0)
 
   // Metadata
   lastLoginAt DateTime?
@@ -49,9 +47,10 @@ model User {
   auditLogs AuditLog[]
 
   // Team relations
-  ownedTeam          Team?         @relation("TeamOwner")
+  ownedTeam          Team?             @relation("TeamOwner")
   teamMembership     TeamMember?
   createdInviteCodes InviteCode[]
+  multipartUploads   MultipartUpload[]
 
   @@index([githubId])
   @@index([username])
@@ -131,9 +130,7 @@ model SystemSettings {
   registrationEnabled Boolean @default(false)
   requireWhitelist    Boolean @default(true)
 
-  // Default quotas
-  defaultStorageQuota BigInt @default(5368709120) // 5GB
-  defaultFileQuota    Int    @default(10000)
+  // Default quotas removed - now managed at team level
 
   // Site info
   siteName        String  @default("MinPic")
@@ -196,8 +193,8 @@ model File {
   id            String    @id @default(cuid())
   userId        String
   filename      String
-  minioPath     String // 移除 @unique，改用复合唯一约束
-  fileSize      Int
+  minioPath     String // 缁夊锟?@unique閿涘本鏁奸悽銊ワ拷閸氬牆鏁稉鈧痪锔芥将
+  fileSize      BigInt
   mimeType      String
   fileType      String
   thumbnailPath String?
@@ -214,7 +211,7 @@ model File {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, minioPath]) // 复合唯一约束：同一用户不能有相同路径的文件
+  @@unique([userId, minioPath]) // 婢跺秴鎮庨崬锟界缁撅附娼敍姘倱娑撯偓閻劍鍩涙稉宥堝厴閺堝娴夐崥宀冪熅瀵板嫮娈戦弬鍥︽
   @@index([userId])
   @@index([fileType])
   @@index([createdAt])
@@ -234,6 +231,15 @@ model Team {
 
   ownerId String @unique
   owner   User   @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // Team quotas (set by team owner)
+  storageQuota BigInt @default(5368709120) // 5GB default
+  fileQuota    Int    @default(10000) // 10000 files default
+
+  // Auto-allocation settings
+  autoAllocateQuota   Boolean @default(false)
+  defaultStorageQuota BigInt  @default(0)
+  defaultFileQuota    Int     @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -256,36 +262,75 @@ model TeamMember {
 
   role String @default("MEMBER") // ADMIN | MEMBER
 
-  // 成员独立配额（可选）null表示使用团队配额
-  storageQuota BigInt? // 存储配额（字节）
-  fileQuota    Int?    // 文件数配额
+  // 閹存劕鎲抽悪锟界彌闁板秹锟介敍鍫濆讲闁绱歯ull鐞涖劎銇氭担璺ㄦ暏閸ャ垽妲﹂柊宥夛拷
+  storageQuota BigInt? // 鐎涙ê鍋嶉柊宥夛拷閿涘牆鐡ч懞鍌︾礆
+  fileQuota    Int? // 閺傚洣娆㈤弫浼村帳妫帮拷
+
+  inviteCodeId String?
+  inviteCode   InviteCode? @relation(fields: [inviteCodeId], references: [id], onDelete: SetNull)
 
   joinedAt DateTime @default(now())
 
   @@unique([teamId, userId])
   @@index([teamId])
   @@index([userId])
+  @@index([inviteCodeId])
   @@map("team_members")
 }
 
 model InviteCode {
-  id     String @id @default(cuid())
-  code   String @unique // 32位邀请码
-  
+  id   String @id @default(cuid())
+  code String @unique // 32娴ｅ秹鍊嬬拠椋庣垳
+
   teamId String
   team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  
+
   createdBy String
   creator   User   @relation(fields: [createdBy], references: [id], onDelete: Cascade)
-  
-  expiresAt DateTime // 过期时间
-  maxUses   Int      @default(10) // 最大使用次数
+
+  expiresAt DateTime // 鏉╁洦婀￠弮鍫曟？
+  maxUses   Int      @default(5) // 最大使用次数
   usedCount Int      @default(0) // 已使用次数
-  
+
+  members TeamMember[]
+
   createdAt DateTime @default(now())
-  
+
   @@index([teamId])
   @@index([code])
   @@index([createdBy])
   @@map("invite_codes")
+}
+
+// ============================================
+// Multipart Upload (鍒嗙墖涓婁紶)
+// ============================================
+
+model MultipartUpload {
+  id       String @id @default(cuid())
+  uploadId String @unique // MinIO Upload ID
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  filename String
+  fileSize BigInt
+  mimeType String
+
+  bucket    String
+  objectKey String
+
+  // 宸蹭笂浼犵殑鍒嗙墖淇℃伅 (JSON 瀛楃涓?
+  parts String @default("[]") // Array<{ partNumber: number, etag: string }>
+
+  status String @default("pending") // pending | completed | aborted
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime // 24灏忔椂鍚庤繃鏈?
+  @@index([userId])
+  @@index([uploadId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("multipart_uploads")
 }

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { ShortlinkConfig } from '@/types/config';
+import { ShortlinkConfig, UseShortlinkConfigReturn } from '@/types/config';
 import { configService } from '@/services/config.service';
 import { toast } from 'sonner';
 
-export function useShortlinkConfig() {
+export function useShortlinkConfig(): UseShortlinkConfigReturn {
   const [shortlinkConfig, setShortlinkConfig] = useState<ShortlinkConfig>({
     apiUrl: '',
     apiKey: '',

@@ -12,7 +12,6 @@ import {
   endOfWeek, 
   isSameMonth, 
   isSameDay, 
-  addDays, 
   eachDayOfInterval,
   isToday
 } from "date-fns"
@@ -22,7 +21,7 @@ import { Button } from "@/components/ui/button"
 
 interface CalendarProps {
   selected?: Date
-  onSelect?: (date: Date) => void
+  onSelect?: (date: Date | undefined) => void
   className?: string
 }
 
@@ -108,7 +107,7 @@ export function Calendar({ selected, onSelect, className }: CalendarProps) {
           variant="ghost" 
           size="sm" 
           className="text-[11px] h-7 px-2 text-zinc-500 hover:text-red-500"
-          onClick={() => onSelect?.(undefined as any)}
+          onClick={() => onSelect?.(undefined)}
         >
           清除
         </Button>

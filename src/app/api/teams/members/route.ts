@@ -188,7 +188,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: '参数验证失败', details: validation.error.errors },
+        { error: '参数验证失败', details: validation.error.issues },
         { status: 400 }
       );
     }

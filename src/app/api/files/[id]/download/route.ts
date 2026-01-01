@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
-import { getMinioService } from '@/lib/minio';
+import { MinioService } from '@/lib/minio';
 import { getUserMinioConfig } from '@/lib/get-user-minio-config';
 
 export async function GET(
@@ -44,7 +44,7 @@ export async function GET(
       );
     }
 
-    const minioService = getMinioService();
+    const minioService = new MinioService();
     await minioService.connect(config);
 
     const fileBuffer = await minioService.downloadFile(file.minioPath);

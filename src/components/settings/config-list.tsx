@@ -17,10 +17,11 @@ interface ConfigListProps {
   onActivate: (id: string) => void;
   onDelete: (id: string) => void;
   canDelete: boolean;
+  canEdit?: boolean; // Whether user can create/delete configs
 }
 
 export function ConfigList({ 
-  configs, activeId, selectedId, onSelect, onCreate, onActivate, onDelete, canDelete 
+  configs, activeId, selectedId, onSelect, onCreate, onActivate, onDelete, canDelete, canEdit = true
 }: ConfigListProps) {
   const [indicatorStyle, setIndicatorStyle] = useState({ top: 0, height: 0, opacity: 0 });
   const itemsRef = useRef<(HTMLDivElement | null)[]>([]);
@@ -62,13 +63,15 @@ export function ConfigList({
                 <CardTitle className="text-lg font-bold text-zinc-800 dark:text-zinc-100 tracking-tight">存储节点</CardTitle>
                 <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400">管理对象存储连接配置</CardDescription>
             </div>
-            <Button 
-                onClick={onCreate} 
-                size="icon" 
-                className="h-8 w-8 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
-            >
-                <Plus className="w-4 h-4" />
-            </Button>
+            {canEdit && (
+              <Button 
+                  onClick={onCreate} 
+                  size="icon" 
+                  className="h-8 w-8 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
+              >
+                  <Plus className="w-4 h-4" />
+              </Button>
+            )}
         </div>
       </CardHeader>
       <CardContent className="p-0 flex-1 min-h-0">
@@ -140,6 +143,11 @@ export function ConfigList({
                                         {config.name}
                                     </span>
                                     <StatusIndicator status={config.status} size="sm" />
+                                    {config.isTeam && (
+                                        <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
+                                            <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 leading-none">团队: {config.teamName}</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="text-xs text-zinc-500 dark:text-zinc-500 truncate flex items-center gap-1.5 mt-0.5">
                                     <span className={cn(
@@ -189,10 +197,10 @@ export function ConfigList({
                                         e.stopPropagation();
                                         onDelete(config.id);
                                     }}
-                                    disabled={!canDelete}
+                                    disabled={!canEdit || !canDelete || config.isTeam}
                                     className={cn(
                                         "h-7 w-7 p-0 transition-all flex items-center justify-center",
-                                        canDelete 
+                                        canEdit && canDelete && !config.isTeam
                                             ? "hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/20 dark:hover:text-red-400" 
                                             : "opacity-30 cursor-not-allowed"
                                     )}

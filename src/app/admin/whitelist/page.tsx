@@ -138,7 +138,7 @@ export default function WhitelistPage() {
                       添加白名单
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="glass-strong border-0 shadow-2xl">
+                  <DialogContent className="glass-strong border-0 shadow-2xl w-[90vw] max-w-lg">
                     <DialogHeader>
                       <DialogTitle>添加白名单</DialogTitle>
                       <DialogDescription>
@@ -225,7 +225,7 @@ export default function WhitelistPage() {
                                 transition={{ duration: 0.2 }}
                                 className="group hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50 transition-colors border-b border-border/50"
                               >
-                                <TableCell className="font-mono font-medium py-4">
+                                <TableCell className="font-medium py-4">
                                   {entry.githubId}
                                 </TableCell>
                                 <TableCell className="text-sm">

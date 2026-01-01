@@ -16,7 +16,6 @@ import {
   Trash2,
   Users as UsersIcon,
   MoreHorizontal,
-  HardDrive,
   UserCheck,
   ShieldCheck,
   Check,
@@ -26,7 +25,6 @@ import {
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { UserEditDialog } from '@/components/admin/user-edit-dialog';
-import { CircularProgress } from '@/components/ui/circular-progress';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -56,10 +54,6 @@ interface User {
   avatar: string | null;
   role: string;
   status: string;
-  storageQuota: string;
-  storageUsed: string;
-  fileQuota: number;
-  fileCount: number;
   createdAt: string;
 }
 
@@ -132,7 +126,7 @@ export default function UsersPage() {
   useEffect(() => {
     fetchUsers(users.length === 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchUsers]);
 
   const handleEdit = (user: User) => {
     setEditingUser(user);
@@ -227,51 +221,47 @@ export default function UsersPage() {
     setSelectedUsers(newSelected);
   };
 
-  const formatBytes = (bytes: string) => {
-    const num = Number(bytes);
-    if (num === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(num) / Math.log(k));
-    return `${(num / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
-  };
-
   // Real stats from API
   const statsCards = [
-    { title: '总用户数', value: stats.totalUsers.toString(), icon: UsersIcon, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    { title: '活跃用户', value: stats.activeUsers.toString(), icon: UserCheck, color: 'text-green-500', bg: 'bg-green-500/10' },
-    { title: '管理员', value: stats.adminUsers.toString(), icon: ShieldCheck, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-    { title: '总存储占用', value: formatBytes(stats.totalStorage), icon: HardDrive, color: 'text-orange-500', bg: 'bg-orange-500/10' },
+    { title: '总用户数', value: stats.totalUsers.toString(), icon: UsersIcon, color: 'blue', sub: '系统注册用户总数' },
+    { title: '活跃用户', value: stats.activeUsers.toString(), icon: UserCheck, color: 'green', sub: '当前状态正常的用户' },
+    { title: '管理员', value: stats.adminUsers.toString(), icon: ShieldCheck, color: 'purple', sub: '拥有管理权限的用户' },
   ];
 
   return (
     <PageWrapper>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex flex-col gap-1">
-          <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-linear-to-r from-foreground to-foreground/70 w-fit">用户管理</h1>
-          <p className="text-muted-foreground">管理系统中的所有用户及其权限</p>
-        </div>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-linear-to-r from-foreground to-foreground/70 w-fit">用户管理</h1>
+              <p className="text-muted-foreground">管理系统中的所有用户及其权限</p>
+            </div>
+          </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {statsCards.map((stat, index) => (
-            <Card key={index} className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 relative overflow-hidden group hover:translate-y-0 transition-all duration-300">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 sm:p-6 pb-2 relative">
-                <CardTitle className="text-[10px] sm:text-sm font-medium text-muted-foreground truncate mr-2">{stat.title}</CardTitle>
-                <div className={cn("p-1.5 sm:p-2 rounded-lg shrink-0", stat.bg)}>
-                  <stat.icon className={cn("w-3.5 h-3.5 sm:w-5 sm:h-5", stat.color)} />
-                </div>
-              </CardHeader>
-              <CardContent className="p-3 sm:p-6 pt-0 relative">
-                <div className="text-xl sm:text-2xl font-bold truncate">{stat.value}</div>
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {statsCards.map((stat, i) => (
+            <div key={i}>
+              <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 relative overflow-hidden group">
+                <div className={cn(`absolute inset-0 bg-linear-to-br from-${stat.color}-500/5 to-transparent opacity-50 transition-none`)} />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 p-6 pb-2 relative">
+                  <CardTitle className="text-sm font-medium text-muted-foreground truncate mr-2">{stat.title}</CardTitle>
+                  <div className={cn(`p-2 rounded-lg bg-${stat.color}-500/10 text-${stat.color}-500 shrink-0`)}>
+                    <stat.icon className="w-4 h-4" />
+                  </div>
+                </CardHeader>
+                <CardContent className="p-6 pt-0 relative">
+                  <div className="text-3xl font-bold truncate">{stat.value}</div>
+                  <p className="text-xs text-muted-foreground mt-1 truncate">{stat.sub}</p>
+                </CardContent>
+              </Card>
+            </div>
           ))}
         </div>
 
         {/* Main Content */}
-        <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 overflow-hidden relative transition-all duration-300 hover:translate-y-0">
+        <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 overflow-hidden relative">
           {/* Refresh Overlay */}
           <AnimatePresence>
             {refreshing && (
@@ -291,23 +281,22 @@ export default function UsersPage() {
 
           <div className="p-4 sm:p-6 border-b border-border/50 space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-              {/* Search Box */}
-              <div className="relative w-full lg:max-w-md group">
+              <div className="flex-1 lg:max-w-xl group relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 <Input
                   placeholder="搜索用户名、邮箱或 GitHub ID..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 h-10 bg-zinc-50/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 transition-all focus:border-primary/20 focus:ring-4 focus:ring-primary/10 rounded-xl"
+                  className="pl-10 h-10 w-full bg-zinc-50/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 transition-all focus:border-primary/20 focus:ring-4 focus:ring-primary/10 rounded-xl"
                 />
               </div>
               
-              {/* Filters Group */}
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full lg:w-auto">
-                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+              {/* Filters & Actions Group */}
+              <div className="flex flex-wrap lg:flex-nowrap items-center gap-2 w-full lg:w-auto">
+                <div className="flex items-center gap-2 w-full lg:w-auto">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-10 px-3 bg-zinc-50/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 rounded-xl flex-1 justify-start sm:justify-center">
+                      <Button variant="outline" size="sm" className="h-10 px-3 bg-zinc-50/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 rounded-xl flex-1 lg:flex-initial">
                         <UsersIcon className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
                         <span className="truncate">{role === 'ALL' ? '所有角色' : role === 'ADMIN' ? '管理员' : '普通用户'}</span>
                       </Button>
@@ -341,7 +330,7 @@ export default function UsersPage() {
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-10 px-3 bg-zinc-50/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 rounded-xl flex-1 justify-start sm:justify-center">
+                      <Button variant="outline" size="sm" className="h-10 px-3 bg-zinc-50/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 rounded-xl flex-1 lg:flex-initial">
                         <div className={cn("w-2 h-2 rounded-full mr-2 shrink-0", status === 'ALL' ? "bg-zinc-400" : status === 'ACTIVE' ? "bg-green-500" : "bg-red-500")} />
                         <span className="truncate">{status === 'ALL' ? '所有状态' : status === 'ACTIVE' ? '正常' : '暂停'}</span>
                       </Button>
@@ -381,7 +370,7 @@ export default function UsersPage() {
 
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-10 px-3 bg-zinc-50/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 rounded-xl col-span-2 xs:flex-none">
+                      <Button variant="outline" size="sm" className="h-10 px-3 bg-zinc-50/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 hover:bg-white dark:hover:bg-white/10 rounded-xl lg:flex-initial">
                         <ArrowUpDown className="w-4 h-4 mr-2 text-muted-foreground shrink-0" />
                         <span>排序</span>
                       </Button>
@@ -393,8 +382,6 @@ export default function UsersPage() {
                         {[
                           { id: 'createdAt', label: '注册时间' },
                           { id: 'username', label: '用户名' },
-                          { id: 'storageUsed', label: '存储使用' },
-                          { id: 'fileCount', label: '文件数量' },
                           { id: 'role', label: '角色' },
                           { id: 'status', label: '状态' }
                         ].map((item) => (
@@ -459,10 +446,10 @@ export default function UsersPage() {
                   <Button
                     variant="destructive"
                     onClick={handleBatchDeleteClick}
-                    className="animate-in zoom-in-95 duration-200 h-10 px-4 rounded-xl w-full xs:w-auto"
+                    className="animate-in zoom-in-95 duration-200 h-10 px-4 rounded-xl w-full lg:w-auto shrink-0 shadow-lg shadow-red-500/20"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
-                    删除选中 ({selectedUsers.size})
+                    <span className="text-nowrap">删除选中 ({selectedUsers.size})</span>
                   </Button>
                 )}
               </div>
@@ -498,8 +485,6 @@ export default function UsersPage() {
                     <TableHead className="w-[250px]">用户</TableHead>
                     <TableHead className="text-center">角色</TableHead>
                     <TableHead className="text-center">状态</TableHead>
-                    <TableHead className="text-center">存储使用</TableHead>
-                    <TableHead className="text-center">文件数</TableHead>
                     <TableHead className="text-center text-nowrap">注册时间</TableHead>
                     <TableHead className="text-center">操作</TableHead>
                   </TableRow>
@@ -557,94 +542,6 @@ export default function UsersPage() {
                                 user.role === 'ADMIN' && "opacity-50 cursor-not-allowed"
                               )}
                             />
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <div className="cursor-pointer hover:opacity-80 transition-opacity active:scale-95 duration-200">
-                                  <CircularProgress
-                                    value={(Number(user.storageUsed) / Number(user.storageQuota)) * 100}
-                                    size={32}
-                                    strokeWidth={4}
-                                    padding={2}
-                                    gradient={false}
-                                    showPercentage={false}
-                                    className={cn(
-                                      Number(user.storageUsed) / Number(user.storageQuota) > 0.9 && "[--stop-0:#ef4444] [--stop-1:#f87171]"
-                                    )}
-                                  />
-                                </div>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent side="top" align="center" className="w-48 p-3 border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-2xl rounded-2xl shadow-2xl">
-                                <div className="text-center space-y-1.5">
-                                  <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">存储使用情况</p>
-                                  <div className="text-sm">
-                                    <span className="font-bold text-foreground">{formatBytes(user.storageUsed)}</span>
-                                    <span className="text-muted-foreground mx-1">/</span>
-                                    <span className="text-zinc-500">{formatBytes(user.storageQuota)}</span>
-                                  </div>
-                                  <div className="h-1 w-full bg-zinc-100 dark:bg-white/5 rounded-full overflow-hidden mt-1">
-                                    <div 
-                                      className={cn(
-                                        "h-full transition-all duration-500",
-                                        (Number(user.storageUsed) / Number(user.storageQuota)) > 0.9 ? "bg-red-500" : "bg-primary"
-                                      )}
-                                      style={{ width: `${Math.min(100, (Number(user.storageUsed) / Number(user.storageQuota)) * 100)}%` }}
-                                    />
-                                  </div>
-                                  <p className="text-[10px] text-muted-foreground">
-                                    已使用 {((Number(user.storageUsed) / Number(user.storageQuota)) * 100).toFixed(1)}%
-                                  </p>
-                                </div>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="flex flex-col items-center gap-1">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <div className="cursor-pointer hover:opacity-80 transition-opacity active:scale-95 duration-200">
-                                  <CircularProgress
-                                    value={(user.fileCount / user.fileQuota) * 100}
-                                    size={32}
-                                    strokeWidth={4}
-                                    padding={2}
-                                    gradient={false}
-                                    showPercentage={false}
-                                    className={cn(
-                                      user.fileCount / user.fileQuota > 0.9 
-                                        ? "[--stop-0:#ef4444] [--stop-1:#f87171]" 
-                                        : "[--stop-0:#3b82f6] [--stop-1:#60a5fa]"
-                                    )}
-                                  />
-                                </div>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent side="top" align="center" className="w-48 p-3 border-zinc-200/50 dark:border-white/10 bg-white/80 dark:bg-white/5 backdrop-blur-2xl rounded-2xl shadow-2xl">
-                                <div className="text-center space-y-1.5">
-                                  <p className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">文件数量情况</p>
-                                  <div className="text-sm">
-                                    <span className="font-bold text-foreground">{user.fileCount}</span>
-                                    <span className="text-muted-foreground mx-1">/</span>
-                                    <span className="text-zinc-500">{user.fileQuota}</span>
-                                  </div>
-                                  <div className="h-1 w-full bg-zinc-100 dark:bg-white/5 rounded-full overflow-hidden mt-1">
-                                    <div 
-                                      className={cn(
-                                        "h-full transition-all duration-500",
-                                        (user.fileCount / user.fileQuota) > 0.9 ? "bg-red-500" : "bg-blue-500"
-                                      )}
-                                      style={{ width: `${Math.min(100, (user.fileCount / user.fileQuota) * 100)}%` }}
-                                    />
-                                  </div>
-                                  <p className="text-[10px] text-muted-foreground">
-                                    已使用 {((user.fileCount / user.fileQuota) * 100).toFixed(1)}%
-                                  </p>
-                                </div>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
                           </div>
                         </TableCell>
                         <TableCell className="text-center text-sm tabular-nums text-nowrap text-muted-foreground">

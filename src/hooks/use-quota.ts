@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 
 
 export interface UserQuota {
-  storageQuota: string;
+  storageQuota?: string;
   storageUsed: string;
-  fileQuota: number;
+  fileQuota?: number;
   fileCount: number;
 }
 

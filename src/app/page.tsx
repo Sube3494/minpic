@@ -117,7 +117,7 @@ export default async function HomePage() {
                <h3 className="text-lg font-semibold flex items-center gap-2">
                  <Zap className="w-5 h-5 text-yellow-500" /> 极速性能
                </h3>
-               <p className="text-sm text-zinc-500">基于 Next.js 15 构建，秒级加载与交互响应。</p>
+               <p className="text-sm text-zinc-500">基于 Next.js 16 构建，秒级加载与交互响应。</p>
             </div>
             <div className="space-y-4">
                <h3 className="text-lg font-semibold flex items-center gap-2">
@@ -127,7 +127,7 @@ export default async function HomePage() {
             </div>
             <div className="text-right flex flex-col items-end justify-center">
                <div className="text-sm text-zinc-600">Powered by</div>
-               <div className="font-mono text-xs text-zinc-700 mt-1">MinPic v1.0 • React 19</div>
+               <div className="text-xs text-zinc-700 mt-1">MinPic v1.0 • React 19</div>
             </div>
         </div>
       </div>

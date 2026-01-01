@@ -1,184 +1,145 @@
 # MinPic 图床管理系统
 
-现代化、高质感的图床管理系统，基于 Next.js 15 + MinIO + 短链服务构建。
+MinPic 是一个现代化、高性能的图床管理系统，基于 Next.js 16 全栈框架构建，专为个人和团队设计。它提供了强大的文件管理、对象存储集成（MinIO）、团队协作以及精细的配额控制功能。
 
-## ✨ 特性
+## ✨ 核心特性
 
-- 🖼️ **文件管理** - 支持图片、视频、音频上传和管理
-- 🔗 **短链集成** - 自动生成文件访问短链
-- ⚙️ **配置管理** - 支持多个 MinIO 配置切换
-- 📊 **统计分析** - 可视化数据展示
-- 🎨 **现代UI** - 玻璃态深色主题，流畅动画
+- **🔐 身份认证与权限**
+  - **GitHub OAuth 集成**：安全便捷的第三方登录。
+  - **角色控制 (RBAC)**：支持系统管理员 (Admin) 和普通用户 (User) 角色。
+  - **团队协作**：支持创建团队、邀请成员、设置成员角色（Owner/Admin/Member）。
+
+- **🖼️ 强大的文件管理**
+  - **多格式支持**：图片、视频、音频全覆盖。
+  - **自动处理**：图片缩略图生成、视频封面提取、Pinyin 自动转换。
+  - **大文件支持**：支持分片上传 (Multipart Upload) 和断点续传。
+  - **文件同步**：支持从现有的 MinIO 存储桶反向同步文件元数据到数据库。
+
+- **⚙️ 灵活的存储配置**
+  - **多存储源**：支持配置多个 MinIO/S3 兼容存储源。
+  - **配置加密**：敏感信息（AccessKey/SecretKey）使用 AES-256 加密存储。
+  - **智能策略**：支持按需切换存储配置，且具备智能的文件归属识别防止冲突。
+
+- **📊 配额与限制**
+  - **双重配额**：支持基于**存储容量**和**文件数量**的双重配额限制。
+  - **层级控制**：支持设置团队总配额和成员个人配额。
+  - **实时监控**：上传时实时检查配额，支持超限预警。
+
+- **🔗 短链服务**
+  - **自动生成**：上传即生成短链。
+  - **独立服务集成**：支持对接外部短链服务 API。
+
+- **🎨 极致的 UI 体验**
+  - **Shadcn/UI + Tailwind**：现代化的组件库。
+  - **玻璃态设计**：精致的深色模式与磨砂玻璃质感。
+  - **交动体验**：平滑的过渡动画与实时的 Toast 反馈。
+  - **响应式布局**：完美适配桌面与移动端。
 
 ## 🚀 技术栈
 
-- **前端框架**: Next.js 15 + React 19 + TypeScript
-- **UI组件**: shadcn/ui + Tailwind CSS
-- **数据库**: Prisma 5 + SQLite
-- **对象存储**: MinIO SDK
-- **图片处理**: Sharp
-- **状态管理**: Zustand
+- **框架**: Next.js 16 (App Router) + React 19
+- **语言**: TypeScript
+- **数据库**: Prisma CRM + SQLite (支持平滑迁移至 PostgreSQL/MySQL)
+- **样式**: Tailwind CSS + Shadcn/UI
+- **存储**: MinIO SDK (S3 Compatible)
+- **缓存**: Redis (通过 ioRedis) - 生产环境推荐
+- **认证**: NextAuth.js (Auth.js) v5
+- **工具**: Zod (验证), Sharp (图片处理), Sonner (通知)
 
-## 📦 安装
+## 📦 快速开始
+
+### 1. 环境准备
+
+确保您的环境已安装：
+- Node.js >= 18
+- pnpm >= 8
+- 一个可用的 MinIO 服务或 S3 兼容存储。
+
+### 2. 安装依赖
 
 ```bash
-# 安装依赖
 pnpm install
+```
 
-# 初始化数据库
+### 3. 配置环境变量
+
+复制 `.env.example` 为 `.env.local` 并填入您的配置：
+
+```bash
+cp .env.example .env.local
+```
+
+关键配置说明：
+```env
+# 数据库
+DATABASE_URL="file:./dev.db"
+
+# 认证 (GitHub OAuth)
+AUTH_SECRET="your-random-secret-key"
+GITHUB_ID="your-github-client-id"
+GITHUB_SECRET="your-github-client-secret"
+# 管理员白名单 GitHub ID (可选)
+ADMIN_GITHUB_ID="your-github-id"
+
+# 系统配置密钥 (用于加密存储凭据)
+CONFIG_ENCRYPTION_KEY="32-char-random-string"
+
+# Redis 缓存 (可选，生产环境推荐)
+# 格式: redis://:password@host:port/db
+REDIS_URL="redis://:your_password@localhost:6379/0"
+```
+
+### 4. 初始化数据库
+
+```bash
 pnpm prisma generate
 pnpm prisma db push
+```
 
-# 启动开发服务器
+### 5. 启动服务
+
+```bash
 pnpm dev
 ```
+访问 http://localhost:3000 即可开始使用。
 
-访问 http://localhost:3000
+## ⚙️ 系统管理功能
 
-## ⚙️ 配置
+### 团队与配额
+- **创建团队**：用户可创建团队并成为 Owner。
+- **邀请机制**：通过邀请码邀请成员加入。
+- **配额管理**：
+  - 管理员可在后台设置全局默认配额。
+  - 团队拥有者可分配团队内的存储/文件数配额给成员。
 
-### 环境变量
+### 文件同步 (Impoter)
+- 在设置页面配置好 MinIO 源后，可以使用“同步文件”功能。
+- 系统会自动扫描 MinIO 桶中的文件，将元数据导入数据库，支持增量同步。
 
-创建 `.env.local` 文件：
+### 审计日志
+- 管理员可在后台查看关键操作日志（用户登录、文件删除、配置变更等）。
 
-```env
-DATABASE_URL="file:./dev.db"
-```
+## 📝 开发指南
 
-### MinIO 配置
-
-在应用的设置页面配置您的 MinIO 服务：
-
-- **Endpoint**: MinIO 服务器地址（如 `localhost`）
-- **Port**: 端口号（默认 `9000`）
-- **Access Key**: MinIO 访问密钥
-- **Secret Key**: MinIO 秘密密钥
-- **Bucket**: 存储桶名称
-- **Use SSL**: 是否使用 HTTPS
-
-### 短链服务配置
-
-配置您的短链服务（如 `https://github.com/Sube3494/shortlinks`）：
-
-- **API URL**: 短链服务 API 地址
-- **API Key**: API 密钥
-- **Auto Generate**: 是否自动为上传的文件生成短链
-
-## 📖 API 文档
-
-### 配置管理
-
-- `GET /api/config/minio` - 获取 MinIO 配置
-- `POST /api/config/minio` - 保存 MinIO 配置
-- `GET /api/config/shortlink` - 获取短链配置
-- `POST /api/config/shortlink` - 保存短链配置
-- `POST /api/config/test` - 测试配置连接
-
-### 文件管理
-
-- `POST /api/files` - 上传文件
-- `GET /api/files` - 获取文件列表
-- `GET /api/files/[id]` - 获取文件详情
-- `DELETE /api/files/[id]` - 删除文件
-- `PUT /api/files/[id]` - 更新文件元数据
-- `GET /api/files/[id]/download` - 下载文件
-
-### 短链管理
-
-- `POST /api/shortlinks` - 为文件创建短链
-- `GET /api/shortlinks` - 获取所有短链
-
-### 统计信息
-
-- `GET /api/stats` - 获取统计数据
-
-## 📁 项目结构
+### 目录结构
 
 ```
 minpic-app/
-├── prisma/
-│   └── schema.prisma          # 数据库模型
+├── prisma/                # 数据库 Schema & Migrations
 ├── src/
-│   ├── app/
-│   │   ├── api/               # API Routes
-│   │   │   ├── config/        # 配置相关 API
-│   │   │   ├── files/         # 文件管理 API
-│   │   │   ├── shortlinks/    # 短链管理 API
-│   │   │   └── stats/         # 统计 API
-│   │   ├── globals.css        # 全局样式（玻璃态主题）
-│   │   └── page.tsx           # 首页
-│   ├── components/
-│   │   └── ui/                # shadcn/ui 组件
-│   └── lib/
-│       ├── prisma.ts          # Prisma 客户端
-│       ├── minio.ts           # MinIO 服务
-│       ├── shortlink.ts       # 短链服务
-│       └── image-utils.ts     # 图片处理工具
-└── package.json
+│   ├── app/               # Next.js App Router 页面与 API
+│   │   ├── api/           # 后端 API 路由
+│   │   ├── (main)/        # 主应用界面
+│   │   ├── (auth)/        # 认证相关页面
+│   │   └── admin/         # 管理员后台
+│   ├── components/        # UI 组件
+│   ├── hooks/             # 自定义 React Hooks
+│   ├── lib/               # 工具函数与核心逻辑 (MinIO, Auth, Quota)
+│   ├── types/             # TypeScript 类型定义
+│   └── services/          # 前端服务层封装
+└── public/                # 静态资源
 ```
-
-## 🎯 功能特性
-
-### 文件上传
-
-- 支持拖拽上传
-- 多文件批量上传
-- 自动生成缩略图（图片）
-- 支持的文件类型：
-  - 图片：JPEG, PNG, GIF, WebP, SVG
-  - 视频：MP4, WebM, MOV, AVI, MKV
-  - 音频：MP3, WAV, OGG, M4A, FLAC
-
-### 短链生成
-
-- 上传后自动生成短链（可配置）
-- 支持自定义短码
-- 一键复制短链
-
-### 配置管理
-
-- 支持多个 MinIO 配置
-- 配置测试功能
-- 配置持久化存储
-
-## 🎨 UI 设计
-
-- **玻璃态效果** - 半透明背景 + 模糊效果
-- **深色主题** - 紫蓝渐变配色
-- **流畅动画** - 悬停效果和过渡动画
-- **响应式布局** - 支持桌面和移动端
-
-## 🔧 开发
-
-```bash
-# 安装依赖
-pnpm install
-
-# 启动开发服务器
-pnpm dev
-
-# 构建生产版本
-pnpm build
-
-# 启动生产服务器
-pnpm start
-
-# Prisma 相关
-pnpm prisma studio        # 打开数据库管理界面
-pnpm prisma generate      # 生成 Prisma Client
-pnpm prisma db push       # 同步数据库结构
-```
-
-## 📝 待完成功能
-
-- [ ] 完整的前端页面（文件管理、配置、统计）
-- [ ] 拖拽上传组件
-- [ ] 图片预览和视频播放器
-- [ ] 批量操作功能
-- [ ] 文件搜索和筛选
-- [ ] Docker 部署配置
-- [ ] 用户认证系统（可选）
 
 ## 📄 许可证
 
-MIT
+MIT License © 2026 MinPic Team

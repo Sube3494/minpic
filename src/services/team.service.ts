@@ -5,15 +5,18 @@ export interface Team {
   ownerId: string;
   createdAt: string;
   updatedAt: string;
+  storageQuota: string;  // Team-level quota (BigInt as string)
+  fileQuota: number;     // Team-level quota
+  autoAllocateQuota?: boolean;
+  defaultStorageQuota?: string;
+  defaultFileQuota?: number;
   owner: {
     id: string;
     username: string;
     name: string | null;
     avatar: string | null;
     githubId: string;
-    storageQuota: string;
     storageUsed: string;
-    fileQuota: number;
     fileCount: number;
   };
   members: TeamMember[];
@@ -25,16 +28,16 @@ export interface TeamMember {
   userId: string;
   role: string;  // ADMIN | MEMBER
   joinedAt: string;
-  storageQuota?: string | null;
-  fileQuota?: number | null;
+  storageQuota?: string | null;  // Member's personal quota (optional)
+  fileQuota?: number | null;     // Member's personal quota (optional)
   user: {
     id: string;
     username: string;
     name: string | null;
     avatar: string | null;
     githubId: string;
-    storageUsed: string;
-    fileCount: number;
+    storageUsed: string;  // Usage stats only
+    fileCount: number;    // Usage stats only
   };
 }
 
@@ -63,11 +66,16 @@ export const teamService = {
   },
 
   // Create team
-  async createTeam(name: string, description?: string): Promise<{ team: Team; role: string }> {
+  async createTeam(name: string, description?: string, storageQuotaMB?: number, fileQuota?: number): Promise<{ team: Team; role: string }> {
     const res = await fetch('/api/teams', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify({ 
+        name, 
+        description,
+        storageQuotaMB: storageQuotaMB || 500,  // 默认 500MB
+        fileQuota: fileQuota || 1000,          // 默认1000文件
+      }),
     });
     if (!res.ok) {
       const error = await res.json();
@@ -77,11 +85,11 @@ export const teamService = {
   },
 
   // Update team
-  async updateTeam(name?: string, description?: string): Promise<{ team: Team }> {
+  async updateTeam(name?: string, description?: string, storageQuotaMB?: number, fileQuota?: number, autoAllocateQuota?: boolean, defaultStorageQuotaMB?: number, defaultFileQuota?: number): Promise<{ team: Team }> {
     const res = await fetch('/api/teams', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify({ name, description, storageQuotaMB, fileQuota, autoAllocateQuota, defaultStorageQuotaMB, defaultFileQuota }),
     });
     if (!res.ok) throw new Error('Failed to update team');
     return res.json();
@@ -185,6 +193,9 @@ export const teamService = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, storageQuota, fileQuota }),
     });
-    if (!res.ok) throw new Error('Failed to set member quota');
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error || '设置成员配额失败');
+    }
   },
 };

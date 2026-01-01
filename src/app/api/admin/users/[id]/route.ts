@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
-import { getClientIp } from '@/lib/utils';
+import { getClientIp, serializeBigInt } from '@/lib/utils';
 
 // PATCH /api/admin/users/[id] - 更新用户
 export async function PATCH(
@@ -14,7 +14,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { role, status, storageQuota, fileQuota } = body;
+    const { role, status } = body;
 
     // 检查用户是否存在
     const user = await prisma.user.findUnique({
@@ -37,11 +37,9 @@ export async function PATCH(
     }
 
     // 更新用户
-    const updateData: any = {};
+    const updateData: { role?: string; status?: string } = {};
     if (role !== undefined) updateData.role = role;
     if (status !== undefined) updateData.status = status;
-    if (storageQuota !== undefined) updateData.storageQuota = BigInt(storageQuota);
-    if (fileQuota !== undefined) updateData.fileQuota = fileQuota;
 
     const updatedUser = await prisma.user.update({
       where: { id },
@@ -56,23 +54,11 @@ export async function PATCH(
         targetType: 'User',
         targetId: id,
         ipAddress: getClientIp(request),
-        metadata: JSON.stringify({ 
-          changes: {
-            ...updateData,
-            storageQuota: updateData.storageQuota?.toString()
-          } 
-        }),
+        metadata: JSON.stringify({ changes: updateData }),
       },
     });
 
-    // 序列化 BigInt
-    const serializedUser = {
-      ...updatedUser,
-      storageQuota: updatedUser.storageQuota.toString(),
-      storageUsed: updatedUser.storageUsed.toString(),
-    };
-
-    return NextResponse.json(serializedUser);
+    return NextResponse.json(serializeBigInt(updatedUser));
   } catch (error) {
     console.error('Error updating user:', error);
     return NextResponse.json(

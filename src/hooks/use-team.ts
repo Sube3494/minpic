@@ -40,10 +40,10 @@ export function useTeam() {
     loadTeamInfo();
   }, [loadTeamInfo]);
 
-  const createTeam = async (name: string, description?: string) => {
+  const createTeam = async (name: string, description?: string, storageQuotaMB?: number, fileQuota?: number) => {
     setLoading(true);
     try {
-      const result = await teamService.createTeam(name, description);
+      const result = await teamService.createTeam(name, description, storageQuotaMB, fileQuota);
       
       // Reload team info
       await loadTeamInfo();
@@ -64,10 +64,10 @@ export function useTeam() {
     }
   };
 
-  const updateTeam = async (name?: string, description?: string) => {
+  const updateTeam = async (name?: string, description?: string, storageQuotaMB?: number, fileQuota?: number, autoAllocateQuota?: boolean, defaultStorageQuotaMB?: number, defaultFileQuota?: number) => {
     setLoading(true);
     try {
-      await teamService.updateTeam(name, description);
+      await teamService.updateTeam(name, description, storageQuotaMB, fileQuota, autoAllocateQuota, defaultStorageQuotaMB, defaultFileQuota);
       await loadTeamInfo();
       
       toast.success('团队信息已更新');
@@ -136,7 +136,7 @@ export function useTeam() {
     }
   };
 
-  const generateInvite = async (expiresInHours: number = 24, maxUses: number = 10) => {
+  const generateInvite = async (expiresInHours: number = 24, maxUses: number = 5) => {
     try {
       const result = await teamService.generateInvite(expiresInHours, maxUses);
       

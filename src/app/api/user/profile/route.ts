@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
+import { serializeBigInt } from '@/lib/utils';
 
 export async function GET() {
   const { error, user } = await requireAuth();
@@ -19,9 +20,7 @@ export async function GET() {
         avatar: true,
         role: true,
         status: true,
-        storageQuota: true,
         storageUsed: true,
-        fileQuota: true,
         fileCount: true,
         lastLoginAt: true,
         createdAt: true,
@@ -36,14 +35,48 @@ export async function GET() {
       );
     }
 
-    // Convert BigInt to string for JSON serialization
-    const serializedUserInfo = {
-      ...userInfo,
-      storageQuota: userInfo.storageQuota.toString(),
-      storageUsed: userInfo.storageUsed.toString(),
-    };
+    // Get quota limits from TeamMember or Team
+    const teamMember = await prisma.teamMember.findUnique({
+      where: { userId: user.id },
+      select: {
+        storageQuota: true,
+        fileQuota: true,
+        team: {
+          select: {
+            storageQuota: true,
+            fileQuota: true,
+          }
+        }
+      }
+    });
 
-    return NextResponse.json(serializedUserInfo);
+    // Determine effective quotas
+    let effectiveStorageQuota = null;
+    let effectiveFileQuota = null;
+
+    if (teamMember) {
+      effectiveStorageQuota = teamMember.storageQuota;
+      effectiveFileQuota = teamMember.fileQuota;
+    } else {
+      // If not a team member, check if they are an owner of a team
+      const ownedTeam = await prisma.team.findUnique({
+        where: { ownerId: user.id },
+        select: {
+          storageQuota: true,
+          fileQuota: true,
+        }
+      });
+      if (ownedTeam) {
+        effectiveStorageQuota = ownedTeam.storageQuota;
+        effectiveFileQuota = ownedTeam.fileQuota;
+      }
+    }
+
+    return NextResponse.json(serializeBigInt({
+      ...userInfo,
+      storageQuota: effectiveStorageQuota,
+      fileQuota: effectiveFileQuota,
+    }));
   } catch (error) {
     console.error('Error fetching user profile:', error);
     return NextResponse.json(

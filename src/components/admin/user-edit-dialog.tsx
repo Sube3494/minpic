@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
@@ -14,8 +13,6 @@ interface User {
   name: string | null;
   role: string;
   status: string;
-  storageQuota: string;
-  fileQuota: number;
 }
 
 interface UserEditDialogProps {
@@ -29,9 +26,6 @@ export function UserEditDialog({ user, open, onOpenChange, onSuccess }: UserEdit
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     role: user?.role || 'USER',
-    status: user?.status || 'ACTIVE',
-    storageQuota: user ? (Number(user.storageQuota) / (1024 * 1024)).toFixed(0) : '5120',
-    fileQuota: user?.fileQuota || 10000,
   });
 
   // Update form data when user changes
@@ -40,9 +34,6 @@ export function UserEditDialog({ user, open, onOpenChange, onSuccess }: UserEdit
     if (user) {
       setFormData({
         role: user.role,
-        status: user.status,
-        storageQuota: (Number(user.storageQuota) / (1024 * 1024)).toFixed(0),
-        fileQuota: user.fileQuota,
       });
     }
   }, [user]);
@@ -58,9 +49,6 @@ export function UserEditDialog({ user, open, onOpenChange, onSuccess }: UserEdit
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           role: formData.role,
-          status: formData.status,
-          storageQuota: (parseFloat(formData.storageQuota) * (1024 * 1024)).toString(),
-          fileQuota: formData.fileQuota,
         }),
       });
 
@@ -83,7 +71,7 @@ export function UserEditDialog({ user, open, onOpenChange, onSuccess }: UserEdit
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="w-[90vw] sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>编辑用户</DialogTitle>
           <DialogDescription>
@@ -91,8 +79,8 @@ export function UserEditDialog({ user, open, onOpenChange, onSuccess }: UserEdit
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-4">
             {/* Role */}
             <div className="space-y-2">
               <Label htmlFor="role">角色</Label>
@@ -109,54 +97,6 @@ export function UserEditDialog({ user, open, onOpenChange, onSuccess }: UserEdit
                   <SelectItem value="ADMIN">管理员</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Status */}
-            <div className="space-y-2">
-              <Label htmlFor="status">状态</Label>
-              <Select
-                value={formData.status}
-                onValueChange={(value) => setFormData({ ...formData, status: value })}
-                disabled={user.role === 'ADMIN'}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent position="popper">
-                  <SelectItem value="ACTIVE">正常</SelectItem>
-
-                  <SelectItem value="SUSPENDED">暂停</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Storage Quota */}
-            <div className="space-y-2">
-              <Label htmlFor="storageQuota">存储配额 (MB)</Label>
-              <Input
-                id="storageQuota"
-                type="number"
-                step="1"
-                min="0"
-                className="no-spinner"
-                value={formData.storageQuota}
-                onChange={(e) => setFormData({ ...formData, storageQuota: e.target.value })}
-                onWheel={(e) => e.currentTarget.blur()}
-              />
-            </div>
-
-            {/* File Quota */}
-            <div className="space-y-2">
-              <Label htmlFor="fileQuota">文件配额</Label>
-              <Input
-                id="fileQuota"
-                type="number"
-                min="0"
-                className="no-spinner"
-                value={formData.fileQuota}
-                onChange={(e) => setFormData({ ...formData, fileQuota: parseInt(e.target.value) })}
-                onWheel={(e) => e.currentTarget.blur()}
-              />
             </div>
           </div>
 

@@ -9,11 +9,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useMinioConfig } from '@/hooks/use-minio-config';
 import { useShortlinkConfig } from '@/hooks/use-shortlink-config';
 import { useSync } from '@/hooks/use-sync';
+import { useTeam } from '@/hooks/use-team';
 import { ConfigList } from '@/components/settings/config-list';
 import { ConfigEditor } from '@/components/settings/config-editor';
 import { ShortlinkConfigSection } from '@/components/settings/shortlink-config';
 import { PageWrapper } from '@/components/layout/page-wrapper';
-
 export function SettingsClient() {
   const { 
     configs, activeId, selectedId, setSelectedId, loading: minioLoading, testing: minioTesting,
@@ -26,12 +26,21 @@ export function SettingsClient() {
   } = useShortlinkConfig();
 
   const { syncing, syncProgress, syncFiles, cancelSync } = useSync();
+  
+  const { teamInfo } = useTeam();
 
   const [syncDialog, setSyncDialog] = useState<{ open: boolean; configId: string }>({ open: false, configId: '' });
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; configId: string }>({ open: false, configId: '' });
 
   const selectedConfig = configs.find(c => c.id === selectedId);
   const loading = minioLoading || slLoading;
+
+  // Determine if user can edit configs
+  // Team members (not owner) can only view and sync TEAM configs
+  // But they can create/edit/delete their PERSONAL configs
+  const isTeamOwner = teamInfo?.role === 'OWNER';
+
+
 
 
   const handleSyncClick = (id: string) => {
@@ -118,6 +127,8 @@ export function SettingsClient() {
             >
                 {/* Left Sidebar - Desktop: includes shortlink config */}
                 <div className="lg:col-span-4 space-y-4 sm:space-y-6">
+
+
                     {/* Config List */}
                     <ConfigList 
                         configs={configs}
@@ -128,6 +139,7 @@ export function SettingsClient() {
                         onActivate={activateConfig}
                         onDelete={handleDeleteClick}
                         canDelete={true}
+                        canEdit={true}
                     />
 
                     {/* Shortlink Section - Only visible on desktop */}
@@ -151,6 +163,7 @@ export function SettingsClient() {
                             isSyncing={syncing}
                             isTesting={minioTesting}
                             isSaving={minioLoading}
+                            canEdit={!selectedConfig.isTeam || isTeamOwner}
                             onUpdate={updateSelectedConfig}
                             onSync={handleSyncClick}
                             onTest={testMinioConnection}

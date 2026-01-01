@@ -235,12 +235,3 @@ function translateShortlinkError(error: string, statusCode?: number): string {
   // 如果原文很短且全英文，可以加个通用前缀
   return error; // 这里直接返回，让用户看到具体英文可能更好，或者前面加 "错误: "
 }
-
-let shortlinkService: ShortlinkService | null = null;
-
-export function getShortlinkService(): ShortlinkService {
-  if (!shortlinkService) {
-    shortlinkService = new ShortlinkService();
-  }
-  return shortlinkService;
-}

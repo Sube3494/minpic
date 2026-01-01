@@ -25,16 +25,16 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       toastOptions={{
-        className: "backdrop-blur-md! shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-2px_rgba(0,0,0,0.05)]! dark:shadow-[0_10px_25px_-5px_rgba(0,0,0,0.4),0_4px_6px_-2px_rgba(0,0,0,0.2)]! rounded-xl! border! border-white/15! dark:border-white/10!",
+        className: "backdrop-blur-2xl! shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1)]! dark:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.4)]! rounded-2xl! border! border-white/25! dark:border-white/10!",
         classNames: {
           toast: "",
-          description: "text-muted-foreground/90! text-sm! opacity-90!",
-          title: "font-normal! text-sm!",
-          success: "bg-white/10! dark:bg-white/10! text-emerald-700! dark:text-emerald-300!",
-          error: "bg-white/10! dark:bg-white/10! text-red-700! dark:text-red-300!",
-          warning: "bg-white/10! dark:bg-white/10! text-amber-700! dark:text-amber-300!",
-          info: "bg-white/10! dark:bg-white/10! text-sky-700! dark:text-sky-300!",
-          loading: "bg-white/10! dark:bg-white/10! text-primary! dark:text-primary!",
+          description: "text-muted-foreground! text-sm!",
+          title: "text-sm! font-normal!",
+          success: "bg-white/25! dark:bg-white/10! text-emerald-700! dark:text-emerald-300!",
+          error: "bg-white/25! dark:bg-white/10! text-red-700! dark:text-red-300!",
+          warning: "bg-white/25! dark:bg-white/10! text-amber-700! dark:text-amber-300!",
+          info: "bg-white/25! dark:bg-white/10! text-sky-700! dark:text-sky-300!",
+          loading: "bg-white/25! dark:bg-white/10! text-primary! dark:text-primary!",
         },
       }}
       icons={{

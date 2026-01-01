@@ -1,9 +1,9 @@
 ﻿import { useState, useEffect, useCallback } from 'react';
-import { MinioConfigItem, DEFAULT_MINIO_CONFIG } from '@/types/config';
+import { MinioConfigItem, DEFAULT_MINIO_CONFIG, UseMinioConfigReturn } from '@/types/config';
 import { configService } from '@/services/config.service';
 import { toast } from 'sonner';
 
-export function useMinioConfig() {
+export function useMinioConfig(): UseMinioConfigReturn {
   const [configs, setConfigs] = useState<MinioConfigItem[]>([]);
   const [activeId, setActiveId] = useState<string>('');
   const [activeIdChanged, setActiveIdChanged] = useState(false);
@@ -129,22 +129,23 @@ export function useMinioConfig() {
     const result = await testMinioConnection(id, true);
     
     if (result.success) {
-      await performActivation(id);
+      // 关键修复：使用测试成功后返回的最新配置列表进行激活，避免状态覆盖
+      await performActivation(id, result.updatedConfigs);
     } else {
       toast.error('激活失败', {
-        description: `连接测试未通过: ${result.error || '无法建立连接'}`
+        description: `连接测试未通过 ${result.error || '无法建立连接'}`
       });
-      console.log('Activation interrupted: connection test failed');
     }
   };
 
-  const performActivation = async (id: string) => {
+  const performActivation = async (id: string, currentConfigs?: MinioConfigItem[]) => {
     const oldActiveId = activeId;
+    const configsToSave = currentConfigs || configs;
     setActiveId(id);
     
     setLoading(true);
     try {
-      await configService.saveMinioConfigs(configs, id);
+      await configService.saveMinioConfigs(configsToSave, id);
       setOriginalActiveId(id);
       setActiveIdChanged(false);
       
@@ -153,7 +154,7 @@ export function useMinioConfig() {
           description: '当前无激活的 MinIO 配置'
         });
       } else {
-        const configName = configs.find(c => c.id === id)?.name || '未命名配置';
+        const configName = configsToSave.find(c => c.id === id)?.name || '未命名配置';
         toast.success(`已激活: ${configName}`, {
           description: '配置已立即生效'
         });
@@ -237,13 +238,23 @@ export function useMinioConfig() {
           if (result.success) {
             if (!silent) toast.success(`${config.name} 连接测试成功`);
             
-            // 更新配置状态并保存
-            const updatedConfigs = configs.map(c => 
+            // 使用函数式更新确保存态一致性，并返回最新列表给调用者
+            let updatedConfigs: MinioConfigItem[] = [];
+            setConfigs(prev => {
+              updatedConfigs = prev.map(c => 
+                c.id === targetId ? { ...c, status: 'success' as const } : c
+              );
+              return updatedConfigs;
+            });
+            
+            // 这里我们需要确保拿到的是最新的 updatedConfigs，由于 setConfigs 是异步的
+            // 我们手动计算一次用于同步保存
+            const latestConfigs = configs.map(c => 
               c.id === targetId ? { ...c, status: 'success' as const } : c
             );
-            setConfigs(updatedConfigs);
-            await configService.saveMinioConfigs(updatedConfigs, activeId);
-            return { success: true };
+
+            await configService.saveMinioConfigs(latestConfigs, activeId);
+            return { success: true, updatedConfigs: latestConfigs };
           } else {
             if (!silent) {
               toast.error(`${config.name} 测试失败`, {
@@ -255,7 +266,7 @@ export function useMinioConfig() {
             );
             setConfigs(updatedConfigs);
             await configService.saveMinioConfigs(updatedConfigs, activeId);
-            return { success: false, error: result.error };
+            return { success: false, error: result.error, updatedConfigs };
           }
       } catch {
           if (!silent && loadingToast) toast.dismiss(loadingToast);

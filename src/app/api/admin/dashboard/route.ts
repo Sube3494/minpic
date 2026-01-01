@@ -7,16 +7,11 @@ export async function GET() {
   if (error) return error;
 
   try {
-    // 获取系统概览数据
+    // 获取系统概览数据 (仅保留非敏感的基础统计)
     const [
       totalUsers,
       activeUsers,
-      totalFiles,
-      totalStorage,
-      recentUsers,
-      recentFiles,
-      topStorageUsers,
-      topFileUsers,
+      adminUsers,
       recentLogs,
     ] = await Promise.all([
       // 总用户数
@@ -31,127 +26,9 @@ export async function GET() {
         },
       }),
       
-      // 总文件数
-      prisma.file.count(),
-      
-      // 总存储使用量 - 直接从文件表统计
-      prisma.file.aggregate({
-        _sum: {
-          fileSize: true,
-        },
-      }),
-      
-      // 最近注册用户（最近7天）
-      prisma.user.findMany({
-        where: {
-          createdAt: {
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-          },
-        },
-        select: {
-          id: true,
-          username: true,
-          name: true,
-          avatar: true,
-          createdAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-      }),
-      
-      // 最近上传文件
-      prisma.file.findMany({
-        select: {
-          id: true,
-          filename: true,
-          fileSize: true,
-          createdAt: true,
-          user: {
-            select: {
-              username: true,
-              name: true,
-              avatar: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 10,
-      }),
-      
-      // 存储使用 Top 5 - 从文件表统计
-      prisma.file.groupBy({
-        by: ['userId'],
-        _sum: {
-          fileSize: true,
-        },
-        orderBy: {
-          _sum: {
-            fileSize: 'desc',
-          },
-        },
-        take: 5,
-      }).then(async (results) => {
-        const userIds = results.map(r => r.userId);
-        const users = await prisma.user.findMany({
-          where: { id: { in: userIds } },
-          select: {
-            id: true,
-            username: true,
-            name: true,
-            avatar: true,
-            storageQuota: true,
-          },
-        });
-        
-        return results.map(r => {
-          const user = users.find(u => u.id === r.userId);
-          return {
-            id: user?.id || r.userId,
-            username: user?.username || 'Unknown',
-            name: user?.name || null,
-            avatar: user?.avatar || null,
-            storageUsed: (r._sum.fileSize || 0).toString(),
-            storageQuota: user?.storageQuota.toString() || '0',
-          };
-        });
-      }),
-      
-      // 文件数量 Top 5 - 从文件表统计
-      prisma.file.groupBy({
-        by: ['userId'],
-        _count: {
-          id: true,
-        },
-        orderBy: {
-          _count: {
-            id: 'desc',
-          },
-        },
-        take: 5,
-      }).then(async (results) => {
-        const userIds = results.map(r => r.userId);
-        const users = await prisma.user.findMany({
-          where: { id: { in: userIds } },
-          select: {
-            id: true,
-            username: true,
-            name: true,
-            avatar: true,
-            fileQuota: true,
-          },
-        });
-        
-        return results.map(r => {
-          const user = users.find(u => u.id === r.userId);
-          return {
-            id: user?.id || r.userId,
-            username: user?.username || 'Unknown',
-            name: user?.name || null,
-            avatar: user?.avatar || null,
-            fileCount: r._count.id,
-            fileQuota: user?.fileQuota || 0,
-          };
-        });
+      // 管理员数量
+      prisma.user.count({
+        where: { role: 'ADMIN' },
       }),
       
       // 最近操作日志
@@ -159,6 +36,7 @@ export async function GET() {
         select: {
           id: true,
           action: true,
+          metadata: true,
           createdAt: true,
           user: {
             select: {
@@ -173,7 +51,7 @@ export async function GET() {
       }),
     ]);
 
-    // 获取用户注册趋势（最近7天）
+    // 获取用户注册趋势（最近7天）- 合并为活跃趋势逻辑
     const userTrend = await Promise.all(
       Array.from({ length: 7 }, (_, i) => {
         const date = new Date();
@@ -184,43 +62,27 @@ export async function GET() {
 
         return prisma.user.count({
           where: {
-            createdAt: {
+            lastLoginAt: {
               gte: date,
               lt: nextDate,
             },
           },
         }).then(count => ({
-          date: date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }),
-          count,
+          name: date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }),
+          users: count,
         }));
       })
     );
 
-    // 序列化 BigInt
-    const serializedTopStorage = topStorageUsers.map(user => ({
-      ...user,
-      storageUsed: user.storageUsed.toString(),
-      storageQuota: user.storageQuota.toString(),
-    }));
-
     return NextResponse.json({
-      overview: {
+      stats: {
         totalUsers,
         activeUsers,
-        totalFiles,
-        totalStorage: totalStorage._sum.fileSize?.toString() || '0',
-      },
-      trends: {
-        users: userTrend,
-      },
-      rankings: {
-        topStorage: serializedTopStorage,
-        topFiles: topFileUsers,
+        adminUsers,
+        weeklyTrend: userTrend,
       },
       recent: {
-        users: recentUsers,
-        files: recentFiles,
-        logs: recentLogs,
+        activities: recentLogs,
       },
     });
   } catch (error) {

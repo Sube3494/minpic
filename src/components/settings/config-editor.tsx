@@ -21,6 +21,7 @@ interface ConfigEditorProps {
   isSyncing: boolean;
   isTesting: boolean;
   isSaving: boolean;
+  canEdit?: boolean;
   onUpdate: (updates: Partial<MinioConfigItem>) => void;
   onSync: (id: string) => void;
   onTest: () => void;
@@ -28,7 +29,7 @@ interface ConfigEditorProps {
 }
 
 export function ConfigEditor({ 
-  config, isSyncing, isTesting, isSaving,
+  config, isSyncing, isTesting, isSaving, canEdit = true,
   onUpdate, onSync, onTest, onSave
 }: ConfigEditorProps) {
   const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
@@ -81,8 +82,12 @@ export function ConfigEditor({
       <CardHeader className="pb-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <CardTitle className="text-xl md:text-2xl text-zinc-800 dark:text-zinc-100 truncate">编辑配置</CardTitle>
-            <CardDescription className="text-zinc-500 dark:text-zinc-400 truncate">更新 {config.name} 的连接详情</CardDescription>
+            <CardTitle className="text-xl md:text-2xl text-zinc-800 dark:text-zinc-100 truncate">
+              {canEdit ? '编辑配置' : '查看配置'}
+            </CardTitle>
+            <CardDescription className="text-zinc-500 dark:text-zinc-400 truncate">
+              {!canEdit ? '只读模式 (团队成员无编辑权限)' : `更新 ${config.name} 的连接详情`}
+            </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
             <Button 
@@ -96,26 +101,30 @@ export function ConfigEditor({
               同步文件库
             </Button>
              
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={onTest}
-              disabled={isTesting}
-              className="h-9 hover:bg-zinc-100 dark:hover:bg-white/10 text-xs"
-            >
-              {isTesting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <PlugZap className="w-4 h-4 mr-1.5" />}
-              测试连接
-            </Button>
-            
-            <Button 
-              size="sm"
-              onClick={() => onSave()}
-              disabled={isSaving}
-              className="h-9 border border-transparent bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
-            >
-              {isSaving ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Save className="w-4 h-4 mr-1.5" />}
-              保存配置
-            </Button>
+            {canEdit && (
+              <>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={onTest}
+                  disabled={isTesting}
+                  className="h-9 hover:bg-zinc-100 dark:hover:bg-white/10 text-xs"
+                >
+                  {isTesting ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <PlugZap className="w-4 h-4 mr-1.5" />}
+                  测试连接
+                </Button>
+                
+                <Button 
+                  size="sm"
+                  onClick={() => onSave()}
+                  disabled={isSaving}
+                  className="h-9 border border-transparent bg-primary hover:bg-primary/90 text-primary-foreground text-xs"
+                >
+                  {isSaving ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Save className="w-4 h-4 mr-1.5" />}
+                  保存配置
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -127,7 +136,8 @@ export function ConfigEditor({
             value={config.name} 
             onChange={(e) => onUpdate({ name: e.target.value })}
             placeholder="例如：生产环境 MinIO"
-            className="h-11 font-medium border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
+            disabled={!canEdit}
+            className="h-11 font-medium border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm disabled:opacity-60"
           />
         </div>
         
@@ -141,7 +151,8 @@ export function ConfigEditor({
               value={config.endpoint} 
               onChange={(e) => onUpdate({ endpoint: e.target.value })}
               placeholder="minio.example.com"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
+              disabled={!canEdit}
+              className={`h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm disabled:opacity-60 ${!canEdit ? 'blur-[6px] select-none pointer-events-none' : ''}`}
             />
           </div>
           <div className="md:col-span-2 space-y-2">
@@ -154,19 +165,22 @@ export function ConfigEditor({
                 onUpdate({ port: val === '' ? undefined : (parseInt(val) || 9000) });
               }}
               placeholder="9000"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              disabled={!canEdit}
+              onWheel={(e) => e.currentTarget.blur()}
+              className={`h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm no-spinner disabled:opacity-60 ${!canEdit ? 'blur-[6px] select-none pointer-events-none' : ''}`}
             />
           </div>
           <div className="md:col-span-4 space-y-2">
             <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">安全连接 (SSL)</Label>
-            <div className="flex items-center justify-between px-3 h-11 rounded-md border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm">
+            <div className={`flex items-center justify-between px-3 h-11 rounded-md border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm ${!canEdit ? 'blur-[6px] select-none pointer-events-none' : ''}`}>
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-zinc-700 dark:text-zinc-200">SSL / HTTPS</span>
                 </div>
                 <Switch
                   checked={config.useSSL}
                   onCheckedChange={(checked: boolean) => onUpdate({ useSSL: checked })}
-                  className="data-[state=checked]:bg-primary scale-90"
+                  disabled={!canEdit}
+                  className="data-[state=checked]:bg-primary scale-90 disabled:opacity-60"
                 />
             </div>
           </div>
@@ -180,7 +194,8 @@ export function ConfigEditor({
               value={config.accessKey} 
               onChange={(e) => onUpdate({ accessKey: e.target.value })}
               placeholder="Access Key"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
+              disabled={!canEdit}
+              className={`h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm disabled:opacity-60 ${!canEdit ? 'blur-[6px] select-none pointer-events-none' : ''}`}
             />
           </div>
           <div className="space-y-2">
@@ -190,7 +205,8 @@ export function ConfigEditor({
               value={config.secretKey} 
               onChange={(e) => onUpdate({ secretKey: e.target.value })}
               placeholder="Secret Key"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
+              disabled={!canEdit}
+              className={`h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm disabled:opacity-60 ${!canEdit ? 'blur-[6px] select-none pointer-events-none' : ''}`}
             />
           </div>
         </div>
@@ -203,7 +219,8 @@ export function ConfigEditor({
               value={config.bucket} 
               onChange={(e) => onUpdate({ bucket: e.target.value })}
               placeholder="bucket-name"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
+              disabled={!canEdit}
+              className={`h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm disabled:opacity-60 ${!canEdit ? 'blur-[6px] select-none pointer-events-none' : ''}`}
             />
           </div>
           <div className="space-y-2">
@@ -212,7 +229,8 @@ export function ConfigEditor({
               value={config.region || ''} 
               onChange={(e) => onUpdate({ region: e.target.value })}
               placeholder="us-east-1"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
+              disabled={!canEdit}
+              className={`h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm disabled:opacity-60 ${!canEdit ? 'blur-[6px] select-none pointer-events-none' : ''}`}
             />
           </div>
         </div>
@@ -223,7 +241,8 @@ export function ConfigEditor({
         <div className="space-y-4" ref={advancedRef}>
           <button 
             onClick={() => setIsAdvancedExpanded(!isAdvancedExpanded)}
-            className="group flex items-center justify-between w-full p-1.5 rounded-xl hover:bg-zinc-100/50 dark:hover:bg-white/5 transition-all duration-300 border border-transparent hover:border-zinc-200/50 dark:hover:border-white/5"
+            disabled={!canEdit}
+            className="group flex items-center justify-between w-full p-1.5 rounded-xl hover:bg-zinc-100/50 dark:hover:bg-white/5 transition-all duration-300 border border-transparent hover:border-zinc-200/50 dark:hover:border-white/5 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             <div className="flex items-center gap-2.5">
               <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400 group-hover:bg-primary/10 group-hover:text-primary transition-all duration-300">
@@ -291,7 +310,8 @@ export function ConfigEditor({
                             value={config.customDomain || ''} 
                             onChange={(e) => onUpdate({ customDomain: e.target.value })}
                             placeholder="https://img.example.com"
-                            className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
+                            disabled={!canEdit}
+                            className={`h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm disabled:opacity-60 ${!canEdit ? 'blur-[6px] select-none pointer-events-none' : ''}`}
                             />
                         </div>
                     </div>
@@ -322,7 +342,8 @@ export function ConfigEditor({
                             value={config.baseDir || ''} 
                             onChange={(e) => onUpdate({ baseDir: e.target.value })}
                             placeholder="uploads"
-                            className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
+                            disabled={!canEdit}
+                            className={`h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm disabled:opacity-60 ${!canEdit ? 'blur-[6px] select-none pointer-events-none' : ''}`}
                         />
                         </div>
 
@@ -332,8 +353,9 @@ export function ConfigEditor({
                             <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button 
-                                variant="outline" 
-                                className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-11 px-3 font-normal shadow-sm group"
+                                variant="outline"
+                                disabled={!canEdit}
+                                className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-11 px-3 font-normal shadow-sm group disabled:opacity-60"
                                 >
                                 <span className="text-sm text-zinc-700 dark:text-zinc-200">
                                     {config.archiveStrategy === 'none' && '不归档'}
@@ -396,7 +418,9 @@ export function ConfigEditor({
                             onUpdate({ expirationDays: val === '' ? undefined : (parseInt(val) || 0) });
                             }}
                             placeholder="0"
-                            className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            disabled={!canEdit}
+                            onWheel={(e) => e.currentTarget.blur()}
+                            className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm no-spinner disabled:opacity-60"
                         />
                         </div>
 
@@ -417,8 +441,9 @@ export function ConfigEditor({
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                             <Button 
-                                variant="outline" 
-                                className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-11 px-3 font-normal shadow-sm group"
+                                variant="outline"
+                                disabled={!canEdit}
+                                className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-11 px-3 font-normal shadow-sm group disabled:opacity-60"
                             >
                                 <span className="text-sm text-zinc-700 dark:text-zinc-200">
                                     {(config.duplicateHandling === 'skip' || !config.duplicateHandling) && '跳过'}

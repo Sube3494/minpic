@@ -1,9 +1,9 @@
 import { useState, useRef } from 'react';
 import { configService } from '@/services/config.service';
-import { SyncProgress, SyncEvent } from '@/types/config';
+import { SyncProgress, SyncEvent, UseSyncReturn } from '@/types/config';
 import { toast } from 'sonner';
 
-export function useSync() {
+export function useSync(): UseSyncReturn {
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);

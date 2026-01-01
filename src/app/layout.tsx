@@ -2,11 +2,11 @@
  * @Date: 2025-12-24 21:26:18
  * @Author: Sube
  * @FilePath: layout.tsx
- * @LastEditTime: 2025-12-29 19:45:29
+ * @LastEditTime: 2026-01-02 02:36:19
  * @Description: 
  */
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SessionProvider } from "@/components/providers/session-provider";
@@ -14,13 +14,13 @@ import { NavBar } from "@/components/layout/nav-bar";
 import { prisma } from "@/lib/prisma";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
 });
 
@@ -35,7 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
   
   return {
     title: settings?.siteName || "MinPic - 现代化图床管理系统",
-    description: stripMarkdown(settings?.siteDescription || "") || "基于 Next.js 15 + MinIO 构建的专业图床解决方案",
+    description: stripMarkdown(settings?.siteDescription || "") || "基于 Next.js 16 + MinIO 构建的专业图床解决方案",
   };
 }
 
@@ -47,7 +47,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen relative selection:bg-primary/30 selection:text-primary-foreground`}
+        className={`${inter.variable} ${jetbrainsMono.variable} antialiased min-h-screen relative selection:bg-primary/30 selection:text-primary-foreground`}
       >
         <ThemeProvider
             attribute="class"

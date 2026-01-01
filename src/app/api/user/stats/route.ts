@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
+import { serializeBigInt } from '@/lib/utils';
 
 export async function GET() {
   const { error, user } = await requireAuth();
@@ -35,7 +36,7 @@ export async function GET() {
       _count: true,
     });
 
-    return NextResponse.json({
+    return NextResponse.json(serializeBigInt({
       totalFiles: fileStats._count || 0,
       totalStorage: fileStats._sum.fileSize || 0,
       recentFiles,
@@ -43,7 +44,7 @@ export async function GET() {
         type: stat.fileType,
         count: stat._count,
       })),
-    });
+    }));
   } catch (error) {
     console.error('Error fetching user stats:', error);
     return NextResponse.json(

@@ -1,13 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { PageWrapper } from '@/components/layout/page-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CircularProgress } from '@/components/ui/circular-progress';
 import { Shield, Calendar, HardDrive, FileText, Clock, Mail, User as UserIcon, Activity, BarChart3, Github } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { formatFileSize, cn } from '@/lib/utils';
+import { useTeam } from '@/hooks/use-team';
+import { TeamInfoCard } from '@/components/settings/team-info-card';
+import { MemberQuotaCard } from '@/components/settings/member-quota-card';
 
 interface UserProfile {
   id: string;
@@ -18,9 +20,7 @@ interface UserProfile {
   avatar: string | null;
   role: string;
   status: string;
-  storageQuota: string;  // BigInt serialized as string
   storageUsed: string;   // BigInt serialized as string
-  fileQuota: number;
   fileCount: number;
   lastLoginAt: Date | null;
   createdAt: Date;
@@ -40,6 +40,21 @@ export function ProfileClient() {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const { teamInfo, leaveTeam } = useTeam();
+
+  const handleLeaveTeam = async () => {
+    try {
+      await leaveTeam();
+    } catch {
+      // Error already handled in useTeam
+    }
+  };
+
+  const currentMemberInfo = useMemo(() => {
+    if (!teamInfo?.team || !session?.user?.id) return null;
+    return teamInfo.team.members.find(m => m.userId === session.user.id);
+  }, [teamInfo, session]);
 
   useEffect(() => {
     async function fetchData() {
@@ -105,8 +120,6 @@ export function ProfileClient() {
     );
   }
 
-  const storagePercentage = (stats.totalStorage / Number(profile.storageQuota)) * 100;
-  const filePercentage = (stats.totalFiles / profile.fileQuota) * 100;
   const displayName = profile.name || profile.username || 'User';
   const initials = displayName
     .split(' ')
@@ -121,7 +134,7 @@ export function ProfileClient() {
         {/* Page Title - More Compact */}
         <div className="space-y-1.5 px-1">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-            个人设置
+            个人资料
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base">
             管理您的账户信息与系统资源使用配额
@@ -129,7 +142,7 @@ export function ProfileClient() {
         </div>
 
         {/* User Header Card - Refined Simplification */}
-        <Card className="border-zinc-200/50 dark:border-white/10 shadow-lg bg-white dark:bg-black/20 overflow-hidden relative group">
+        <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 overflow-hidden relative group">
           <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-transparent opacity-50" />
           <CardContent className="p-8 sm:p-10 relative">
             <div className="flex flex-col md:flex-row items-center gap-10">
@@ -169,7 +182,7 @@ export function ProfileClient() {
                     <Calendar className="w-3.5 h-3.5 opacity-70" />
                     加入于 {new Date(profile.createdAt).toLocaleDateString('zh-CN')}
                   </div>
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-bold">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                     <div className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
                     账户活跃
                   </div>
@@ -179,10 +192,25 @@ export function ProfileClient() {
           </CardContent>
         </Card>
 
+        {/* Team Info Section */}
+        {teamInfo?.team && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <TeamInfoCard teamInfo={teamInfo} onLeave={handleLeaveTeam} />
+            {currentMemberInfo && (
+              <MemberQuotaCard 
+                memberInfo={currentMemberInfo} 
+                totalTeamStorage={teamInfo.team.storageQuota ? BigInt(teamInfo.team.storageQuota) : BigInt(0)}
+                totalTeamFiles={teamInfo.team.fileQuota}
+                isOwner={teamInfo.team.ownerId === session?.user?.id}
+              />
+            )}
+          </div>
+        )}
+
         {/* Info Grid - Balanced Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
           {/* Account Info Card */}
-          <Card className="border-zinc-200/50 dark:border-white/10 shadow-lg bg-white dark:bg-black/20 group hover:border-primary/20 transition-all duration-300">
+          <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 group hover:border-primary/20 transition-all duration-300">
             <CardHeader className="pb-3 border-b border-zinc-100 dark:border-white/5">
               <CardTitle className="flex items-center gap-2.5 text-sm font-medium tracking-wide text-zinc-600 dark:text-zinc-400">
                 <div className="p-1.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
@@ -199,7 +227,7 @@ export function ProfileClient() {
                   </div>
                   GitHub ID
                 </span>
-                <span className="text-sm font-mono text-zinc-700 dark:text-zinc-200 select-all tracking-tight">{profile.githubId}</span>
+                <span className="text-sm text-zinc-700 dark:text-zinc-200 select-all tracking-tight">{profile.githubId}</span>
               </div>
 
               <div className="flex justify-between items-center group/item hover:bg-zinc-50 dark:hover:bg-white/5 p-2 rounded-lg -mx-2 transition-all cursor-default">
@@ -224,72 +252,48 @@ export function ProfileClient() {
             </CardContent>
           </Card>
 
-          {/* Storage Quota Card */}
-          <Card className="border-zinc-200/50 dark:border-white/10 shadow-lg bg-white dark:bg-black/20 group hover:border-primary/20 transition-all duration-300">
+          {/* Storage Usage Card */}
+          <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 group hover:border-primary/20 transition-all duration-300">
             <CardHeader className="pb-3 border-b border-zinc-100 dark:border-white/5">
               <CardTitle className="flex items-center gap-2.5 text-sm font-medium tracking-wide text-zinc-600 dark:text-zinc-400">
                 <div className="p-1.5 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400">
                   <HardDrive className="w-4 h-4" />
                 </div>
-                存储空间
+                存储使用
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center pt-8 pb-4 min-h-[260px]">
-              <CircularProgress
-                value={storagePercentage}
-                size={130}
-                strokeWidth={8}
-                gradient
-                className="[--stop-0:#8b5cf6] [--stop-1:#c4b5fd]"
-              />
-              <div className="mt-6 text-center space-y-1">
-                 <div className="flex items-baseline justify-center gap-1">
-                   <span className="text-xl font-medium text-zinc-900 dark:text-zinc-100 tracking-tight">
-                    {formatFileSize(stats.totalStorage)}
-                   </span>
-                   <span className="text-sm text-zinc-400">
-                    / {formatFileSize(Number(profile.storageQuota))}
-                   </span>
+            <CardContent className="flex flex-col items-center justify-center pt-8 pb-4 min-h-[170px]">
+              <div className="text-center space-y-2">
+                <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                  {formatFileSize(stats.totalStorage)}
                 </div>
-                <p className="text-xs text-zinc-400 font-medium">已用空间配额</p>
+                <p className="text-sm text-muted-foreground">已用存储空间</p>
               </div>
             </CardContent>
           </Card>
 
-          {/* File Quota Card */}
-          <Card className="border-zinc-200/50 dark:border-white/10 shadow-lg bg-white dark:bg-black/20 group hover:border-primary/20 transition-all duration-300">
+          {/* File Count Card */}
+          <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 group hover:border-primary/20 transition-all duration-300">
             <CardHeader className="pb-3 border-b border-zinc-100 dark:border-white/5">
               <CardTitle className="flex items-center gap-2.5 text-sm font-medium tracking-wide text-zinc-600 dark:text-zinc-400">
                 <div className="p-1.5 rounded-md bg-pink-500/10 text-pink-600 dark:text-pink-400">
                   <FileText className="w-4 h-4" />
                 </div>
-                文件概览
+                文件数量
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center pt-8 pb-4 min-h-[260px]">
-              <CircularProgress
-                value={filePercentage}
-                size={130}
-                strokeWidth={8}
-                gradient
-                className="[--stop-0:#f43f5e] [--stop-1:#fb7185]"
-              />
-              <div className="mt-6 text-center space-y-1">
-                 <div className="flex items-baseline justify-center gap-1">
-                   <span className="text-xl font-medium text-zinc-900 dark:text-zinc-100 tracking-tight">
-                    {stats.totalFiles}
-                   </span>
-                   <span className="text-sm text-zinc-400">
-                    / {profile.fileQuota}
-                   </span>
+            <CardContent className="flex flex-col items-center justify-center pt-8 pb-4 min-h-[170px]">
+              <div className="text-center space-y-2">
+                <div className="text-4xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                  {stats.totalFiles}
                 </div>
-                <p className="text-xs text-zinc-400 font-medium">已传文件数量</p>
+                <p className="text-sm text-muted-foreground">已上传文件数</p>
               </div>
             </CardContent>
           </Card>
 
           {/* Statistics Card */}
-          <Card className="border-zinc-200/50 dark:border-white/10 shadow-lg bg-white dark:bg-black/20 group hover:border-primary/20 transition-all duration-300">
+          <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 group hover:border-primary/20 transition-all duration-300">
             <CardHeader className="pb-3 border-b border-zinc-100 dark:border-white/5">
               <CardTitle className="flex items-center gap-2.5 text-sm font-medium tracking-wide text-zinc-600 dark:text-zinc-400">
                 <div className="p-1.5 rounded-md bg-orange-500/10 text-orange-600 dark:text-orange-400">

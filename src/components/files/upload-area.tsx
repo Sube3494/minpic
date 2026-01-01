@@ -14,9 +14,10 @@ interface UploadAreaProps {
   aggregateProgress: { loaded: number; total: number; percent: number; isProcessing: boolean };
   selectedConfigId: string;
   disabled?: boolean;
+  disabledMessage?: string;
 }
 
-export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, selectedConfigId, disabled }: UploadAreaProps) {
+export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, selectedConfigId, disabled, disabledMessage }: UploadAreaProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -24,6 +25,11 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
   const handlePasteInput = (e: React.ClipboardEvent) => {
     if (disabled) return;
     const items = e.clipboardData?.items;
+// ... (omitting unchanged parts for brevity if possible, but replace needs context)
+// Wait, I can't omit parts in replace_file_content effectively if they are not contiguous or if I'm replacing a large block.
+// I will replace the Interface and component signature first.
+// Actually, let's use multi_replace for this.
+
     let hasImage = false;
     
     if (items) {
@@ -91,6 +97,8 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
     if (selectedFiles) {
       await uploadFiles(selectedFiles, selectedConfigId);
     }
+    // 重置输入框，以便再次选择同一个文件时能触发 onChange
+    event.target.value = '';
   };
 
   return (
@@ -176,7 +184,7 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
                 ) : (
                   <>
                     <Upload className="w-4 h-4 mr-2" />
-                    {disabled ? '暂无可用存储配置' : '选择文件上传'}
+                    {disabled ? (disabledMessage || '暂无可用存储配置') : '选择文件上传'}
                   </>
                 )}
               </label>
@@ -186,7 +194,7 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
               <div className={`absolute inset-0 bg-primary/20 blur-xl rounded-full transition-opacity duration-500 ${isFocused ? 'opacity-100' : 'opacity-0'}`} />
               <div className="relative flex items-center">
                   <Input 
-                    placeholder={disabled ? "请先配置存储源..." : "在此处按下 Ctrl + V 粘贴截图..."}
+                    placeholder={disabled ? (disabledMessage || "请先配置存储源...") : "在此处按下 Ctrl + V 粘贴截图..."}
                     className="rounded-full h-10 border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-black/20 pr-10 shadow-sm focus-visible:ring-primary transition-all text-center text-xs"
                     onPaste={handlePasteInput}
                     onFocus={() => setIsFocused(true)}

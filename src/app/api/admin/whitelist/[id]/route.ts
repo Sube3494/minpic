@@ -5,13 +5,13 @@ import { prisma } from '@/lib/prisma';
 // DELETE /api/admin/whitelist/[id] - 删除白名单
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { error, user: admin } = await requireAdmin();
   if (error) return error;
 
   try {
-    const { id } = params;
+    const { id } = await params;
 
     // 检查白名单是否存在
     const whitelist = await prisma.registrationWhitelist.findUnique({

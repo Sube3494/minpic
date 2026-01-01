@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { serializeBigInt } from '@/lib/utils';
 
 export async function GET() {
   try {
@@ -20,14 +21,14 @@ export async function GET() {
       take: 5,
     });
 
-    return NextResponse.json({
+    return NextResponse.json(serializeBigInt({
       totalFiles,
       totalImages,
       totalVideos,
       totalAudios,
       totalSize: totalSize._sum.fileSize || 0,
       recentFiles,
-    });
+    }));
   } catch (error) {
     console.error('Error getting stats:', error);
     return NextResponse.json(

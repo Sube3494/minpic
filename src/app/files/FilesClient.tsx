@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useSession } from 'next-auth/react';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import { useFiles } from '@/hooks/use-files';
 import { useFileSelection } from '@/hooks/use-file-selection';
 import { useConfigs } from '@/hooks/use-configs';
 import { useFileUpload } from '@/hooks/use-file-upload';
+import { useTeam } from '@/hooks/use-team';
 import { FileCard } from '@/components/files/file-card';
 import { FileListRow } from '@/components/files/file-list-row';
 import { UploadArea } from '@/components/files/upload-area';
@@ -41,6 +43,8 @@ export function FilesClient() {
   const { 
     configs, selectedConfigId, setSelectedConfigId, configLoading 
   } = useConfigs();
+  const { data: session } = useSession();
+  const { teamInfo } = useTeam();
 
   const { 
     files, loading, isRefreshing, search, setSearch, filter, setFilter, viewMode, setViewMode,
@@ -240,9 +244,33 @@ export function FilesClient() {
 
   const activeConfigs = configs.filter(c => c.status === 'success');
   const selectedConfig = activeConfigs.find(c => c.id === selectedConfigId);
+  
   const selectedConfigName = configLoading 
     ? '加载中...' 
     : (selectedConfig?.name || (activeConfigs.length > 0 ? '选择存储源' : '未连接存储源'));
+
+  // Check if current user is restricted (Team member with no quota)
+  const isQuotaRestricted = useMemo(() => {
+    if (!selectedConfig?.isTeam || !teamInfo?.team || !session?.user?.id) return false;
+    
+    // Check if current user is a member (not owner)
+    const member = teamInfo.team.members.find(m => m.userId === session.user.id);
+    const isOwner = teamInfo.team.ownerId === session.user.id;
+    
+    if (isOwner) return false; // Owner is never restricted
+    
+    // If member found, check quotas
+    if (member) {
+      const hasStorageQuota = member.storageQuota && Number(member.storageQuota) > 0;
+      const hasFileQuota = member.fileQuota && member.fileQuota > 0;
+      // If NO quota assigned at all, restrict upload
+      return !hasStorageQuota && !hasFileQuota;
+    }
+    
+    return false;
+  }, [selectedConfig, teamInfo, session]);
+
+  const isUploadDisabled = configs.filter(c => c.status === 'success').length === 0 || isQuotaRestricted;
 
   // 无限滚动 Observer
   useEffect(() => {
@@ -294,6 +322,11 @@ export function FilesClient() {
                         <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate max-w-[100px]">
                           {selectedConfigName}
                         </span>
+                        {selectedConfig?.isTeam && (
+                             <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 shrink-0">
+                                <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 leading-none">团队</span>
+                             </div>
+                        )}
                       </div>
                       <ChevronDown className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-500 transition-colors" />
                     </Button>
@@ -349,6 +382,11 @@ export function FilesClient() {
                                 )}
                               </div>
                             </div>
+                            {config.isTeam && (
+                                <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 shrink-0">
+                                    <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 leading-none">团队</span>
+                                </div>
+                            )}
                             {isSelected && (
                               <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)] shrink-0 mr-1" />
                             )}
@@ -376,7 +414,8 @@ export function FilesClient() {
             queue={queue} 
             aggregateProgress={aggregateProgress}
             selectedConfigId={selectedConfigId}
-            disabled={configs.filter(c => c.status === 'success').length === 0}
+            disabled={isUploadDisabled}
+            disabledMessage={isQuotaRestricted ? "暂无上传权限 (等待管理员分配额度)" : undefined}
         />
 
         {/* Filter Bar */}

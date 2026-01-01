@@ -20,8 +20,8 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen pt-20 overflow-x-hidden">
-      <div className="max-w-[1440px] mx-auto px-4 lg:px-8 flex items-start lg:gap-8">
+    <div className="min-h-screen pt-28 overflow-x-hidden">
+      <div className="max-w-[1440px] mx-auto px-4 lg:px-12 flex items-start lg:gap-12">
         {/* Sidebar */}
         <div className="shrink-0 w-0 lg:w-72">
           <AdminSidebar />

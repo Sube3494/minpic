@@ -17,12 +17,17 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // 构建查询条件
-    const where: any = {};
+    const where: {
+      OR?: Array<{
+        githubId?: { contains: string };
+        reason?: { contains: string };
+      }>;
+    } = {};
     
     if (search) {
       where.OR = [
         { githubId: { contains: search } },
-        { note: { contains: search } },
+        { reason: { contains: search } },
       ];
     }
 
@@ -77,7 +82,9 @@ export async function POST(request: NextRequest) {
         prisma.registrationWhitelist.create({
           data: {
             githubId: githubId.trim(),
-            note: note || null,
+            username: githubId.trim(),
+            addedBy: admin.id,
+            reason: note || undefined,
           },
         })
       )

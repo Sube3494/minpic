@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { UploadTask } from '@/types/file';
 import { toast } from 'sonner';
 import { useQuota } from './use-quota';
+import { useTeam } from './use-team';
 import { formatFileSize } from '@/lib/utils';
 
 export function useFileUpload(refreshFiles: () => void) {
   const [queue, setQueue] = useState<UploadTask[]>([]);
   const [uploading, setUploading] = useState(false);
   const { quota, refreshQuota } = useQuota();
+  const { teamInfo } = useTeam();
 
   // Compute aggregate progress
   const aggregateProgress = (() => {
@@ -57,7 +59,7 @@ export function useFileUpload(refreshFiles: () => void) {
             });
           } else {
             toast.error(`${task.file.name} 上传失败`, {
-              description: errorData.error || '请检查网络连接和存储配置'
+              description: errorData.message || errorData.error || '请检查网络连接和存储配置'
             });
           }
         } catch {
@@ -112,9 +114,9 @@ export function useFileUpload(refreshFiles: () => void) {
 
     // Quota Pre-check
     if (quota) {
-      const storageQuota = parseSize(quota.storageQuota);
+      const storageQuota = quota.storageQuota ? parseSize(quota.storageQuota) : null;
       const storageUsed = parseSize(quota.storageUsed);
-      const fileQuota = quota.fileQuota;
+      const fileQuota = quota.fileQuota || null;
       const fileCount = quota.fileCount;
 
       let totalUploadSize = 0;
@@ -122,24 +124,30 @@ export function useFileUpload(refreshFiles: () => void) {
         totalUploadSize += selectedFiles[i].size;
       }
 
-      // 1. Check Storage Quota
-      const remainingStorage = storageQuota - storageUsed;
-      if (totalUploadSize > remainingStorage) {
-        toast.error('存储空间不足', {
-          description: `剩余 ${formatFileSize(remainingStorage)}，本次上传 ${formatFileSize(totalUploadSize)}。请先删除文件释放空间。`,
-          duration: 5000,
-        });
-        return; // Reject upload
+      // 1. Check Storage Quota (only if quota is set)
+      if (storageQuota !== null) {
+        const remainingStorage = storageQuota - storageUsed;
+        if (totalUploadSize > remainingStorage) {
+          const isOwner = teamInfo?.role === 'OWNER';
+          toast.error('存储空间不足', {
+            description: `剩余 ${formatFileSize(remainingStorage)}，本次上传 ${formatFileSize(totalUploadSize)}。${isOwner ? '请先删除文件释放空间。' : '请联系管理员提高限额或清理空间。'}`,
+            duration: 5000,
+          });
+          return; // Reject upload
+        }
       }
 
-      // 2. Check File Count Quota
-      const remainingFiles = fileQuota - fileCount;
-      if (selectedFiles.length > remainingFiles) {
-        toast.error('文件数量超限', {
-          description: `剩余文件配额 ${remainingFiles} 个，本次上传 ${selectedFiles.length} 个。请先删除文件释放空间。`,
-          duration: 5000,
-        });
-        return; // Reject upload
+      // 2. Check File Count Quota (only if quota is set)
+      if (fileQuota !== null) {
+        const remainingFiles = fileQuota - fileCount;
+        if (selectedFiles.length > remainingFiles) {
+          const isOwner = teamInfo?.role === 'OWNER';
+          toast.error('文件数量超限', {
+            description: `剩余文件配额 ${remainingFiles} 个，本次上传 ${selectedFiles.length} 个。${isOwner ? '请先删除文件释放空间。' : '请联系管理员提高限额或清理空间。'}`,
+            duration: 5000,
+          });
+          return; // Reject upload
+        }
       }
     }
 

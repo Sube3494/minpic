@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { apiUrl, apiKey, enabled, expiresIn } = body;
 
-    console.log('Shortlink config received:', { apiUrl, apiKey: apiKey ? '***' : 'empty', enabled, expiresIn });
+
 
     const configValue = JSON.stringify({
       apiUrl: apiUrl || '',

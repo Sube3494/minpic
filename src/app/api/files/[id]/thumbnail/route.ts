@@ -52,8 +52,8 @@ export async function GET(
         const config = await getUserMinioConfig(user.id, file.configId);
 
         if (config) {
-          const { getMinioService } = await import('@/lib/minio');
-          const minioService = getMinioService();
+          const { MinioService } = await import('@/lib/minio');
+          const minioService = new MinioService();
           await minioService.connect(config);
           
           const videoBuffer = await minioService.downloadFile(file.minioPath);
@@ -89,8 +89,8 @@ export async function GET(
         const config = await getUserMinioConfig(user.id, file.configId);
 
         if (config) {
-          const { getMinioService } = await import('@/lib/minio');
-          const minioService = getMinioService();
+          const { MinioService } = await import('@/lib/minio');
+          const minioService = new MinioService();
           await minioService.connect(config);
           
           const thumbnailBuffer = await minioService.downloadFile(file.thumbnailPath);

@@ -6,8 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { formatDistanceToNow, format } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { PageWrapper } from '@/components/layout/page-wrapper';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -101,7 +100,7 @@ const fieldLabels: Record<string, string> = {
   userAgent: '用户代理',
 };
 
-const formatValue = (key: string, value: any): string => {
+const formatValue = (key: string, value: unknown): string => {
   if (value === true) return '已开启';
   if (value === false) return '已关闭';
   if (value === null || value === undefined) return '-';
@@ -110,7 +109,7 @@ const formatValue = (key: string, value: any): string => {
 
   // Handle storage quotas (bytes)
   if (lowerKey.includes('storage')) {
-    const num = typeof value === 'string' ? parseInt(value) : value;
+    const num = typeof value === 'string' ? parseInt(value) : typeof value === 'number' ? value : NaN;
     if (!isNaN(num)) return formatFileSize(num);
   }
 
@@ -220,7 +219,7 @@ export default function AuditPage() {
 
   useEffect(() => {
     fetchLogs(logs.length === 0);
-  }, [fetchLogs]);
+  }, [fetchLogs, logs.length]);
 
   if (loading) {
     return (
@@ -487,7 +486,7 @@ export default function AuditPage() {
                                               {Object.entries(data.changes).map(([key, value]) => (
                                                 <div key={key} className="flex items-center justify-between px-4 py-3 text-sm">
                                                   <span className="text-muted-foreground shrink-0">{fieldLabels[key] || key}</span>
-                                                  <span className="font-mono truncate ml-4 text-right max-w-[70%]" title={String(value)}>{formatValue(key, value)}</span>
+                                                  <span className="truncate ml-4 text-right max-w-[70%]" title={String(value)}>{formatValue(key, value)}</span>
                                                 </div>
                                               ))}
                                             </div>
@@ -498,7 +497,7 @@ export default function AuditPage() {
                                             <div className="flex items-center gap-2">
                                               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">原始数据</span>
                                             </div>
-                                            <div className="p-4 rounded-xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 font-mono text-xs overflow-auto max-h-[200px]">
+                                            <div className="p-4 rounded-xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-xs overflow-auto max-h-[200px]">
                                               <pre className="text-zinc-600 dark:text-zinc-400">{JSON.stringify(data, null, 2)}</pre>
                                             </div>
                                           </div>
@@ -515,7 +514,7 @@ export default function AuditPage() {
                                             return (
                                               <div key={key} className="bg-zinc-50/50 dark:bg-white/5 p-3 rounded-xl border border-zinc-200/50 dark:border-white/10">
                                                 <div className="text-xs text-muted-foreground mb-1">{fieldLabels[key] || key}</div>
-                                                <div className="text-sm font-mono truncate">{formatValue(key, value)}</div>
+                                                <div className="text-sm truncate">{formatValue(key, value)}</div>
                                               </div>
                                             );
                                           })}
@@ -536,16 +535,16 @@ export default function AuditPage() {
                                                 <Copy className="h-3 w-3" />
                                               </Button>
                                            </div>
-                                           <div className="p-4 rounded-xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 font-mono text-xs overflow-auto max-h-[300px]">
+                                           <div className="p-4 rounded-xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-xs overflow-auto max-h-[300px]">
                                              <pre className="text-zinc-600 dark:text-zinc-400">{JSON.stringify(data, null, 2)}</pre>
                                            </div>
                                         </div>
                                       </div>
                                     );
-                                  } catch (e) {
+                                  } catch {
                                     // Fallback for non-JSON strings
                                     return (
-                                      <div className="p-4 rounded-xl bg-zinc-950 font-mono text-xs overflow-auto">
+                                      <div className="p-4 rounded-xl bg-zinc-950 text-xs overflow-auto">
                                         <pre className="text-blue-400">{log.details || log.metadata || '无详细信息'}</pre>
                                       </div>
                                     );

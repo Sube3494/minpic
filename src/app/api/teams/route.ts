@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { serializeBigInt } from '@/lib/utils';
 
 // 创建团队的Schema
 const createTeamSchema = z.object({
@@ -14,30 +15,6 @@ const updateTeamSchema = z.object({
   name: z.string().min(1).max(50).optional(),
   description: z.string().max(200).optional(),
 });
-
-// Helper function to convert BigInt to string for JSON serialization
-function serializeTeam(team: any) {
-  if (!team) return team;
-  
-  return {
-    ...team,
-    owner: team.owner ? {
-      ...team.owner,
-      storageQuota: team.owner.storageQuota?.toString(),
-      storageUsed: team.owner.storageUsed?.toString(),
-      // fileQuota and fileCount are Int, not BigInt, so they don't need serialization
-    } : undefined,
-    members: team.members?.map((member: any) => ({
-      ...member,
-      storageQuota: member.storageQuota?.toString(),
-      user: member.user ? {
-        ...member.user,
-        storageUsed: member.user.storageUsed?.toString(),
-        // fileCount is Int, not BigInt
-      } : undefined,
-    })),
-  };
-}
 
 // GET /api/teams - 获取当前用户的团队信息
 export async function GET() {
@@ -75,9 +52,7 @@ export async function GET() {
             name: true,
             avatar: true,
             githubId: true,
-            storageQuota: true,
             storageUsed: true,
-            fileQuota: true,
             fileCount: true,
           },
         },
@@ -86,10 +61,10 @@ export async function GET() {
 
     if (ownedTeam) {
       console.log('Owner data:', ownedTeam.owner); // Debug log
-      return NextResponse.json({
-        team: serializeTeam(ownedTeam),
+      return NextResponse.json(serializeBigInt({
+        team: ownedTeam,
         role: 'OWNER',
-      });
+      }));
     }
 
     // 检查用户是否是团队成员
@@ -120,9 +95,7 @@ export async function GET() {
                 name: true,
                 avatar: true,
                 githubId: true,
-                storageQuota: true,
                 storageUsed: true,
-                fileQuota: true,
                 fileCount: true,
               },
             },
@@ -132,10 +105,10 @@ export async function GET() {
     });
 
     if (membership) {
-      return NextResponse.json({
-        team: serializeTeam(membership.team),
+      return NextResponse.json(serializeBigInt({
+        team: membership.team,
         role: membership.role,
-      });
+      }));
     }
 
     // 用户不在任何团队中
@@ -185,7 +158,7 @@ export async function POST(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: '参数验证失败', details: validation.error.errors },
+        { error: '参数验证失败', details: validation.error.issues },
         { status: 400 }
       );
     }
@@ -226,16 +199,14 @@ export async function POST(request: NextRequest) {
             name: true,
             avatar: true,
             githubId: true,
-            storageQuota: true,
             storageUsed: true,
-            fileQuota: true,
             fileCount: true,
           },
         },
       },
     });
 
-    return NextResponse.json({ team: serializeTeam(team), role: 'OWNER' });
+    return NextResponse.json(serializeBigInt({ team, role: 'OWNER' }));
   } catch (error) {
     console.error('创建团队失败:', error);
     return NextResponse.json({ error: '服务器错误' }, { status: 500 });
@@ -269,7 +240,7 @@ export async function PATCH(request: NextRequest) {
 
     if (!validation.success) {
       return NextResponse.json(
-        { error: '参数验证失败', details: validation.error.errors },
+        { error: '参数验证失败', details: validation.error.issues },
         { status: 400 }
       );
     }
@@ -298,16 +269,14 @@ export async function PATCH(request: NextRequest) {
             name: true,
             avatar: true,
             githubId: true,
-            storageQuota: true,
             storageUsed: true,
-            fileQuota: true,
             fileCount: true,
           },
         },
       },
     });
 
-    return NextResponse.json({ team: serializeTeam(updatedTeam) });
+    return NextResponse.json(serializeBigInt({ team: updatedTeam }));
   } catch (error) {
     console.error('更新团队失败:', error);
     return NextResponse.json({ error: '服务器错误' }, { status: 500 });

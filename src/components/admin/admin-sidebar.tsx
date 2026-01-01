@@ -100,7 +100,7 @@ export function AdminSidebar() {
           // Mobile Open State
           isOpen ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none lg:opacity-100 lg:scale-100 lg:pointer-events-auto",
           // Desktop: Sticky positioning
-          "lg:sticky lg:top-24 lg:left-0 lg:h-[calc(100vh-10rem)] lg:bg-white/50 lg:dark:bg-black/20 lg:z-0 lg:w-72 lg:translate-x-0 lg:translate-y-0"
+          "lg:sticky lg:top-28 lg:left-0 lg:h-[calc(100vh-14rem)] lg:bg-white/50 lg:dark:bg-black/20 lg:z-0 lg:w-72 lg:translate-x-0 lg:translate-y-0"
         )}
       >
         <div className="flex flex-col h-full p-6 overflow-y-auto custom-scrollbar">

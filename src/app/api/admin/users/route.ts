@@ -18,17 +18,15 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'createdAt';
     const sortOrder = (searchParams.get('sortOrder') || 'desc') as 'asc' | 'desc';
 
-    const skip = (page - 1) * limit;
-
     // 构建查询条件
     const where: Prisma.UserWhereInput = {};
     
     if (search) {
       where.OR = [
-        { username: { contains: search, mode: 'insensitive' } },
-        { name: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { githubId: { contains: search, mode: 'insensitive' } },
+        { username: { contains: search } },
+        { name: { contains: search } },
+        { email: { contains: search } },
+        { githubId: { contains: search } },
       ];
     }
 
@@ -40,20 +38,16 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    // 处理排序
-    let orderBy: Prisma.UserOrderByWithRelationInput = {};
-    const validSortFields = ['username', 'createdAt', 'role', 'status', 'storageUsed', 'fileCount'];
-    if (validSortFields.includes(sortBy)) {
-      orderBy = { [sortBy as keyof Prisma.UserOrderByWithRelationInput]: sortOrder };
-    } else {
-      orderBy = { createdAt: 'desc' }; // 默认排序
-    }
+    // 处理排序 - 移除 storageUsed 和 fileCount 的排序支持
+    const validSortFields = ['username', 'createdAt', 'role', 'status'];
+    const finalSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    const orderBy: Prisma.UserOrderByWithRelationInput = { [finalSortBy]: sortOrder };
 
-    // 获取用户列表、总数和统计数据
-    const [users, total, totalUsers, activeUsers, adminUsers, totalStorageSum] = await Promise.all([
+    // 获取用户列表和总数
+    const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
-        skip,
+        skip: (page - 1) * limit,
         take: limit,
         orderBy,
         select: {
@@ -65,48 +59,40 @@ export async function GET(request: NextRequest) {
           avatar: true,
           role: true,
           status: true,
-          storageQuota: true,
-          storageUsed: true,
-          fileQuota: true,
-          fileCount: true,
-          lastLoginAt: true,
           createdAt: true,
         },
       }),
       prisma.user.count({ where }),
+    ]);
+
+    // 获取全局用户统计 (不含敏感存储数据)
+    const [totalUsers, activeUsers, adminUsers] = await Promise.all([
       prisma.user.count(),
-      prisma.user.count({ where: { status: 'ACTIVE' } }),
-      prisma.user.count({ where: { role: 'ADMIN' } }),
-      // 总存储使用量 - 从文件表统计
-      prisma.file.aggregate({
-        _sum: {
-          fileSize: true,
+      prisma.user.count({
+        where: {
+          lastLoginAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          },
         },
+      }),
+      prisma.user.count({
+        where: { role: 'ADMIN' },
       }),
     ]);
 
-    // 序列化 BigInt
-    const serializedUsers = users.map(user => ({
-      ...user,
-      storageQuota: user.storageQuota.toString(),
-      storageUsed: user.storageUsed.toString(),
-      fileCount: user.fileCount,
-    }));
-
     return NextResponse.json({
-      users: serializedUsers,
+      users,
       pagination: {
+        total,
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+        pages: Math.ceil(total / limit),
       },
       stats: {
         totalUsers,
         activeUsers,
         adminUsers,
-        totalStorage: totalStorageSum._sum.fileSize?.toString() || '0',
-      },
+      }
     });
   } catch (error) {
     console.error('Error fetching users:', error);

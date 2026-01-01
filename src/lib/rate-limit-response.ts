@@ -6,7 +6,7 @@ export function rateLimitResponse(resetTime: number) {
   return NextResponse.json(
     {
       error: 'Too Many Requests',
-      message: '请求过于频繁，请稍后再试',
+      message: `请求过于频繁，请在 ${retryAfter} 秒后重试`,
       retryAfter,
     },
     {
