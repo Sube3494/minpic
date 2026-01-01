@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UploadTask } from '@/types/file';
 import { toast } from 'sonner';
+import { useQuota } from './use-quota';
+import { formatFileSize } from '@/lib/utils';
 
 export function useFileUpload(refreshFiles: () => void) {
   const [queue, setQueue] = useState<UploadTask[]>([]);
   const [uploading, setUploading] = useState(false);
+  const { quota, refreshQuota } = useQuota();
 
   // Compute aggregate progress
   const aggregateProgress = (() => {
@@ -44,6 +47,7 @@ export function useFileUpload(refreshFiles: () => void) {
           description: `文件大小 ${sizeInMB} MB`
         });
         setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed', loaded: task.total } : t));
+        refreshQuota();
       } else {
         try {
           const errorData = JSON.parse(xhr.responseText);
@@ -73,15 +77,71 @@ export function useFileUpload(refreshFiles: () => void) {
     });
 
     xhr.upload.addEventListener('load', () => {
-      setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'processing', loaded: task.total } : t));
+      setQueue(prev => prev.map(t => {
+        // Only switch to processing if we are still uploading
+        // This prevents overwriting 'completed' or 'error' if the main load event fired first/concurrently
+        if (t.id === taskId && t.status === 'uploading') {
+          return { ...t, status: 'processing', loaded: task.total };
+        }
+        return t;
+      }));
     });
 
     xhr.open('POST', '/api/files');
     xhr.send(formData);
-  }, [queue]);
+  }, [queue, refreshQuota]);
+
+
+
+  // Helper to parse potential BigInt strings
+  const parseSize = (val: string | number) => {
+    if (typeof val === 'number') return val;
+    return Number(val);
+  };
 
   const uploadFiles = async (selectedFiles: FileList, configId: string) => {
     if (!selectedFiles || selectedFiles.length === 0) return;
+
+    // Check if config exists
+    if (!configId) {
+      toast.error('未配置存储源', {
+        description: '请先前往设置页面添加存储配置'
+      });
+      return;
+    }
+
+    // Quota Pre-check
+    if (quota) {
+      const storageQuota = parseSize(quota.storageQuota);
+      const storageUsed = parseSize(quota.storageUsed);
+      const fileQuota = quota.fileQuota;
+      const fileCount = quota.fileCount;
+
+      let totalUploadSize = 0;
+      for (let i = 0; i < selectedFiles.length; i++) {
+        totalUploadSize += selectedFiles[i].size;
+      }
+
+      // 1. Check Storage Quota
+      const remainingStorage = storageQuota - storageUsed;
+      if (totalUploadSize > remainingStorage) {
+        toast.error('存储空间不足', {
+          description: `剩余 ${formatFileSize(remainingStorage)}，本次上传 ${formatFileSize(totalUploadSize)}。请先删除文件释放空间。`,
+          duration: 5000,
+        });
+        return; // Reject upload
+      }
+
+      // 2. Check File Count Quota
+      const remainingFiles = fileQuota - fileCount;
+      if (selectedFiles.length > remainingFiles) {
+        toast.error('文件数量超限', {
+          description: `剩余文件配额 ${remainingFiles} 个，本次上传 ${selectedFiles.length} 个。请先删除文件释放空间。`,
+          duration: 5000,
+        });
+        return; // Reject upload
+      }
+    }
 
     const newTasks: UploadTask[] = Array.from(selectedFiles).map(file => ({
       id: Math.random().toString(36).substring(7),
@@ -119,7 +179,7 @@ export function useFileUpload(refreshFiles: () => void) {
         setUploading(false);
         setQueue([]);
         refreshFiles();
-      }, 1500);
+      }, 800);
       return () => clearTimeout(timer);
     }
   }, [queue, refreshFiles, startUploadTask]);

@@ -1,4 +1,5 @@
 import * as Minio from 'minio';
+import { Socket } from 'net';
 import { MinioConfigItem } from '@/types/config';
 
 // 为 MinIO 服务使用的配置类型（继承自 MinioConfigItem）
@@ -24,7 +25,8 @@ export class MinioService {
   async uploadFile(
     file: Buffer,
     filename: string,
-    mimeType: string
+    mimeType: string,
+    githubId: string  // 使用GitHub ID进行路径隔离
   ): Promise<{ objectName: string; expiresAt: string | null }> {
     if (!this.client || !this.config) {
       throw new Error('MinIO client not initialized');
@@ -36,6 +38,9 @@ export class MinioService {
     if (this.config.baseDir) {
         objectPath += `${this.config.baseDir}/`;
     }
+
+    // 用户隔离层：使用稳定的GitHub ID
+    objectPath += `users/${githubId}/`;
 
     // Handle archiveStrategy
     if (this.config.archiveStrategy && this.config.archiveStrategy !== 'none') {
@@ -168,14 +173,70 @@ export class MinioService {
     });
   }
 
+
+
+// ... (existing code)
+
+  private checkTcpConnection(host: string, port: number, timeout = 3000): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // Basic sanitization to remove protocol prefix if user entered it
+      const cleanHost = host.replace(/^https?:\/\//, '').split('/')[0];
+      
+      const socket = new Socket();
+      let isHandled = false;
+
+      const timer = setTimeout(() => {
+         if (!isHandled) {
+             isHandled = true;
+             socket.destroy();
+             reject(new Error(`TCP connection timed out after ${timeout}ms`));
+         }
+      }, timeout);
+
+      socket.connect(port, cleanHost, () => {
+         if (!isHandled) {
+             isHandled = true;
+             clearTimeout(timer);
+             socket.destroy();
+             resolve();
+         }
+      });
+
+      socket.on('error', (err) => {
+         if (!isHandled) {
+             isHandled = true;
+             clearTimeout(timer);
+             reject(err);
+         }
+      });
+    });
+  }
+
   async testConnection(): Promise<{ success: boolean; duration?: number; error?: string }> {
     if (!this.client || !this.config) {
       return { success: false, error: 'MinIO 客户端未初始化' };
     }
 
     const startTime = Date.now();
+    const TIMEOUT_MS = 10000; // 10 seconds timeout for the full operation
+
     try {
-      const bucketExists = await this.client.bucketExists(this.config.bucket);
+      // 1. First perform a quick TCP Connectivity check (3s timeout)
+      // This fails fast if the IP/Port is wrong or firewall blocks it
+      await this.checkTcpConnection(this.config.endpoint, this.config.port || 9000);
+
+      // 2. If TCP connects, proceed with MinIO protocol check
+      // Create a timeout promise for the MinIO operation
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Connection test timed out')), TIMEOUT_MS);
+      });
+
+      // Race between the actual request and the timeout
+      const bucketExists = await Promise.race([
+        this.client.bucketExists(this.config.bucket),
+        timeoutPromise
+      ]) as boolean;
+
       const duration = Date.now() - startTime;
       
       if (!bucketExists) {
@@ -193,11 +254,19 @@ export class MinioService {
       const errorMessage = error instanceof Error ? error.message : String(error);
       
       // 区分不同类型的错误并翻译为中文
+      if (errorMessage.includes('TCP connection timed out')) {
+         return {
+            success: false,
+            duration,
+            error: `连接服务器超时，无法连接到 ${this.config.endpoint}:${this.config.port || 9000}，请检查地址和端口是否正确`
+         };
+      }
+      
       if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('getaddrinfo')) {
         return { 
           success: false, 
           duration,
-          error: `无法连接到 MinIO 服务器 "${this.config.endpoint}"，请检查 Endpoint 地址是否正确`
+          error: `无法解析主机名 "${this.config.endpoint}"，请检查域名输入是否正确`
         };
       } else if (
         errorMessage.includes('InvalidAccessKeyId') || 
@@ -219,14 +288,20 @@ export class MinioService {
         return { 
           success: false, 
           duration,
-          error: `连接被拒绝，请检查 MinIO 服务是否运行在 ${this.config.endpoint}:${this.config.port}`
+          error: `连接被拒绝，目标端口 ${this.config.port || 9000} 未开放或服务未启动`
         };
-      } else if (errorMessage.includes('ETIMEDOUT') || errorMessage.includes('timeout')) {
+      } else if (errorMessage.includes('ETIMEDOUT') || errorMessage.includes('timout')) {
         return { 
           success: false, 
           duration,
-          error: '连接超时，请检查网络连接或 MinIO 服务器状态'
+          error: '连接超时，请检查网络连接或防火墙设置'
         };
+      } else if (errorMessage.includes('Connection test timed out')) {
+         return {
+            success: false,
+            duration,
+            error: 'MinIO 服务响应超时 (10s)，虽然 TCP 连接成功但服务未响应 API 请求'
+         };
       } else if (errorMessage.includes('ECONNRESET')) {
         return { 
           success: false, 

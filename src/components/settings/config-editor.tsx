@@ -127,7 +127,7 @@ export function ConfigEditor({
             value={config.name} 
             onChange={(e) => onUpdate({ name: e.target.value })}
             placeholder="例如：生产环境 MinIO"
-            className="h-11 font-medium border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
+            className="h-11 font-medium border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
           />
         </div>
         
@@ -141,7 +141,7 @@ export function ConfigEditor({
               value={config.endpoint} 
               onChange={(e) => onUpdate({ endpoint: e.target.value })}
               placeholder="minio.example.com"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
+              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
             />
           </div>
           <div className="md:col-span-2 space-y-2">
@@ -154,12 +154,12 @@ export function ConfigEditor({
                 onUpdate({ port: val === '' ? undefined : (parseInt(val) || 9000) });
               }}
               placeholder="9000"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
           <div className="md:col-span-4 space-y-2">
             <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">安全连接 (SSL)</Label>
-            <div className="flex items-center justify-between px-3 h-11 rounded-md border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 shadow-sm">
+            <div className="flex items-center justify-between px-3 h-11 rounded-md border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm">
                 <div className="flex items-center gap-2">
                     <span className="text-sm text-zinc-700 dark:text-zinc-200">SSL / HTTPS</span>
                 </div>
@@ -180,7 +180,7 @@ export function ConfigEditor({
               value={config.accessKey} 
               onChange={(e) => onUpdate({ accessKey: e.target.value })}
               placeholder="Access Key"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
+              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
             />
           </div>
           <div className="space-y-2">
@@ -190,7 +190,7 @@ export function ConfigEditor({
               value={config.secretKey} 
               onChange={(e) => onUpdate({ secretKey: e.target.value })}
               placeholder="Secret Key"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
+              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
             />
           </div>
         </div>
@@ -203,7 +203,7 @@ export function ConfigEditor({
               value={config.bucket} 
               onChange={(e) => onUpdate({ bucket: e.target.value })}
               placeholder="bucket-name"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
+              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
             />
           </div>
           <div className="space-y-2">
@@ -212,7 +212,7 @@ export function ConfigEditor({
               value={config.region || ''} 
               onChange={(e) => onUpdate({ region: e.target.value })}
               placeholder="us-east-1"
-              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
+              className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
             />
           </div>
         </div>
@@ -291,7 +291,7 @@ export function ConfigEditor({
                             value={config.customDomain || ''} 
                             onChange={(e) => onUpdate({ customDomain: e.target.value })}
                             placeholder="https://img.example.com"
-                            className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
+                            className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
                             />
                         </div>
                     </div>
@@ -322,7 +322,7 @@ export function ConfigEditor({
                             value={config.baseDir || ''} 
                             onChange={(e) => onUpdate({ baseDir: e.target.value })}
                             placeholder="uploads"
-                            className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm"
+                            className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm"
                         />
                         </div>
 
@@ -333,7 +333,7 @@ export function ConfigEditor({
                             <DropdownMenuTrigger asChild>
                                 <Button 
                                 variant="outline" 
-                                className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 h-11 px-3 font-normal shadow-sm group"
+                                className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-11 px-3 font-normal shadow-sm group"
                                 >
                                 <span className="text-sm text-zinc-700 dark:text-zinc-200">
                                     {config.archiveStrategy === 'none' && '不归档'}
@@ -349,7 +349,7 @@ export function ConfigEditor({
                                 align="start" 
                                 sideOffset={4}
                                 style={{ width: 'var(--radix-dropdown-menu-trigger-width)' }}
-                                className="border border-zinc-200/50 dark:border-white/10 p-1.5 shadow-2xl bg-white/80 dark:bg-zinc-900/70 backdrop-blur-2xl rounded-xl"
+                                className="border border-zinc-200/50 dark:border-white/10 p-1.5 shadow-2xl bg-white/80 dark:bg-white/5 backdrop-blur-2xl rounded-xl"
                             >
                                 {[
                                 { value: 'none', label: '不归档', desc: '文件直接存放在根目录或指定目录' },
@@ -396,7 +396,7 @@ export function ConfigEditor({
                             onUpdate({ expirationDays: val === '' ? undefined : (parseInt(val) || 0) });
                             }}
                             placeholder="0"
-                            className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 focus-visible:ring-primary shadow-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="h-11 border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 focus-visible:ring-primary shadow-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         </div>
 
@@ -418,7 +418,7 @@ export function ConfigEditor({
                             <DropdownMenuTrigger asChild>
                             <Button 
                                 variant="outline" 
-                                className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950/30 h-11 px-3 font-normal shadow-sm group"
+                                className="w-full justify-between border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-11 px-3 font-normal shadow-sm group"
                             >
                                 <span className="text-sm text-zinc-700 dark:text-zinc-200">
                                     {(config.duplicateHandling === 'skip' || !config.duplicateHandling) && '跳过'}
@@ -432,7 +432,7 @@ export function ConfigEditor({
                             align="start" 
                             sideOffset={4}
                             style={{ width: 'var(--radix-dropdown-menu-trigger-width)' }}
-                            className="border border-zinc-200/50 dark:border-white/10 p-1.5 shadow-2xl bg-white/80 dark:bg-zinc-900/70 backdrop-blur-2xl rounded-xl"
+                            className="border border-zinc-200/50 dark:border-white/10 p-1.5 shadow-2xl bg-white/80 dark:bg-white/5 backdrop-blur-2xl rounded-xl"
                             >
                                 <DropdownMenuItem 
                                     onClick={() => onUpdate({ duplicateHandling: 'skip' })}

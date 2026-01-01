@@ -81,8 +81,8 @@ export function FileListRow({ file, isSelected, toggleSelect, copyDirectLink, ge
         </div>
 
         <div className="flex-1 min-w-0 pr-1">
-          <h3 className="font-bold text-xs md:text-sm truncate dark:text-zinc-100">{file.filename}</h3>
-          <div className="flex items-center gap-1.5 md:gap-3 mt-0.5 text-[10px] md:text-[11px] text-zinc-600 dark:text-zinc-300 uppercase font-bold">
+          <h3 className="font-medium text-xs md:text-sm truncate dark:text-zinc-100">{file.filename}</h3>
+          <div className="flex items-center gap-1.5 md:gap-3 mt-0.5 text-[10px] md:text-[11px] text-zinc-600 dark:text-zinc-300 uppercase font-medium">
             <span>{formatFileSize(file.fileSize)}</span>
             <span className="opacity-30">•</span>
             <span className="truncate">{file.fileType}</span>
@@ -106,7 +106,7 @@ export function FileListRow({ file, isSelected, toggleSelect, copyDirectLink, ge
           <Button
             size="sm"
             variant="outline"
-            className="h-8 md:h-10 px-2 md:px-5 rounded-full font-bold bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 shadow-sm"
+            className="h-8 md:h-10 px-2 md:px-5 rounded-full font-medium bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 shadow-sm"
             onClick={() => copyDirectLink(file.id)}
           >
             <Copy className="w-3.5 h-3.5 md:mr-2" />
@@ -116,7 +116,7 @@ export function FileListRow({ file, isSelected, toggleSelect, copyDirectLink, ge
             <Button
               size="sm"
               variant="outline"
-              className="h-8 md:h-10 px-2 md:px-5 rounded-full font-bold bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 shadow-sm"
+              className="h-8 md:h-10 px-2 md:px-5 rounded-full font-medium bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 shadow-sm"
               onClick={() => generateShortlink(file.id)}
             >
               <Link2 className="w-3.5 h-3.5 md:mr-2" />

@@ -35,18 +35,19 @@ export interface SyncProgress {
 export type SyncEvent = 
   | { type: 'progress'; data: SyncProgress }
   | { type: 'done'; data: SyncProgress }
+  | { type: 'quota_exceeded'; data: { quotaType: 'storage' | 'file'; message: string; progress: SyncProgress } }
   | { type: 'error'; message: string };
 
 export const DEFAULT_MINIO_CONFIG: Omit<MinioConfigItem, 'id' | 'name'> = {
-  endpoint: 'localhost',
-  port: 9000,
+  endpoint: '',
+  port: undefined,
   useSSL: false,
   accessKey: '',
   secretKey: '',
-  bucket: 'minpic',
+  bucket: '',
   region: '',
   customDomain: '',
-  duplicateHandling: 'keep-both',
+  duplicateHandling: 'skip',
   baseDir: '',
   archiveStrategy: 'none',
   expirationDays: 0,

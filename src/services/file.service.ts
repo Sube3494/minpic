@@ -27,7 +27,7 @@ export const fileService = {
 
   async getConfigs(): Promise<{ configs: MinioConfigItem[]; activeId?: string }> {
     const response = await fetch('/api/config/minio');
-    if (!response.ok) throw new Error('Failed to fetch configs');
+    if (!response.ok) throw new Error(`Failed to fetch configs (${response.status})`);
     return response.json();
   },
 

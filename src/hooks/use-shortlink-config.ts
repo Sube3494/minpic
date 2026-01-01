@@ -54,9 +54,11 @@ export function useShortlinkConfig() {
     }
   };
 
-  const testShortlinkConnection = async (configToTest?: ShortlinkConfig): Promise<boolean> => {
+  const testShortlinkConnection = async (configToTest?: ShortlinkConfig | unknown): Promise<boolean> => {
       setTesting(true);
-      const config = configToTest || shortlinkConfig;
+      // Ensure configToTest is a plain config object and not a MouseEvent
+      const isConfigObject = configToTest && typeof configToTest === 'object' && !('nativeEvent' in configToTest);
+      const config = isConfigObject ? (configToTest as ShortlinkConfig) : shortlinkConfig;
       
       const loadingToast = toast.loading('正在测试连接，请稍候...', {
         description: '这可能需要一些时间，取决于网络状况'

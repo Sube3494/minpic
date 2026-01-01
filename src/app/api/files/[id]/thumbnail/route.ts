@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
-import { MinioConfigItem } from '@/types/config';
+import { getUserMinioConfig } from '@/lib/get-user-minio-config';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+
   try {
     const { id } = await params;
     
     const file = await prisma.file.findUnique({
       where: { id },
       select: {
+        id: true,
+        userId: true,
         thumbnailData: true,
         fileType: true,
         thumbnailPath: true,
@@ -22,6 +28,11 @@ export async function GET(
 
     if (!file) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
+    }
+
+    // 验证所有权
+    if (file.userId !== user.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
     if (file.thumbnailData) {
@@ -37,72 +48,45 @@ export async function GET(
     // Auto-generate missing thumbnail for videos (Lazy Generation)
     if (file.fileType === 'video' && !file.thumbnailData) {
       try {
-        if (file) {
-           // Find MinIO config
-           let config = null;
-           if (file.configId) {
-             const configsRecord = await prisma.config.findUnique({ where: { key: 'minio_configs' } });
-             if (configsRecord) {
-               const configs = JSON.parse(configsRecord.value);
-               config = configs.find((c: MinioConfigItem) => c.id === file.configId);
-             }
-           }
-           
-           if (!config) {
-             const defaultConfig = await prisma.config.findUnique({ where: { key: 'minio_default' } });
-             if (defaultConfig) config = JSON.parse(defaultConfig.value);
-           }
+        // 获取 MinIO 配置
+        const config = await getUserMinioConfig(user.id, file.configId);
 
-           if (config) {
-             const { getMinioService } = await import('@/lib/minio');
-             const minioService = getMinioService();
-             await minioService.connect(config);
-             
-             const videoBuffer = await minioService.downloadFile(file.minioPath);
-             const { generateVideoThumbnail } = await import('@/lib/image-utils');
-             const thumbnailBuffer = await generateVideoThumbnail(videoBuffer);
+        if (config) {
+          const { getMinioService } = await import('@/lib/minio');
+          const minioService = getMinioService();
+          await minioService.connect(config);
+          
+          const videoBuffer = await minioService.downloadFile(file.minioPath);
+          const { generateVideoThumbnail } = await import('@/lib/image-utils');
+          const thumbnailBuffer = await generateVideoThumbnail(videoBuffer);
 
-             if (thumbnailBuffer) {
-               // Save to DB for next time
-               await prisma.file.update({
-                  where: { id },
-                  data: { 
-                    thumbnailData: thumbnailBuffer,
-                    thumbnailPath: 'database'
-                  }
-               });
+          if (thumbnailBuffer) {
+            // Save to DB for next time
+            await prisma.file.update({
+               where: { id },
+               data: { 
+                 thumbnailData: thumbnailBuffer,
+                 thumbnailPath: 'database'
+               }
+            });
 
-               return new NextResponse(new Uint8Array(thumbnailBuffer), {
-                 headers: {
-                   'Content-Type': 'image/webp',
-                   'Cache-Control': 'public, max-age=31536000, immutable',
-                 },
-               });
-             }
-           }
+            return new NextResponse(new Uint8Array(thumbnailBuffer), {
+              headers: {
+                'Content-Type': 'image/webp',
+                'Cache-Control': 'public, max-age=31536000, immutable',
+              },
+            });
+          }
         }
       } catch (err) {
         console.error('Lazy video thumbnail generation failed:', err);
       }
     }
 
-    // Legacy support: if we have a path but no data, redirect to download (or handle as before)
+    // Legacy support: if we have a path but no data, migrate from MinIO
     if (file.thumbnailPath && file.thumbnailPath !== 'database') {
       try {
-        // ... (existing legacy code for image migration) ...
-        let config = null;
-        if (file.configId) {
-          const configsRecord = await prisma.config.findUnique({ where: { key: 'minio_configs' } });
-          if (configsRecord) {
-            const configs = JSON.parse(configsRecord.value);
-            config = configs.find((c: MinioConfigItem) => c.id === file.configId);
-          }
-        }
-        
-        if (!config) {
-          const defaultConfig = await prisma.config.findUnique({ where: { key: 'minio_default' } });
-          if (defaultConfig) config = JSON.parse(defaultConfig.value);
-        }
+        const config = await getUserMinioConfig(user.id, file.configId);
 
         if (config) {
           const { getMinioService } = await import('@/lib/minio');

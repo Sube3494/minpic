@@ -19,6 +19,12 @@ export function useConfigs() {
         }
       } catch (error) {
         console.error('Failed to load configs', error);
+        
+        // 检测401错误，重定向到登录页面
+        if (error instanceof Error && error.message.includes('401')) {
+          window.location.href = '/auth/signin';
+          return;
+        }
       } finally {
         setConfigLoading(false);
       }

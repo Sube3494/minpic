@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAuth } from '@/lib/auth-utils';
 
 export async function GET() {
+  const { error, user } = await requireAuth();
+  if (error) return error;
   try {
     const config = await prisma.config.findUnique({
-      where: { key: 'shortlink_default' },
+      where: {
+        userId_key: {
+          userId: user.id,
+          key: 'shortlink_default'
+        }
+      },
     });
 
     if (!config) {
@@ -28,6 +36,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const { error, user } = await requireAuth();
+  if (error) return error;
   try {
     const body = await request.json();
     const { apiUrl, apiKey, enabled, expiresIn } = body;
@@ -42,9 +52,18 @@ export async function POST(request: NextRequest) {
     });
 
     const config = await prisma.config.upsert({
-      where: { key: 'shortlink_default' },
+      where: {
+        userId_key: {
+          userId: user.id,
+          key: 'shortlink_default'
+        }
+      },
       update: { value: configValue },
-      create: { key: 'shortlink_default', value: configValue },
+      create: {
+        userId: user.id,
+        key: 'shortlink_default',
+        value: configValue
+      },
     });
 
     return NextResponse.json({ success: true, config: JSON.parse(config.value) });

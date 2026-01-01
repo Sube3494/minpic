@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { MinioService, MinioConfig } from '@/lib/minio';
 import { generateThumbnail, generateVideoThumbnail, getImageDimensions, getFileType, generatePinyin } from '@/lib/image-utils';
+import { requireAuth } from '@/lib/auth-utils';
+import { checkStorageQuota, checkFileQuota, updateStorageUsage, updateFileCount } from '@/lib/quota';
 
 export async function POST(request: NextRequest) {
+  // Require authentication
+  const { error: authError, user } = await requireAuth();
+  if (authError) return authError;
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -19,34 +24,34 @@ export async function POST(request: NextRequest) {
       name: string;
     }
 
-    // Determine config to use
-    let config: StoredMinioConfig | null = null;
-    let usedConfigId = 'minio_default';
-
-    if (configId === 'minio_default') {
-      const dbConfig = await prisma.config.findUnique({
-        where: { key: 'minio_default' },
-      });
-      if (dbConfig) {
-        config = JSON.parse(dbConfig.value);
-      }
-    } else {
-      const configsRecord = await prisma.config.findUnique({
-        where: { key: 'minio_configs' },
-      });
-      if (configsRecord) {
-        const configs: StoredMinioConfig[] = JSON.parse(configsRecord.value);
-        const target = configs.find(c => c.id === configId);
-        if (target) {
-          config = target;
-          usedConfigId = configId;
-        }
-      }
+    // Check file quota
+    const fileQuotaCheck = await checkFileQuota(user.id);
+    console.log('[上传限额检查] 文件数量检查:', { userId: user.id, allowed: fileQuotaCheck.allowed, reason: fileQuotaCheck.reason });
+    if (!fileQuotaCheck.allowed) {
+      return NextResponse.json({ error: fileQuotaCheck.reason }, { status: 403 });
     }
 
-    if (!config) {
+    // Check storage quota (preliminary check with file size)
+    const storageQuotaCheck = await checkStorageQuota(user.id, file.size);
+    console.log('[上传限额检查] 存储空间检查:', { userId: user.id, fileSize: file.size, allowed: storageQuotaCheck.allowed, reason: storageQuotaCheck.reason });
+    if (!storageQuotaCheck.allowed) {
+      return NextResponse.json({ error: storageQuotaCheck.reason }, { status: 403 });
+    }
+
+    // Determine config to use (user-specific)
+    // 获取用户的 MinIO 配置
+    const configRecord = await prisma.config.findUnique({
+      where: {
+        userId_key: { userId: user.id, key: `minio_${configId}` }
+      }
+    });
+
+    if (!configRecord) {
       return NextResponse.json({ error: 'Invalid config' }, { status: 400 });
     }
+
+    const config: StoredMinioConfig = JSON.parse(configRecord.value);
+    const usedConfigId = configId;
 
     // Process file
     const fileBuffer = Buffer.from(await file.arrayBuffer());
@@ -63,7 +68,8 @@ export async function POST(request: NextRequest) {
     const { objectName, expiresAt } = await minioService.uploadFile(
       fileBuffer,
       file.name,
-      mimeType
+      mimeType,
+      user.githubId  // 使用GitHub ID进行路径隔离
     );
 
     // Generate metadata
@@ -82,9 +88,10 @@ export async function POST(request: NextRequest) {
       thumbnailData = await generateVideoThumbnail(fileBuffer);
     }
 
-    // Create record
+    // Create record with user association
     const result = await prisma.file.create({
       data: {
+        userId: user.id,
         filename: file.name,
         minioPath: objectName,
         fileSize: file.size,
@@ -100,6 +107,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Update user quotas
+    await Promise.all([
+      updateStorageUsage(user.id, file.size),
+      updateFileCount(user.id, 1),
+    ]);
+
+    // Log audit
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: 'FILE_UPLOADED',
+        targetType: 'File',
+        targetId: result.id,
+        metadata: JSON.stringify({ filename: file.name, fileSize: file.size }),
+      }
+    });
+
     return NextResponse.json(result);
   } catch (error) {
     console.error('Error uploading file:', error);
@@ -111,6 +135,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const { error, user } = await requireAuth();
+  if (error) return error;
+  
   try {
     const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
@@ -119,43 +146,66 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search');
     const configId = searchParams.get('configId');
 
-    interface StoredMinioConfig extends MinioConfig {
-      id: string;
-      name: string;
-    }
-
     // Determine effective config IDs for filtering (Storage Identity Sharing)
     let filterConfigIds: string[] | undefined = undefined;
     
-    // Check if we are in multi-config mode
-    const [configsRes, activeIdRes] = await Promise.all([
-      prisma.config.findUnique({ where: { key: 'minio_configs' } }),
-      prisma.config.findUnique({ where: { key: 'minio_active_id' } }),
-    ]);
+    // 获取活动配置 ID
+    const activeIdRes = await prisma.config.findUnique({
+      where: {
+        userId_key: { userId: user.id, key: 'minio_active_id' }
+      }
+    });
 
     const activeConfigId = configId || activeIdRes?.value;
 
-    if (activeConfigId && configsRes && configsRes.value) {
-      const allConfigs: StoredMinioConfig[] = JSON.parse(configsRes.value);
-      const targetConfig = allConfigs.find(c => c.id === activeConfigId);
+    // 存储身份共享：相同 AccessKey + Bucket + BaseDir 的配置可以共享文件
+    if (activeConfigId) {
+      // 获取当前活动配置
+      const activeConfigRecord = await prisma.config.findUnique({
+        where: {
+          userId_key: { userId: user.id, key: `minio_${activeConfigId}` }
+        }
+      });
 
-      if (targetConfig) {
-        // Form a storage identity group: Same AccessKey + Bucket + BaseDir
-        // This allows sharing files between Local and Remote endpoints for same bucket
-        const sharedGroup = allConfigs.filter(c => 
-          c.accessKey === targetConfig.accessKey && 
-          c.bucket === targetConfig.bucket &&
-          (c.baseDir || '') === (targetConfig.baseDir || '')
-        );
-        filterConfigIds = sharedGroup.map(c => c.id);
-      } else if (activeConfigId === 'minio_default') {
-        filterConfigIds = ['minio_default'];
+      if (activeConfigRecord) {
+        const activeConfig = JSON.parse(activeConfigRecord.value);
+        
+        // 获取用户的所有 MinIO 配置
+        const allConfigRecords = await prisma.config.findMany({
+          where: {
+            userId: user.id,
+            key: { startsWith: 'minio_' },
+            NOT: {
+              key: { in: ['minio_active_id', 'minio_configs'] }
+            }
+          }
+        });
+
+        // 找出所有与当前配置属于同一存储组的配置
+        const storageGroupConfigs = allConfigRecords
+          .map(record => {
+            try {
+              return { id: JSON.parse(record.value).id, config: JSON.parse(record.value) };
+            } catch {
+              return null;
+            }
+          })
+          .filter((item): item is { id: string; config: MinioConfig } => item !== null)
+          .filter(item => 
+            item.config.accessKey === activeConfig.accessKey &&
+            item.config.bucket === activeConfig.bucket &&
+            (item.config.baseDir || '') === (activeConfig.baseDir || '')
+          );
+
+        filterConfigIds = storageGroupConfigs.map(item => item.id);
+      } else {
+        // 如果找不到配置，只显示该 ID 的文件
+        filterConfigIds = [activeConfigId];
       }
-    } else if (activeConfigId) {
-      filterConfigIds = [activeConfigId];
     }
 
     const where = {
+      userId: user.id,  // Only show current user's files
       ...(fileType && { fileType }),
       ...(filterConfigIds && { configId: { in: filterConfigIds } }),
       ...(search && {
@@ -165,6 +215,7 @@ export async function GET(request: NextRequest) {
         ],
       }),
     };
+
 
     const [files, total] = await Promise.all([
       prisma.file.findMany({
@@ -211,23 +262,26 @@ export async function GET(request: NextRequest) {
   }
 }
 export async function DELETE(request: NextRequest) {
+  const { error, user } = await requireAuth();
+  if (error) return error;
+  
   try {
     const body = await request.json();
     const { ids } = body;
     const { searchParams } = new URL(request.url);
     const deleteMode = searchParams.get('deleteMode') || 'record-only'; // 'full' | 'record-only'
     
-    interface StoredMinioConfig extends MinioConfig {
-      id: string;
-      name: string;
-    }
     
     if (!Array.isArray(ids) || ids.length === 0) {
       return NextResponse.json({ error: 'No IDs provided' }, { status: 400 });
     }
 
+    // Fetch files and verify ownership
     const files = await prisma.file.findMany({
-      where: { id: { in: ids } },
+      where: {
+        id: { in: ids },
+        userId: user.id,  // Only allow deleting own files
+      },
     });
 
     if (files.length === 0) {
@@ -237,7 +291,7 @@ export async function DELETE(request: NextRequest) {
     // Step 1: Group by configId to minimize MinIO connections
     const groups: Record<string, typeof files> = {};
     for (const f of files) {
-      const cid = f.configId || 'minio_default';
+      const cid = f.configId || 'unknown';
       if (!groups[cid]) groups[cid] = [];
       groups[cid].push(f);
     }
@@ -246,17 +300,13 @@ export async function DELETE(request: NextRequest) {
     if (deleteMode === 'full') {
       for (const [configId, groupFiles] of Object.entries(groups)) {
         try {
-          let config = null;
-          if (configId === 'minio_default') {
-            const dc = await prisma.config.findUnique({ where: { key: 'minio_default' } });
-            if (dc) config = JSON.parse(dc.value);
-          } else {
-            const mc = await prisma.config.findUnique({ where: { key: 'minio_configs' } });
-            if (mc) {
-              const list: StoredMinioConfig[] = JSON.parse(mc.value);
-              config = list.find((c) => c.id === configId);
+          // 获取配置
+          const configRecord = await prisma.config.findUnique({
+            where: {
+              userId_key: { userId: user.id, key: `minio_${configId}` }
             }
-          }
+          });
+          const config = configRecord ? JSON.parse(configRecord.value) : null;
 
           if (config) {
             const minioService = new MinioService();
@@ -279,7 +329,33 @@ export async function DELETE(request: NextRequest) {
 
     // Delete database records
     await prisma.file.deleteMany({
-      where: { id: { in: ids } },
+      where: {
+        id: { in: ids },
+        userId: user.id,
+      },
+    });
+
+    // Update user quotas - 使用BigInt避免溢出
+    const totalSize = files.reduce((sum, f) => sum + BigInt(f.fileSize), BigInt(0));
+    console.log('[删除文件配额更新]', {
+      userId: user.id,
+      filesCount: files.length,
+      totalSize: totalSize.toString()
+    });
+    
+    await Promise.all([
+      updateStorageUsage(user.id, -totalSize),  // 直接传递BigInt
+      updateFileCount(user.id, -files.length),
+    ]);
+
+    // Log audit
+    await prisma.auditLog.create({
+      data: {
+        userId: user.id,
+        action: 'FILE_DELETED',
+        targetType: 'File',
+        metadata: JSON.stringify({ count: files.length, totalSize: totalSize.toString() }),
+      }
     });
 
     return NextResponse.json({ success: true, deletedCount: files.length });

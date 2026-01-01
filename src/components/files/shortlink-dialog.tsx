@@ -60,7 +60,7 @@ export function ShortlinkDialog({ open, onOpenChange, onConfirm }: ShortlinkDial
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md dark:bg-white/5 backdrop-blur-md border-none">
         <DialogHeader>
           <DialogTitle>生成短链</DialogTitle>
           <DialogDescription>
@@ -82,10 +82,10 @@ export function ShortlinkDialog({ open, onOpenChange, onConfirm }: ShortlinkDial
                 }
               }}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full border-none">
                 <SelectValue placeholder="选择有效期" />
               </SelectTrigger>
-              <SelectContent position="popper" side="bottom">
+              <SelectContent position="popper" side="bottom" className="border-none">
                 {presets.map((preset) => (
                   <SelectItem key={`${preset.value}-${preset.unit}`} value={`${preset.value}-${preset.unit}`}>
                     {preset.label}
@@ -106,13 +106,14 @@ export function ShortlinkDialog({ open, onOpenChange, onConfirm }: ShortlinkDial
                   min="1"
                   value={customExpiresIn}
                   onChange={(e) => setCustomExpiresIn(e.target.value)}
-                  className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  onWheel={(e) => e.currentTarget.blur()}
+                  className="flex h-11 w-full rounded-xl border-none bg-white/5 px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 no-spinner"
                 />
                 <Select value={customUnit} onValueChange={(value: string) => setCustomUnit(value as 'minutes' | 'hours' | 'days')}>
-                  <SelectTrigger className="w-[110px] rounded-xl shrink-0" style={{ height: '44px' }}>
+                  <SelectTrigger className="w-[110px] rounded-xl shrink-0 border-none" style={{ height: '44px' }}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="min-w-[110px]" position="popper" side="bottom">
+                  <SelectContent className="min-w-[110px] border-none" position="popper" side="bottom">
                     <SelectItem value="minutes" className="text-sm py-1.5">分钟</SelectItem>
                     <SelectItem value="hours" className="text-sm py-1.5">小时</SelectItem>
                     <SelectItem value="days" className="text-sm py-1.5">天</SelectItem>
@@ -124,7 +125,7 @@ export function ShortlinkDialog({ open, onOpenChange, onConfirm }: ShortlinkDial
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading} className="border-none">
             取消
           </Button>
           <Button onClick={handleConfirm} disabled={isLoading}>

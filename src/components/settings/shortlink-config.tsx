@@ -90,7 +90,7 @@ export function ShortlinkConfigSection({
                 onBlur={handleBlur}
                 placeholder="https://api.example.com/shorten"
                 // 移除 disabled，允许禁用状态下输入
-                className="h-10 text-xs bg-white dark:bg-zinc-950/30 border-zinc-200 dark:border-white/10 focus-visible:ring-primary shadow-sm"
+                className="h-10 text-xs bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 focus-visible:ring-primary shadow-sm"
             />
         </div>
 
@@ -103,7 +103,7 @@ export function ShortlinkConfigSection({
                 onBlur={handleBlur}
                 placeholder="secret_token"
                 // 移除 disabled
-                className="h-10 text-xs bg-white dark:bg-zinc-950/30 border-zinc-200 dark:border-white/10 focus-visible:ring-primary shadow-sm"
+                className="h-10 text-xs bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 focus-visible:ring-primary shadow-sm"
             />
         </div>
 

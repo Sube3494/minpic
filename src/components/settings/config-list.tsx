@@ -141,10 +141,20 @@ export function ConfigList({
                                     </span>
                                     <StatusIndicator status={config.status} size="sm" />
                                 </div>
-                                <div className="text-xs text-zinc-500 dark:text-zinc-500 truncate flex items-center gap-1.5">
-                                    <span className="text-zinc-600 dark:text-zinc-400 font-medium">{config.bucket}</span>
-                                    <span className="opacity-20">|</span>
-                                    <span className="opacity-70">{config.endpoint}</span>
+                                <div className="text-xs text-zinc-500 dark:text-zinc-500 truncate flex items-center gap-1.5 mt-0.5">
+                                    <span className={cn(
+                                        "font-medium",
+                                        config.bucket ? "text-zinc-600 dark:text-zinc-400" : "text-zinc-400/60 dark:text-zinc-600/60 italic"
+                                    )}>
+                                        {config.bucket || '未配置存储桶'}
+                                    </span>
+                                    <span className="opacity-20 text-[10px]">|</span>
+                                    <span className={cn(
+                                        "opacity-70",
+                                        !config.endpoint && "text-zinc-400/60 dark:text-zinc-600/60 italic opacity-100"
+                                    )}>
+                                        {config.endpoint || '未映射地址'}
+                                    </span>
                                 </div>
                             </div>
 

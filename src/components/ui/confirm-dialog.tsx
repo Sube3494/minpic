@@ -8,7 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Loader2 } from 'lucide-react';
+import { Loader2, Database, Trash2 } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { cn } from "@/lib/utils";
@@ -23,8 +23,11 @@ interface ConfirmDialogProps {
   onConfirm: () => void;
   variant?: 'default' | 'destructive';
   isLoading?: boolean;
+  confirmDisabled?: boolean;
+  cancelDisabled?: boolean;
   deleteMode?: 'full' | 'record-only';
   onDeleteModeChange?: (mode: 'full' | 'record-only') => void;
+  hideCancelButton?: boolean;
 }
 
 export function ConfirmDialog({
@@ -37,97 +40,131 @@ export function ConfirmDialog({
   onConfirm,
   variant = 'default',
   isLoading = false,
+  confirmDisabled,
+  cancelDisabled,
   deleteMode,
   onDeleteModeChange,
+  hideCancelButton,
 }: ConfirmDialogProps) {
+  // 根据删除模式动态决定按钮变体
+  const activeVariant = deleteMode === 'full' ? 'destructive' : variant;
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="sm:max-w-[500px] gap-6">
         <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogTitle className="text-xl font-bold">{title}</AlertDialogTitle>
           <AlertDialogDescription asChild>
-            <div className="whitespace-pre-line">
+            <div className="whitespace-pre-line text-base text-muted-foreground/80">
               {description}
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         
         {/* Delete Mode Selector */}
-        {/* Delete Mode Selector */}
-        {/* Delete Mode Selector */}
         {deleteMode !== undefined && onDeleteModeChange && (
-          <div className="py-4 space-y-3">
-            <RadioGroup value={deleteMode} onValueChange={onDeleteModeChange}>
+          <div className="space-y-3">
+            <RadioGroup value={deleteMode} onValueChange={onDeleteModeChange} className="gap-3">
               {/* Record Only Option */}
               <div 
                 className={cn(
-                  "flex items-start space-x-3 p-3 rounded-lg border transition-all duration-300 ease-in-out cursor-pointer relative",
+                  "relative flex items-start space-x-4 p-4 rounded-xl border-2 transition-all duration-300 ease-in-out cursor-pointer group hover:bg-zinc-50 dark:hover:bg-white/5",
                   deleteMode === 'record-only' 
-                    ? "border-blue-500 bg-blue-50/50 ring-1 ring-blue-500/20 dark:bg-blue-900/20 dark:border-blue-400 shadow-sm shadow-blue-500/10" 
-                    : "border-border hover:bg-accent/50 hover:border-blue-500/30"
+                    ? "border-blue-500 bg-blue-50/30 dark:bg-blue-950/10 shadow-sm" 
+                    : "border-zinc-200 dark:border-zinc-800 bg-transparent opacity-80 hover:opacity-100"
                 )}
                 onClick={() => onDeleteModeChange('record-only')}
               >
-                <div className={cn("transition-all duration-300 ease-in-out", deleteMode === 'record-only' ? "scale-100" : "scale-100 opacity-70")}>
-                   <RadioGroupItem value="record-only" id="record-only" className={cn("mt-0.5 shrink-0 transition-all duration-300", deleteMode === 'record-only' && "border-blue-500 text-blue-500")} />
+                {/* Icon */}
+                <div className={cn(
+                  "flex items-center justify-center w-10 h-10 rounded-full shrink-0 transition-colors duration-300",
+                  deleteMode === 'record-only' 
+                    ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" 
+                    : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 group-hover:bg-blue-50 group-hover:text-blue-500 dark:group-hover:bg-white/10"
+                )}>
+                  <Database className="w-5 h-5" />
                 </div>
-                <div className="flex-1 transition-all duration-300">
-                  <Label htmlFor="record-only" className={cn(
-                    "text-base font-bold cursor-pointer block mb-1 transition-colors duration-300",
-                    deleteMode === 'record-only' ? "text-blue-600 dark:text-blue-400" : "text-foreground"
-                  )}>
-                    仅删除记录（推荐）
-                  </Label>
-                  <p className={cn(
-                    "text-sm leading-relaxed font-medium transition-colors duration-300",
-                    deleteMode === 'record-only' ? "text-blue-600/80 dark:text-blue-300/90" : "text-gray-500 dark:text-gray-400"
-                  )}>
+
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className={cn(
+                      "text-base font-bold cursor-pointer transition-colors",
+                      deleteMode === 'record-only' ? "text-blue-600 dark:text-blue-400" : "text-foreground"
+                    )}>
+                      仅删除记录
+                      <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                        推荐
+                      </span>
+                    </Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
                     只删除数据库记录，保留MinIO中的文件，可重新同步
                   </p>
                 </div>
+
+                {/* Hidden Radio for accessibility */}
+                <RadioGroupItem value="record-only" id="record-only" className="sr-only" />
               </div>
               
               {/* Full Delete Option */}
               <div 
                 className={cn(
-                  "flex items-start space-x-3 p-3 rounded-lg border transition-all duration-300 ease-in-out cursor-pointer relative",
+                  "relative flex items-start space-x-4 p-4 rounded-xl border-2 transition-all duration-300 ease-in-out cursor-pointer group hover:bg-zinc-50 dark:hover:bg-white/5 overflow-hidden",
                   deleteMode === 'full' 
-                    ? "border-red-500 bg-red-50/50 ring-1 ring-red-500/20 dark:bg-red-900/20 dark:border-red-400 shadow-sm shadow-red-500/10" 
-                    : "border-border hover:bg-destructive/5 hover:border-red-500/30"
+                    ? "border-red-500 bg-red-50/30 dark:bg-red-950/10 shadow-sm" 
+                    : "border-zinc-200 dark:border-zinc-800 bg-transparent opacity-80 hover:opacity-100"
                 )}
                 onClick={() => onDeleteModeChange('full')}
               >
-                <div className={cn("transition-all duration-300 ease-in-out", deleteMode === 'full' ? "scale-100" : "scale-100 opacity-70")}>
-                  <RadioGroupItem value="full" id="full" className={cn("mt-0.5 shrink-0 transition-all duration-300", deleteMode === 'full' ? "border-red-500 text-red-500" : "border-gray-400")} />
+                 {/* Icon */}
+                 <div className={cn(
+                  "flex items-center justify-center w-10 h-10 rounded-full shrink-0 transition-colors duration-300",
+                  deleteMode === 'full' 
+                    ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" 
+                    : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 group-hover:bg-red-50 group-hover:text-red-500 dark:group-hover:bg-white/10"
+                )}>
+                  <Trash2 className="w-5 h-5" />
                 </div>
-                <div className="flex-1 transition-all duration-300">
-                  <Label htmlFor="full" className={cn(
-                    "text-base font-bold cursor-pointer block mb-1 transition-colors duration-300",
-                    deleteMode === 'full' ? "text-red-600 dark:text-red-400" : "text-foreground"
-                  )}>
-                    完全删除
-                  </Label>
-                  <p className={cn(
-                    "text-sm leading-relaxed font-medium transition-colors duration-300",
-                    deleteMode === 'full' ? "text-red-600/80 dark:text-red-300/90" : "text-gray-500 dark:text-gray-400"
-                  )}>
-                    同时删除数据库记录、MinIO文件和短链，无法恢复
+
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className={cn(
+                      "text-base font-bold cursor-pointer transition-colors",
+                      deleteMode === 'full' ? "text-red-600 dark:text-red-400" : "text-foreground"
+                    )}>
+                      完全删除
+                    </Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    同时删除数据库记录、MinIO文件和短链，<span className="font-bold text-red-500/80">无法恢复</span>
                   </p>
                 </div>
+
+                {/* Hidden Radio for accessibility */}
+                <RadioGroupItem value="full" id="full" className="sr-only" />
               </div>
             </RadioGroup>
           </div>
         )}
         
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isLoading}>{cancelText}</AlertDialogCancel>
+        <AlertDialogFooter className="gap-3 sm:gap-4">
+          {!hideCancelButton && (
+            <AlertDialogCancel disabled={cancelDisabled ?? isLoading} className="rounded-full h-10 px-6 font-medium">
+              {cancelText}
+            </AlertDialogCancel>
+          )}
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
               onConfirm();
             }}
-            disabled={isLoading}
-            className={variant === 'destructive' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+            disabled={confirmDisabled ?? isLoading}
+            className={cn(
+              "rounded-full h-10 px-6 font-bold shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none",
+              activeVariant === 'destructive' 
+                ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20' 
+                : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/20'
+            )}
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {confirmText}

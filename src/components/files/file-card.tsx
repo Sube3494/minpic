@@ -78,7 +78,7 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
         // Selected: background becomes primary tint, border becomes clean primary
         // Unselected: standard hover lift
         isSelected 
-          ? "bg-primary/10 border-primary/50 shadow-none scale-[0.98]" 
+          ? "ring-2 ring-primary border-transparent bg-muted/30" 
           : cn("bg-card shadow-sm hover:shadow-xl hover:-translate-y-1.5", typeBorderStyle)
       )}
       onClick={(e) => {
@@ -102,8 +102,7 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
     >
       {/* Inner Content Container - Scale Effect on Selection */}
       <div className={cn(
-        "relative w-full overflow-hidden transition-all duration-300 ease-out origin-center",
-        isSelected ? "scale-[0.92] rounded-2xl shadow-sm" : "rounded-3xl"
+        "relative w-full overflow-hidden transition-all duration-300 ease-out origin-center rounded-3xl"
       )}>
         
         {/* Selection Check Circle - Modern Floating Badge */}

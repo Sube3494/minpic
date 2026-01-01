@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { getMinioService } from '@/lib/minio';
 import { getShortlinkService } from '@/lib/shortlink';
+import { getUserMinioConfig } from '@/lib/get-user-minio-config';
 
 export async function POST(request: NextRequest) {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+
   try {
     const body = await request.json();
     const { fileId, customCode, expiresIn, unit } = body;
@@ -20,9 +25,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    // Get shortlink config
+    // 验证所有权
+    if (file.userId !== user.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    // Get shortlink config (user-level)
     const shortlinkConfig = await prisma.config.findUnique({
-      where: { key: 'shortlink_default' },
+      where: { 
+        userId_key: { userId: user.id, key: 'shortlink_default' }
+      },
     });
 
     if (!shortlinkConfig) {
@@ -32,30 +44,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get MinIO config
-    let minioConfig = null;
-    
-    if (file.configId) {
-      const configsRecord = await prisma.config.findUnique({
-        where: { key: 'minio_configs' },
-      });
-      
-      if (configsRecord) {
-        const configs = JSON.parse(configsRecord.value);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        minioConfig = configs.find((c: any) => c.id === file.configId);
-      }
-    }
-    
-    if (!minioConfig) {
-      const defaultConfig = await prisma.config.findUnique({
-        where: { key: 'minio_default' },
-      });
-      
-      if (defaultConfig) {
-        minioConfig = JSON.parse(defaultConfig.value);
-      }
-    }
+    // 获取 MinIO 配置
+    const minioConfig = await getUserMinioConfig(user.id, file.configId);
 
     if (!minioConfig) {
       return NextResponse.json(
@@ -93,10 +83,15 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+
   try {
-    // Get shortlink config
+    // Get shortlink config (user-level)
     const shortlinkConfig = await prisma.config.findUnique({
-      where: { key: 'shortlink_default' },
+      where: { 
+        userId_key: { userId: user.id, key: 'shortlink_default' }
+      },
     });
 
     if (!shortlinkConfig) {

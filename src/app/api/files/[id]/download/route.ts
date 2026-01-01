@@ -1,47 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { getMinioService } from '@/lib/minio';
+import { getUserMinioConfig } from '@/lib/get-user-minio-config';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+
   try {
     const { id } = await params;
     const file = await prisma.file.findUnique({
       where: { id },
+      select: {
+        id: true,
+        userId: true,
+        filename: true,
+        mimeType: true,
+        minioPath: true,
+        configId: true,
+      },
     });
 
     if (!file) {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    // Get MinIO config
-    let config = null;
-    
-    // Try to find config from configs list
-    if (file.configId) {
-      const configsRecord = await prisma.config.findUnique({
-        where: { key: 'minio_configs' },
-      });
-      
-      if (configsRecord) {
-        const configs = JSON.parse(configsRecord.value);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        config = configs.find((c: any) => c.id === file.configId);
-      }
+    // 验证所有权
+    if (file.userId !== user.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
-    
-    // Fallback to default config
-    if (!config) {
-      const defaultConfig = await prisma.config.findUnique({
-        where: { key: 'minio_default' },
-      });
-      
-      if (defaultConfig) {
-        config = JSON.parse(defaultConfig.value);
-      }
-    }
+
+    // 获取 MinIO 配置
+    const config = await getUserMinioConfig(user.id, file.configId);
 
     if (!config) {
       return NextResponse.json(

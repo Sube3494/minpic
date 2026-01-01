@@ -3,8 +3,20 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, Link2, Settings, BarChart3, ArrowRight, Sparkles, Zap, Shield } from 'lucide-react';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
-export default function HomePage() {
+import { MarkdownText } from '@/components/ui/markdown-text';
+
+export default async function HomePage() {
+  const session = await auth();
+  const isLoggedIn = !!session?.user;
+  
+  // Fetch site settings
+  const settings = await prisma.systemSettings.findFirst();
+  const siteName = settings?.siteName || "MinPic";
+  const siteDescription = settings?.siteDescription || "简单好用的图床系统";
+  
   return (
     <PageWrapper>
       <main className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] p-4 sm:p-6 md:p-12 relative z-10 w-full overflow-hidden">
@@ -23,20 +35,18 @@ export default function HomePage() {
 
         <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight text-glow mb-4 sm:mb-6 animate-fade-in-up delay-100 fill-mode-backwards">
           <span className="bg-clip-text text-transparent bg-linear-to-br from-zinc-900 via-zinc-700 to-zinc-500 dark:from-white dark:via-white/90 dark:to-white/70">
-            MinPic
+            {siteName}
           </span>
         </h1>
         
-        <p className="text-base sm:text-xl md:text-2xl text-muted-foreground font-light tracking-wide max-w-2xl mx-auto leading-relaxed px-4 animate-fade-in-up delay-200 fill-mode-backwards">
-          体验对数字资产的 <span className="text-primary dark:text-white font-medium">极致掌控</span>。
-          <br className="hidden md:block" />
-          无缝集成 MinIO 对象存储与自定义短链服务。
-        </p>
+        <div className="text-base sm:text-xl md:text-2xl text-muted-foreground font-light tracking-wide max-w-2xl mx-auto leading-relaxed px-4 animate-fade-in-up delay-200 fill-mode-backwards">
+          <MarkdownText content={siteDescription} />
+        </div>
         
         <div className="flex items-center justify-center gap-6 pt-6 sm:pt-8 animate-fade-in-up delay-300 fill-mode-backwards">
            <Button asChild size="lg" className="group rounded-full h-11 sm:h-12 px-12 sm:px-16 text-sm sm:text-base font-semibold shadow-[0_0_50px_-10px_rgba(139,92,246,0.5)] hover:shadow-[0_0_70px_-10px_rgba(139,92,246,0.7)] bg-primary hover:bg-primary/90 text-white border-0 ring-offset-0 active:scale-95 transition-all duration-300 relative overflow-hidden">
-             <Link href="/settings" className="flex items-center gap-2">
-               <span className="relative z-10">开始使用</span>
+             <Link href={isLoggedIn ? "/files" : "/auth/signin"} className="flex items-center gap-2">
+               <span className="relative z-10">{isLoggedIn ? "进入应用" : "立即登录"}</span>
                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform duration-300 relative z-10" />
                <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/20 to-transparent bg-size-[200%_100%] group-hover:animate-shimmer" />
              </Link>

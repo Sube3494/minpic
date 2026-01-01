@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { MinioService, MinioConfig } from '@/lib/minio';
 import { generateThumbnail, generateVideoThumbnail, getImageDimensions, getFileType, generatePinyin } from '@/lib/image-utils';
 import { SyncEvent } from '@/types/config';
+import { auth } from '@/lib/auth';
+import { checkStorageQuota, checkFileQuota, updateStorageUsage, updateFileCount } from '@/lib/quota';
 
 interface StoredMinioConfig extends MinioConfig {
   id: string;
@@ -10,6 +12,15 @@ interface StoredMinioConfig extends MinioConfig {
 }
 
 export async function POST(request: NextRequest) {
+  // Get user session
+  const session = await auth();
+  if (!session?.user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+  const userId = (session.user as { id: string }).id;
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
@@ -26,45 +37,43 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        // Get MinIO config
-        let config = null;
+        // 获取用户的 MinIO 配置（新格式）
+        const configRecord = await prisma.config.findUnique({
+          where: {
+            userId_key: { userId, key: `minio_${configId}` }
+          },
+        });
         
-        if (configId === 'minio_default') {
-          const defaultConfig = await prisma.config.findUnique({
-            where: { key: 'minio_default' },
-          });
-          if (defaultConfig) {
-            config = JSON.parse(defaultConfig.value);
-          }
-        } else {
-          const configsRecord = await prisma.config.findUnique({
-            where: { key: 'minio_configs' },
-          });
-          
-          if (configsRecord) {
-            const configs: StoredMinioConfig[] = JSON.parse(configsRecord.value);
-            config = configs.find((c) => c.id === configId);
-          }
-        }
-
-        if (!config) {
+        if (!configRecord) {
           sendEvent({ type: 'error', message: '未找到配置' });
           controller.close();
           return;
         }
 
+        const config: StoredMinioConfig = JSON.parse(configRecord.value);
+
         // Connect to MinIO
         const minioService = new MinioService();
         await minioService.connect(config);
 
-        // List all files in bucket
-        const files = await minioService.listFiles();
+        // 构建用户路径前缀:baseDir/users/{userId}/
+        let userPrefix = '';
+        if (config.baseDir) {
+          userPrefix = `${config.baseDir}/`;
+        }
+        userPrefix += `users/${userId}/`;
+
+        // List only current user's files
+        const files = await minioService.listFiles(userPrefix);
         const total = files.length;
         
         let imported = 0;
         let skipped = 0;
         let errors = 0;
         let current = 0;
+        let totalSizeImported = 0;  // 跟踪已导入文件的总大小
+        let newFilesCount = 0;      // 跟踪新导入的文件数量
+        let hasError = false;       // 跟踪是否发生阻断性错误
 
         for (const fileObj of files) {
           current++;
@@ -86,10 +95,15 @@ export async function POST(request: NextRequest) {
               }
             });
 
-            // Check if file already exists in database
-            const existing = await prisma.file.findUnique({
-              where: { minioPath: fileObj.name },
+            // Check if file already exists for THIS USER
+            const existing = await prisma.file.findFirst({
+              where: { 
+                minioPath: fileObj.name,
+                userId: userId  // 只检查当前用户的文件
+              },
             });
+
+
 
             const needsMetadata = existing && (!existing.thumbnailData || !existing.pinyin);
 
@@ -98,19 +112,24 @@ export async function POST(request: NextRequest) {
                 if (existing.configId === configId) return true;
                 if (!existing.configId) return false;
 
-                const configsRecord = await prisma.config.findUnique({ where: { key: 'minio_configs' } });
-                if (!configsRecord) return false;
-                
-                const allConfigs: StoredMinioConfig[] = JSON.parse(configsRecord.value);
-                const currentCfg = allConfigs.find((c) => c.id === configId);
-                const existingCfg = allConfigs.find((c) => c.id === existing.configId);
+                // 获取当前配置和已存在文件的配置
+                const [currentConfigRecord, existingConfigRecord] = await Promise.all([
+                  prisma.config.findUnique({
+                    where: { userId_key: { userId, key: `minio_${configId}` } }
+                  }),
+                  prisma.config.findUnique({
+                    where: { userId_key: { userId, key: `minio_${existing.configId}` } }
+                  })
+                ]);
 
-                if (currentCfg && existingCfg) {
-                  return currentCfg.accessKey === existingCfg.accessKey && 
-                         currentCfg.bucket === existingCfg.bucket &&
-                         (currentCfg.baseDir || '') === (existingCfg.baseDir || '');
-                }
-                return false;
+                if (!currentConfigRecord || !existingConfigRecord) return false;
+
+                const currentCfg: StoredMinioConfig = JSON.parse(currentConfigRecord.value);
+                const existingCfg: StoredMinioConfig = JSON.parse(existingConfigRecord.value);
+
+                return currentCfg.accessKey === existingCfg.accessKey && 
+                       currentCfg.bucket === existingCfg.bucket &&
+                       (currentCfg.baseDir || '') === (existingCfg.baseDir || '');
               })();
 
               if (!isSameStorageGroup) {
@@ -123,6 +142,40 @@ export async function POST(request: NextRequest) {
                 skipped++;
               }
               continue;
+            }
+
+            // 对于不存在的文件,进行限额检查
+            // 对于不存在的文件,进行限额检查
+            if (!existing) {
+              // 检查文件数量限额 (传入当前批次已新增的文件数)
+              const fileQuotaCheck = await checkFileQuota(userId, newFilesCount);
+              if (!fileQuotaCheck.allowed) {
+                sendEvent({
+                  type: 'quota_exceeded',
+                  data: {
+                    quotaType: 'file',
+                    message: '文件数量已达限额,同步已停止',
+                    progress: { total, imported, skipped, errors, current }
+                  }
+                });
+                hasError = true;
+                break; // 停止同步
+              }
+
+              // 检查存储空间限额 (传入当前批次已累积的大小)
+              const storageQuotaCheck = await checkStorageQuota(userId, fileObj.size || 0, totalSizeImported);
+              if (!storageQuotaCheck.allowed) {
+                sendEvent({
+                  type: 'quota_exceeded',
+                  data: {
+                    quotaType: 'storage',
+                    message: '存储空间已达限额,同步已停止',
+                    progress: { total, imported, skipped, errors, current }
+                  }
+                });
+                hasError = true;
+                break; // 停止同步
+              }
             }
 
             // Download file to process (either new file or backfilling metadata)
@@ -190,6 +243,7 @@ export async function POST(request: NextRequest) {
               // Create new record
               await prisma.file.create({
                 data: {
+                  userId,  // Add user association
                   filename,
                   minioPath: fileObj.name!,
                   fileSize: fileObj.size || 0,
@@ -203,25 +257,56 @@ export async function POST(request: NextRequest) {
                 },
               });
             }
-
-            imported++;
+            
+            // 如果是新导入的文件,统计大小和数量
+            if (!existing) {
+              totalSizeImported += fileObj.size || 0;
+              newFilesCount++;
+              imported++;  // 只有新文件才算imported
+            } else {
+              // 已存在的文件,只是更新元数据,不计入配额
+              skipped++;
+            }
           } catch (error) {
             console.error(`Error importing file ${fileObj.name}:`, error);
             errors++;
           }
         }
 
-        // Final result
-        sendEvent({
-          type: 'done',
-          data: {
-            total,
+        // 批量更新用户配额
+        if (newFilesCount > 0 || totalSizeImported > 0) {
+          console.log('[同步配额更新]', {
+            userId,
+            newFilesCount,
+            totalSizeImported,
             imported,
             skipped,
-            errors,
-            status: 'completed'
+            errors
+          });
+          try {
+            await Promise.all([
+              updateStorageUsage(userId, totalSizeImported),
+              updateFileCount(userId, newFilesCount),
+            ]);
+            console.log('[同步配额更新成功]');
+          } catch (quotaError) {
+            console.error('[同步配额更新失败]', quotaError);
           }
-        });
+        }
+
+        // Final result
+        if (!hasError) {
+          sendEvent({
+            type: 'done',
+            data: {
+              total,
+              imported,
+              skipped,
+              errors,
+              status: 'completed'
+            }
+          });
+        }
       } catch (error) {
         console.error('Error syncing files:', error);
         sendEvent({ type: 'error', message: String(error) });

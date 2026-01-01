@@ -4,7 +4,7 @@ export const configService = {
   // MinIO Configs
   async getMinioConfigs(): Promise<{ configs: MinioConfigItem[], activeId: string }> {
     const res = await fetch('/api/config/minio');
-    if (!res.ok) throw new Error('Failed to fetch MinIO configs');
+    if (!res.ok) throw new Error(`Failed to fetch MinIO configs (${res.status})`);
     return res.json();
   },
 
@@ -45,11 +45,12 @@ export const configService = {
   },
 
   // Sync
-  async syncFiles(configId: string, onProgress?: (event: SyncEvent) => void): Promise<SyncProgress> {
+  async syncFiles(configId: string, onProgress?: (event: SyncEvent) => void, signal?: AbortSignal): Promise<SyncProgress> {
     const res = await fetch('/api/files/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ configId }),
+      signal,  // 传递 AbortSignal
     });
 
     if (!res.ok) throw new Error('同步请求失败');
@@ -70,8 +71,10 @@ export const configService = {
       for (const line of lines) {
         try {
           const event: SyncEvent = JSON.parse(line);
-          if (event.type === 'progress' || event.type === 'done') {
-            finalProgress = event.data;
+          if (event.type === 'progress' || event.type === 'done' || event.type === 'quota_exceeded') {
+            if (event.type !== 'quota_exceeded') {
+               finalProgress = event.data as SyncProgress;
+            }
             if (onProgress) onProgress(event);
           } else if (event.type === 'error') {
             throw new Error(event.message);

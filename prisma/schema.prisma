@@ -9,22 +9,194 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================
+// User Authentication & Authorization
+// ============================================
+
+// UserRole: ADMIN | USER
+// UserStatus: ACTIVE | SUSPENDED | BANNED
+
+model User {
+  id String @id @default(cuid())
+
+  // GitHub OAuth info
+  githubId String  @unique
+  username String  @unique
+  name     String?
+  email    String? @unique
+  avatar   String?
+
+  // Role and status
+  role   String @default("USER") // ADMIN | USER
+  status String @default("ACTIVE") // ACTIVE | SUSPENDED | BANNED
+
+  // Quota settings
+  storageQuota BigInt @default(524288000) // 500MB
+  storageUsed  BigInt @default(0)
+  fileQuota    Int    @default(1000)
+  fileCount    Int    @default(0)
+
+  // Metadata
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  accounts  Account[]
+  sessions  Session[]
+  configs   Config[]
+  files     File[]
+  auditLogs AuditLog[]
+
+  // Team relations
+  ownedTeam          Team?         @relation("TeamOwner")
+  teamMembership     TeamMember?
+  createdInviteCodes InviteCode[]
+
+  @@index([githubId])
+  @@index([username])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+// NextAuth.js models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============================================
+// Registration Control
+// ============================================
+
+model RegistrationWhitelist {
+  id        String    @id @default(cuid())
+  githubId  String    @unique
+  username  String
+  addedBy   String
+  reason    String?
+  used      Boolean   @default(false)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([githubId])
+  @@index([used])
+  @@map("registration_whitelist")
+}
+
+// ============================================
+// System Settings
+// ============================================
+
+model SystemSettings {
+  id String @id @default(cuid())
+
+  // Registration control
+  registrationEnabled Boolean @default(false)
+  requireWhitelist    Boolean @default(true)
+
+  // Default quotas
+  defaultStorageQuota BigInt @default(5368709120) // 5GB
+  defaultFileQuota    Int    @default(10000)
+
+  // Site info
+  siteName        String  @default("MinPic")
+  siteDescription String?
+
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+// ============================================
+// Audit Logging
+// ============================================
+
+// AuditAction: USER_LOGIN | USER_CREATED | USER_UPDATED | USER_SUSPENDED | USER_BANNED |
+//              WHITELIST_ADDED | WHITELIST_REMOVED | QUOTA_UPDATED |
+//              FILE_UPLOADED | FILE_DELETED | CONFIG_CREATED | CONFIG_DELETED
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String // See AuditAction values above
+  targetType String?
+  targetId   String?
+  metadata   String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================
+// Application Data
+// ============================================
+
 // Config table
 model Config {
   id        String   @id @default(cuid())
-  key       String   @unique
+  userId    String
+  key       String
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
   @@map("configs")
 }
 
 // File table
 model File {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
+  userId        String
   filename      String
-  minioPath     String   @unique
+  minioPath     String // 移除 @unique，改用复合唯一约束
   fileSize      Int
   mimeType      String
   fileType      String
@@ -33,16 +205,87 @@ model File {
   width         Int?
   height        Int?
   duration      Float?
-  tags          String   @default("[]")
+  tags          String    @default("[]")
   pinyin        String?
   configId      String?
   expiresAt     DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, minioPath]) // 复合唯一约束：同一用户不能有相同路径的文件
+  @@index([userId])
   @@index([fileType])
   @@index([createdAt])
   @@index([pinyin])
   @@index([configId])
   @@map("files")
+}
+
+// ============================================
+// Team Management
+// ============================================
+
+model Team {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  ownerId String @unique
+  owner   User   @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members     TeamMember[]
+  inviteCodes InviteCode[]
+
+  @@index([ownerId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id String @id @default(cuid())
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role String @default("MEMBER") // ADMIN | MEMBER
+
+  // 成员独立配额（可选）null表示使用团队配额
+  storageQuota BigInt? // 存储配额（字节）
+  fileQuota    Int?    // 文件数配额
+
+  joinedAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+  @@index([teamId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+model InviteCode {
+  id     String @id @default(cuid())
+  code   String @unique // 32位邀请码
+  
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  
+  createdBy String
+  creator   User   @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  
+  expiresAt DateTime // 过期时间
+  maxUses   Int      @default(10) // 最大使用次数
+  usedCount Int      @default(0) // 已使用次数
+  
+  createdAt DateTime @default(now())
+  
+  @@index([teamId])
+  @@index([code])
+  @@index([createdBy])
+  @@map("invite_codes")
 }

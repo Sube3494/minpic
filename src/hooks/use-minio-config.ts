@@ -46,6 +46,13 @@ export function useMinioConfig() {
       });
     } catch (error) {
       console.error('Error loading MinIO configs:', error);
+      
+      // 检测401错误，重定向到登录页面
+      if (error instanceof Error && error.message.includes('401')) {
+        window.location.href = '/auth/signin';
+        return;
+      }
+      
       toast.error('无法加载配置信息', {
         description: '请检查网络连接或刷新页面'
       });
@@ -69,18 +76,38 @@ export function useMinioConfig() {
     setSelectedId(newId);
   };
 
-  const deleteConfig = (id: string) => {
+  const deleteConfig = async (id: string) => {
     const newConfigs = configs.filter(c => c.id !== id);
     setConfigs(newConfigs);
     
-    if (selectedId === id) {
-      // 优先跳转到当前激活的配置，如果没有激活的则跳转到剩余的第一项
-      const nextId = activeId && activeId !== id ? activeId : (newConfigs.length > 0 ? newConfigs[0].id : '');
-      setSelectedId(nextId);
-    }
-    
-    if (activeId === id) {
-      setActiveId('');
+    // Auto save the new config list
+    setLoading(true);
+    try {
+        // If the deleted config was active, we should probably deactivate it or let the user decide.
+        // For simplicity, if we delete the active one, we unset activeId locally, and save that state.
+        const newActiveId = activeId === id ? '' : activeId;
+        
+        await configService.saveMinioConfigs(newConfigs, newActiveId);
+        
+        if (activeId === id) {
+             setActiveId('');
+             setOriginalActiveId('');
+        }
+
+        // UI navigation
+        if (selectedId === id) {
+           const nextId = newActiveId || (newConfigs.length > 0 ? newConfigs[0].id : '');
+           setSelectedId(nextId);
+        }
+        
+    } catch (error) {
+        console.error('Failed to save config deletion:', error);
+        toast.error('保存删除操作失败', {
+            description: '请重试'
+        });
+        // Revert local change if needed, but for now we just show error
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -89,17 +116,39 @@ export function useMinioConfig() {
   };
 
   const activateConfig = async (id: string) => {
-    const newActiveId = activeId === id ? '' : id;
+    // If we're deactivating, just go ahead
+    if (activeId === id) {
+      await performActivation('');
+      return;
+    }
+
+    const config = configs.find(c => c.id === id);
+    if (!config) return;
+
+    // Run connection test for activation (silently so we can custom toast)
+    const result = await testMinioConnection(id, true);
+    
+    if (result.success) {
+      await performActivation(id);
+    } else {
+      toast.error('激活失败', {
+        description: `连接测试未通过: ${result.error || '无法建立连接'}`
+      });
+      console.log('Activation interrupted: connection test failed');
+    }
+  };
+
+  const performActivation = async (id: string) => {
     const oldActiveId = activeId;
-    setActiveId(newActiveId);
+    setActiveId(id);
     
     setLoading(true);
     try {
-      await configService.saveMinioConfigs(configs, newActiveId);
-      setOriginalActiveId(newActiveId);
+      await configService.saveMinioConfigs(configs, id);
+      setOriginalActiveId(id);
       setActiveIdChanged(false);
       
-      if (newActiveId === '') {
+      if (id === '') {
         toast.success('已取消激活配置', {
           description: '当前无激活的 MinIO 配置'
         });
@@ -121,6 +170,29 @@ export function useMinioConfig() {
   };
 
   const saveConfigs = async (feedbackName?: string, silent = false) => {
+    // 必填项校验逻辑
+    const configToValidate = configs.find(c => c.id === selectedId);
+    if (configToValidate) {
+        const requiredFields = [
+            { key: 'name', label: '配置名称' },
+            { key: 'endpoint', label: '服务器地址 (Endpoint)' },
+            { key: 'accessKey', label: 'Access Key' },
+            { key: 'secretKey', label: 'Secret Key' },
+            { key: 'bucket', label: 'Bucket 名称' }
+        ];
+
+        const missingFields = requiredFields
+            .filter(f => !configToValidate[f.key as keyof MinioConfigItem])
+            .map(f => f.label);
+
+        if (missingFields.length > 0) {
+            toast.error('保存失败', {
+                description: `请填写必填项: ${missingFields.join(', ')}`
+            });
+            return;
+        }
+    }
+
     setLoading(true);
     try {
       const finalActiveId = activeIdChanged ? activeId : originalActiveId;
@@ -147,51 +219,48 @@ export function useMinioConfig() {
     }
   };
   
-  const testMinioConnection = async () => {
-      const config = configs.find(c => c.id === selectedId);
-      if (!config) return;
+  const testMinioConnection = async (id?: string | unknown, silent = false) => {
+      const targetId = typeof id === 'string' ? id : selectedId;
+      const config = configs.find(c => c.id === targetId);
+      if (!config) return { success: false, error: '配置项不存在' };
 
       setTesting(true);
-      const loadingToast = toast.loading('正在测试连接，请稍候...', {
-        description: '这可能需要一些时间，取决于网络状况'
-      });
+      let loadingToast = null;
+      if (!silent) {
+        loadingToast = toast.loading(`正在测试 ${config.name} 连接...`);
+      }
       
       try {
           const result = await configService.testConnection('minio', config);
-          toast.dismiss(loadingToast);
+          if (!silent && loadingToast) toast.dismiss(loadingToast);
           
           if (result.success) {
-            const durationText = result.duration 
-              ? `耗时 ${(result.duration / 1000).toFixed(1)} 秒`
-              : '';
-            toast.success(`${config.name} 连接测试成功`, {
-              description: `已验证存储桶 ${config.bucket}${durationText ? ` · ${durationText}` : ''}`
-            });
+            if (!silent) toast.success(`${config.name} 连接测试成功`);
             
-            // 更新配置状态为成功
-            setConfigs(prev => prev.map(c => 
-              c.id === selectedId ? { ...c, status: 'success' as const } : c
-            ));
+            // 更新配置状态并保存
+            const updatedConfigs = configs.map(c => 
+              c.id === targetId ? { ...c, status: 'success' as const } : c
+            );
+            setConfigs(updatedConfigs);
+            await configService.saveMinioConfigs(updatedConfigs, activeId);
+            return { success: true };
           } else {
-            toast.error(`${config.name} 连接测试失败`, {
-              description: result.error || '建议检查 Endpoint、Access Key、Secret Key 和 Bucket 名称'
-            });
-            
-            // 更新配置状态为失败
-            setConfigs(prev => prev.map(c => 
-              c.id === selectedId ? { ...c, status: 'error' as const } : c
-            ));
+            if (!silent) {
+              toast.error(`${config.name} 测试失败`, {
+                description: result.error || '请检查配置参数'
+              });
+            }
+            const updatedConfigs = configs.map(c => 
+              c.id === targetId ? { ...c, status: 'error' as const } : c
+            );
+            setConfigs(updatedConfigs);
+            await configService.saveMinioConfigs(updatedConfigs, activeId);
+            return { success: false, error: result.error };
           }
       } catch {
-          toast.dismiss(loadingToast);
-          toast.error('连接测试发生错误', {
-            description: '请检查网络连接后重试'
-          });
-          
-          // 更新配置状态为失败
-          setConfigs(prev => prev.map(c => 
-            c.id === selectedId ? { ...c, status: 'error' as const } : c
-          ));
+          if (!silent && loadingToast) toast.dismiss(loadingToast);
+          if (!silent) toast.error('连接测试发生异常');
+          return { success: false, error: '连接测试请求失败' };
       } finally {
           setTesting(false);
       }

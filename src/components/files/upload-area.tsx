@@ -13,14 +13,16 @@ interface UploadAreaProps {
   queue: UploadTask[];
   aggregateProgress: { loaded: number; total: number; percent: number; isProcessing: boolean };
   selectedConfigId: string;
+  disabled?: boolean;
 }
 
-export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, selectedConfigId }: UploadAreaProps) {
+export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, selectedConfigId, disabled }: UploadAreaProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePasteInput = (e: React.ClipboardEvent) => {
+    if (disabled) return;
     const items = e.clipboardData?.items;
     let hasImage = false;
     
@@ -84,6 +86,7 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
   };
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) return;
     const selectedFiles = event.target.files;
     if (selectedFiles) {
       await uploadFiles(selectedFiles, selectedConfigId);
@@ -91,17 +94,19 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
   };
 
   return (
-    <Card className="glass-strong">
+    <Card className={`glass-strong ${disabled ? 'opacity-60 pointer-events-none' : ''}`}>
       <CardContent className="p-3 md:p-6">
         <div 
           className={`border-2 border-dashed rounded-lg p-6 md:p-10 text-center transition-all ${
-            isDragging 
-              ? 'border-primary bg-primary/10 dark:bg-primary/20 scale-[1.02]' 
-              : 'border-border bg-white/50 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10'
+            disabled
+               ? 'border-zinc-200 bg-zinc-50 dark:border-white/5 dark:bg-white/5 cursor-not-allowed'
+               : isDragging 
+                  ? 'border-primary bg-primary/10 dark:bg-primary/20 scale-[1.02]' 
+                  : 'border-border bg-white/50 dark:bg-white/5 hover:bg-white/60 dark:hover:bg-white/10'
           }`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+          onDragOver={!disabled ? handleDragOver : undefined}
+          onDragLeave={!disabled ? handleDragLeave : undefined}
+          onDrop={!disabled ? handleDrop : undefined}
         >
           <Upload className={`w-8 h-8 md:w-12 md:h-12 mx-auto mb-3 md:mb-4 opacity-80 transition-colors ${
             isDragging ? 'text-primary' : 'text-primary'
@@ -157,11 +162,12 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
             onChange={handleUpload}
             className="hidden"
             id="file-upload"
+            disabled={disabled}
           />
           
           <div className="flex flex-col items-center justify-center gap-4 w-full max-w-sm mx-auto">
-            <Button asChild disabled={uploading} className="w-full rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow">
-              <label htmlFor="file-upload" className="cursor-pointer">
+            <Button asChild disabled={uploading || disabled} className="w-full rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow">
+              <label htmlFor="file-upload" className={disabled ? "cursor-not-allowed" : "cursor-pointer"}>
                 {uploading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -170,7 +176,7 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
                 ) : (
                   <>
                     <Upload className="w-4 h-4 mr-2" />
-                    选择文件上传
+                    {disabled ? '暂无可用存储配置' : '选择文件上传'}
                   </>
                 )}
               </label>
@@ -180,14 +186,15 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
               <div className={`absolute inset-0 bg-primary/20 blur-xl rounded-full transition-opacity duration-500 ${isFocused ? 'opacity-100' : 'opacity-0'}`} />
               <div className="relative flex items-center">
                   <Input 
-                    placeholder="在此处按下 Ctrl + V 粘贴截图..." 
+                    placeholder={disabled ? "请先配置存储源..." : "在此处按下 Ctrl + V 粘贴截图..."}
                     className="rounded-full h-10 border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-black/20 pr-10 shadow-sm focus-visible:ring-primary transition-all text-center text-xs"
                     onPaste={handlePasteInput}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
+                    disabled={disabled}
                   />
                   <div className="absolute right-1 top-1 bottom-1 aspect-square p-1 hidden md:block">
-                      <Button size="icon" variant="ghost" className="w-full h-full rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-muted-foreground">
+                      <Button size="icon" variant="ghost" className="w-full h-full rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-muted-foreground" disabled={disabled}>
                           <ArrowRight className="w-3 h-3" />
                       </Button>
                   </div>
