@@ -2,7 +2,7 @@
  * @Date: 2025-12-24 21:27:32
  * @Author: Sube
  * @FilePath: utils.ts
- * @LastEditTime: 2026-01-02 03:05:24
+ * @LastEditTime: 2026-01-02 19:13:57
  * @Description: 
  */
 import { clsx, type ClassValue } from "clsx"
@@ -12,11 +12,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatFileSize(bytes: number) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+export function formatFileSize(bytes: number | bigint) {
+  const bytesNum = Number(bytes);
+  if (bytesNum < 1024) return bytesNum + ' B';
+  if (bytesNum < 1024 * 1024) return (bytesNum / 1024).toFixed(1) + ' KB';
+  if (bytesNum < 1024 * 1024 * 1024) return (bytesNum / (1024 * 1024)).toFixed(1) + ' MB';
+  return (bytesNum / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
 }
 
 

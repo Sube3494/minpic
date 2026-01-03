@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Users, UserPlus, LogOut, Trash2, Copy, Check, Settings2, AlertTriangle, CheckCircle2, HardDrive, File as FileIcon } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Variants } from 'framer-motion';
+
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
@@ -27,6 +28,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PageWrapper } from '@/components/layout/page-wrapper';
 import { useTeam } from '@/hooks/use-team';
 import { formatFileSize, cn } from '@/lib/utils';
+import { MemberCard } from '@/components/teams/member-card';
 
 export default function TeamsPage() {
   const { data: session } = useSession();
@@ -67,6 +69,27 @@ export default function TeamsPage() {
       loadInviteCodes();
     }
   }, [inviteManageDialog, loadInviteCodes]);
+
+  const containerVariants: Variants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05
+      }
+    }
+  };
+
+  const itemVariants: Variants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.3
+      }
+    }
+  };
 
 
 
@@ -256,29 +279,76 @@ export default function TeamsPage() {
                           <div className="space-y-2">
                             <CardTitle className="flex items-center gap-2 font-semibold">
                               {teamInfo.team.name}
+                              {(() => {
+                                const owner = teamInfo.team.members.find(m => m.userId === teamInfo.team?.ownerId);
+                                if (!owner) return null;
+                                return (
+                                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20">
+                                    <Avatar className="w-4 h-4">
+                                      <AvatarImage src={owner.user.avatar || undefined} />
+                                      <AvatarFallback className="text-[8px] bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                                        {owner.user.username.slice(0, 2).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">{owner.user.name || owner.user.username}</span>
+                                  </div>
+                                );
+                              })()}
                             </CardTitle>
                             {teamInfo.team.description && (
                               <p className="text-sm text-muted-foreground">{teamInfo.team.description}</p>
                             )}
-                            <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-muted-foreground mt-1">
-                              <div className="flex items-center gap-1.5">
-                                <Users className="w-4 h-4 text-primary/70" />
-                                <span>{teamInfo.team.members.length} 名成员</span>
-                              </div>
-                              <div className="w-px h-3 bg-border/60 hidden sm:block" />
+                            
+                            <div className="flex flex-wrap items-center gap-3 mt-3">
+                              <Badge variant="secondary" className="bg-violet-50 text-violet-600 border-violet-200/50 dark:bg-violet-500/10 dark:text-violet-400 dark:border-violet-500/20 gap-1.5 px-2.5 py-1 h-7 rounded-full hover:bg-violet-100 dark:hover:bg-violet-900/20 border transition-colors">
+                                <Users className="w-3.5 h-3.5" />
+                                <span>{teamInfo.team.members.length} 成员</span>
+                              </Badge>
+
                               {teamInfo?.team && (() => {
-                                const totalStorageUsed = teamInfo?.team?.members.reduce((acc, m) => acc + BigInt(m.user.storageUsed || 0), BigInt(0)) || BigInt(0);
-                                const totalFileCount = teamInfo?.team?.members.reduce((acc, m) => acc + (m.user.fileCount || 0), 0) || 0;
+                                // 只统计普通成员的使用量，排除团队主
+                                const totalStorageUsed = teamInfo?.team?.members.reduce((acc, m) => {
+                                  if (m.userId === teamInfo.team?.ownerId) return acc;
+                                  return acc + BigInt(m.user.storageUsed || 0);
+                                }, BigInt(0)) || BigInt(0);
+                                const totalFileCount = teamInfo?.team?.members.reduce((acc, m) => {
+                                  if (m.userId === teamInfo.team?.ownerId) return acc;
+                                  return acc + (m.user.fileCount || 0);
+                                }, 0) || 0;
+                                
+                                const storageRatio = Number(totalStorageUsed) / Number(teamInfo.team.storageQuota || 1);
+                                const fileRatio = totalFileCount / (teamInfo.team.fileQuota || 1);
+                                const isStorageWarning = storageRatio > 0.9;
+                                const isFileWarning = fileRatio > 0.9;
+
                                 return (
                                   <>
-                                    <div className="flex items-center gap-1.5">
-                                      <div className={`w-2 h-2 rounded-full ${Number(totalStorageUsed) / Number(teamInfo.team.storageQuota) > 0.9 ? 'bg-red-500' : 'bg-green-500'}`} />
-                                      <span>存储: {formatFileSize(Number(totalStorageUsed))} / {formatFileSize(Number(teamInfo.team.storageQuota || 0))}</span>
+                                    <div className={cn(
+                                      "flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors h-7",
+                                      isStorageWarning 
+                                        ? "bg-red-50 text-red-600 border-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-900/20" 
+                                        : "bg-emerald-50 text-emerald-600 border-emerald-200/50 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"
+                                    )}>
+                                      <HardDrive className="w-3.5 h-3.5 opacity-70" />
+                                      <span>
+                                        {formatFileSize(Number(totalStorageUsed))} 
+                                        <span className="opacity-40 mx-1">/</span> 
+                                        {formatFileSize(Number(teamInfo.team.storageQuota || 0))}
+                                      </span>
                                     </div>
-                                    <div className="w-px h-3 bg-border/60 hidden sm:block" />
-                                    <div className="flex items-center gap-1.5">
-                                      <div className={`w-2 h-2 rounded-full ${totalFileCount / teamInfo.team.fileQuota > 0.9 ? 'bg-red-500' : 'bg-blue-500'}`} />
-                                      <span>文件: {totalFileCount} / {teamInfo.team.fileQuota || 0}</span>
+
+                                    <div className={cn(
+                                      "flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors h-7",
+                                      isFileWarning 
+                                        ? "bg-red-50 text-red-600 border-red-100 dark:bg-red-900/10 dark:text-red-400 dark:border-red-900/20" 
+                                        : "bg-blue-50 text-blue-600 border-blue-200/50 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20"
+                                    )}>
+                                      <FileIcon className="w-3.5 h-3.5 opacity-70" />
+                                      <span>
+                                        {totalFileCount} 
+                                        <span className="opacity-40 mx-1">/</span> 
+                                        {teamInfo.team.fileQuota || 0}
+                                      </span>
                                     </div>
                                   </>
                                 );
@@ -313,92 +383,44 @@ export default function TeamsPage() {
                         {/* Members List */}
                         <div className="space-y-2">
                           <Label className="text-sm font-medium">团队成员</Label>
-                          <div className="space-y-2">
-                            {teamInfo.team.members.map((member) => {
-                              const isFounder = member.userId === teamInfo?.team?.ownerId;
-                              return (
-                                <div 
-                                  key={member.id}
-                                  className="flex items-center justify-between p-3 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200/50 dark:border-white/10"
-                                >
-                                  <div className="flex items-center gap-3 flex-1">
-                                    <Avatar className="w-8 h-8">
-                                      <AvatarImage src={member.user.avatar || undefined} />
-                                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                                        {member.user.username.slice(0, 2).toUpperCase()}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <div className="flex-1">
-                                      <p className="text-sm font-medium flex items-center gap-2">
-                                        {member.user.name || member.user.username}
-                                        {isFounder && (
-                                          <Badge variant="default" className="text-[10px] px-1.5 py-0">
-                                            团队主
-                                          </Badge>
-                                        )}
-                                        {member.userId === session?.user?.id && (
-                                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-blue-500/10 text-blue-500 border-blue-500/20">
-                                            我
-                                          </Badge>
-                                        )}
-                                      </p>
-
-                                      <div className="flex flex-col sm:flex-row gap-x-4 gap-y-1 mt-1 text-xs text-muted-foreground">
-                                        <span className="flex items-center gap-1">
-                                          存储: {formatFileSize(Number(member.user.storageUsed || 0))}
-                                          {member.storageQuota && (
-                                            <>
-                                              <span className="opacity-40">/</span>
-                                              <span className="text-primary/70">{formatFileSize(Number(member.storageQuota))}</span>
-                                            </>
-                                          )}
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                          文件: {member.user.fileCount || 0}
-                                          {member.fileQuota !== null && (
-                                            <>
-                                              <span className="opacity-40">/</span>
-                                              <span className="text-primary/70">{member.fileQuota}</span>
-                                            </>
-                                          )}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {isOwner && !isFounder && (
-                                      <>
-                                        <Button 
-                                          onClick={() => setQuotaDialog({ 
-                                            open: true, 
-                                            userId: member.userId, 
-                                            username:  member.user.username,
-                                            nickname: member.user.name,
-                                            currentStorageQuota: member.storageQuota ? Number(member.storageQuota) : null,
-                                            currentFileQuota: member.fileQuota ?? null,
-                                          })}
-                                          variant="ghost" 
-                                          size="sm" 
-                                          className="h-8 px-2"
-                                          title="设置限额"
-                                        >
-                                          <Settings2 className="w-3.5 h-3.5" />
-                                        </Button>
-                                        <Button 
-                                          onClick={() => setRemoveDialog({ open: true, userId: member.userId, username: member.user.username })}
-                                          variant="ghost" 
-                                          size="sm" 
-                                          className="h-8 px-2 text-destructive hover:bg-destructive/10"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </Button>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
+                          <motion.div 
+                            className="space-y-2"
+                            variants={containerVariants}
+                            initial="hidden"
+                            animate="visible"
+                          >
+                            <AnimatePresence mode="popLayout">
+                              {teamInfo.team && teamInfo.team.members
+                                .filter(member => member.userId !== teamInfo.team?.ownerId) // 过滤掉创始人
+                                .map((member) => (
+                                  <motion.div 
+                                    key={member.id}
+                                    variants={itemVariants}
+                                    layout
+                                    exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+                                  >
+                                    <MemberCard 
+                                      member={member}
+                                      isOwner={isOwner}
+                                      currentUser={{ userId: session?.user?.id || '' }}
+                                      onQuotaCheck={(userId, username, nickname, storage, files) => 
+                                        setQuotaDialog({ 
+                                          open: true, 
+                                          userId, 
+                                          username,
+                                          nickname,
+                                          currentStorageQuota: storage,
+                                          currentFileQuota: files,
+                                        })
+                                      }
+                                      onRemove={(userId, username) => 
+                                        setRemoveDialog({ open: true, userId, username })
+                                      }
+                                    />
+                                  </motion.div>
+                                ))}
+                            </AnimatePresence>
+                          </motion.div>
                         </div>
                       </CardContent>
                     </Card>
@@ -493,7 +515,7 @@ export default function TeamsPage() {
                           value={teamFileQuota}
                           onChange={(e) => setTeamFileQuota(e.target.value)}
                           onWheel={(e) => e.currentTarget.blur()}
-                          className="h-11 rounded-xl bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 focus:border-primary/30 focus-visible:[box-shadow:none] transition-all no-spinner text-sm text-foreground"
+                          className="h-11 rounded-xl bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 focus:border-primary/30 focus-visible:[box-shadow:none] transition-all no-spinner text-sm text-zinc-900 dark:text-zinc-100"
                         />
                         <p className="text-[10px] text-muted-foreground/60 leading-tight">
                           总团队成员文件数上限
@@ -554,38 +576,44 @@ export default function TeamsPage() {
             title="设置成员配额"
             description={
               (() => {
-                const ownerStorageUsed = BigInt(teamInfo?.team?.owner?.storageUsed || 0);
-                const ownerFilesUsed = teamInfo?.team?.owner?.fileCount || 0;
                 const teamStorageTotal = BigInt(teamInfo?.team?.storageQuota || 0);
                 const teamFilesTotal = teamInfo?.team?.fileQuota || 0;
 
-                const totalAllocatedStorage = (teamInfo?.team?.members.reduce((acc, m) => {
+                // 只统计普通成员的配额分配，排除团队主
+                const totalAllocatedStorage = teamInfo?.team?.members.reduce((acc, m) => {
+                  // 跳过团队主
+                  if (m.userId === teamInfo.team?.ownerId) return acc;
+                  
                   const quotaVal = m.userId === quotaDialog.userId 
                                   ? quotaDialog.currentStorageQuota 
-                                  : Number(m.storageQuota); // 只统计显式设置的团队限额
+                                  : Number(m.storageQuota);
                   return acc + BigInt(quotaVal || 0);
-                }, BigInt(0)) || BigInt(0)) + ownerStorageUsed;
+                }, BigInt(0)) || BigInt(0);
 
-                const totalAllocatedFiles = (teamInfo?.team?.members.reduce((acc, m) => {
+                const totalAllocatedFiles = teamInfo?.team?.members.reduce((acc, m) => {
+                  // 跳过团队主
+                  if (m.userId === teamInfo.team?.ownerId) return acc;
+                  
                   const quotaVal = m.userId === quotaDialog.userId 
                                   ? quotaDialog.currentFileQuota 
-                                  : m.fileQuota; // 只统计显式设置的团队限额
+                                  : m.fileQuota;
                   return acc + (quotaVal || 0);
-                }, 0) || 0) + ownerFilesUsed;
+                }, 0) || 0;
 
                 const isStorageWarning = totalAllocatedStorage > teamStorageTotal;
                 const isFilesWarning = totalAllocatedFiles > teamFilesTotal;
 
-                const sumOtherStorage = (teamInfo?.team?.members.reduce((acc, m) => {
-                  if (m.userId === quotaDialog.userId) return acc;
+                // 计算其他成员已分配的配额（排除当前编辑的成员和团队主）
+                const sumOtherStorage = teamInfo?.team?.members.reduce((acc, m) => {
+                  if (m.userId === quotaDialog.userId || m.userId === teamInfo.team?.ownerId) return acc;
                   return acc + BigInt(m.storageQuota || 0);
-                }, BigInt(0)) || BigInt(0)) + ownerStorageUsed;
+                }, BigInt(0)) || BigInt(0);
                 const maxMB = Number((teamStorageTotal - sumOtherStorage) / BigInt(1024 * 1024));
 
-                const sumOtherFiles = (teamInfo?.team?.members.reduce((acc, m) => {
-                  if (m.userId === quotaDialog.userId) return acc;
+                const sumOtherFiles = teamInfo?.team?.members.reduce((acc, m) => {
+                  if (m.userId === quotaDialog.userId || m.userId === teamInfo.team?.ownerId) return acc;
                   return acc + (m.fileQuota || 0);
-                }, 0) || 0) + ownerFilesUsed;
+                }, 0) || 0;
                 const maxFiles = Number(teamFilesTotal - sumOtherFiles);
 
                 return (
@@ -661,7 +689,7 @@ export default function TeamsPage() {
                       )}>
                         <div className="flex items-center gap-2">
                           {isStorageWarning || isFilesWarning ? <AlertTriangle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                          <span className="font-semibold uppercase tracking-wider">分配状态面板（含成员限额 + 您的占用）</span>
+                          <span className="font-semibold uppercase tracking-wider">分配状态面板（仅成员限额，不含团队主）</span>
                         </div>
                         <div className="grid grid-cols-2 gap-4 opacity-90">
                           <div>
@@ -685,24 +713,29 @@ export default function TeamsPage() {
               })()
             }
             confirmDisabled={(() => {
-              const ownerStorageUsed = BigInt(teamInfo?.team?.owner?.storageUsed || 0);
-              const ownerFilesUsed = teamInfo?.team?.owner?.fileCount || 0;
               const teamStorageTotal = BigInt(teamInfo?.team?.storageQuota || 0);
               const teamFilesTotal = teamInfo?.team?.fileQuota || 0;
 
-              const totalAllocatedStorage = (teamInfo?.team?.members.reduce((acc, m) => {
+              // 只统计普通成员的配额分配，排除团队主
+              const totalAllocatedStorage = teamInfo?.team?.members.reduce((acc, m) => {
+                // 跳过团队主
+                if (m.userId === teamInfo.team?.ownerId) return acc;
+                
                 const quotaVal = m.userId === quotaDialog.userId 
                                 ? quotaDialog.currentStorageQuota 
                                 : Number(m.storageQuota);
                 return acc + BigInt(quotaVal || 0);
-              }, BigInt(0)) || BigInt(0)) + ownerStorageUsed;
+              }, BigInt(0)) || BigInt(0);
 
-              const totalAllocatedFiles = (teamInfo?.team?.members.reduce((acc, m) => {
+              const totalAllocatedFiles = teamInfo?.team?.members.reduce((acc, m) => {
+                // 跳过团队主
+                if (m.userId === teamInfo.team?.ownerId) return acc;
+                
                 const quotaVal = m.userId === quotaDialog.userId 
                                 ? quotaDialog.currentFileQuota 
                                 : m.fileQuota;
                 return acc + (quotaVal || 0);
-              }, 0) || 0) + ownerFilesUsed;
+              }, 0) || 0;
 
               return totalAllocatedStorage > teamStorageTotal || totalAllocatedFiles > teamFilesTotal;
             })()}
@@ -867,16 +900,13 @@ export default function TeamsPage() {
                             </div>
 
                             {/* 已邀请成员 */}
-                            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                            {(invite as any).members && (invite as any).members.length > 0 && (
+                            {invite.members && invite.members.length > 0 && (
                               <div className="pt-3 border-t border-zinc-200/50 dark:border-white/5 space-y-2">
                                 <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
-                                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                  已邀请成员 ({(invite as any).members.length})
+                                  已邀请成员 ({invite.members.length})
                                 </div>
                                 <div className="flex flex-wrap gap-2">
-                                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                                  {(invite as any).members.map((m: any) => (
+                                  {invite.members.map((m) => (
                                     <div key={m.id} className="flex items-center gap-1.5 bg-white/50 dark:bg-white/5 px-2 py-1 rounded-full border border-zinc-200/50 dark:border-white/5">
                                       <Avatar className="w-4 h-4">
                                         <AvatarImage src={m.user.avatar || undefined} />
@@ -918,7 +948,7 @@ export default function TeamsPage() {
                             }
                           }}
                           onWheel={(e) => e.currentTarget.blur()}
-                          className="h-11 rounded-xl bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 text-foreground no-spinner"
+                          className="h-11 rounded-xl bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-zinc-100 no-spinner"
                         />
                       </div>
                     <div className="flex-1 space-y-2">
@@ -940,7 +970,7 @@ export default function TeamsPage() {
                           }
                         }}
                         onWheel={(e) => e.currentTarget.blur()}
-                        className="h-11 rounded-xl bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 text-foreground no-spinner"
+                        className="h-11 rounded-xl bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-zinc-100 no-spinner"
                       />
                     </div>
                   </div>
@@ -952,7 +982,7 @@ export default function TeamsPage() {
                 <Button 
                   onClick={() => setInviteManageDialog(false)} 
                   variant="outline" 
-                  className="rounded-full h-10 px-8 min-w-[100px] font-medium"
+                  className="rounded-full h-9 px-6 font-medium"
                 >
                   关闭
                 </Button>
@@ -961,9 +991,8 @@ export default function TeamsPage() {
                     await handleGenerateInvite();
                     await loadInviteCodes();
                   }} 
-                  className="rounded-full h-10 px-8 min-w-[100px] font-bold shadow-lg shadow-primary/20 gap-2"
+                  className="rounded-full h-9 px-6 font-bold shadow-lg shadow-primary/20"
                 >
-                  <UserPlus className="w-4 h-4" />
                   生成
                 </Button>
               </AlertDialogFooter>
@@ -1009,7 +1038,7 @@ export default function TeamsPage() {
                       value={editForm.storageQuotaMB} 
                       onChange={e => setEditForm(prev => ({ ...prev, storageQuotaMB: e.target.value }))}
                       placeholder="500"
-                      className="no-spinner"
+                      className="no-spinner text-zinc-900 dark:text-zinc-100"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1022,7 +1051,7 @@ export default function TeamsPage() {
                       value={editForm.fileQuota} 
                       onChange={e => setEditForm(prev => ({ ...prev, fileQuota: e.target.value }))}
                       placeholder="1000"
-                      className="no-spinner"
+                      className="no-spinner text-zinc-900 dark:text-zinc-100"
                     />
                   </div>
                 </div>
@@ -1051,7 +1080,7 @@ export default function TeamsPage() {
                         value={editForm.defaultStorageQuotaMB} 
                         onChange={e => setEditForm(prev => ({ ...prev, defaultStorageQuotaMB: e.target.value }))}
                         placeholder="100"
-                        className="no-spinner h-9"
+                        className="no-spinner h-9 text-zinc-900 dark:text-zinc-100"
                       />
                     </div>
                     <div className="space-y-2">
@@ -1063,15 +1092,15 @@ export default function TeamsPage() {
                         value={editForm.defaultFileQuota} 
                         onChange={e => setEditForm(prev => ({ ...prev, defaultFileQuota: e.target.value }))}
                         placeholder="500"
-                        className="no-spinner h-9"
+                        className="no-spinner h-9 text-zinc-900 dark:text-zinc-100"
                       />
                     </div>
                   </div>
                 )}
               </div>
               <DialogFooter>
-                 <Button variant="outline" onClick={() => setEditDialog(false)}>取消</Button>
-                 <Button onClick={handleUpdateTeam} disabled={updating} className="bg-primary text-primary-foreground">
+                 <Button variant="outline" onClick={() => setEditDialog(false)} className="rounded-full px-6">取消</Button>
+                 <Button onClick={handleUpdateTeam} disabled={updating} className="bg-primary text-primary-foreground rounded-full px-6">
                    {updating ? '保存中...' : '保存修改'}
                  </Button>
               </DialogFooter>

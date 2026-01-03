@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Users, Activity, ShieldCheck } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { PageWrapper } from '@/components/layout/page-wrapper';
@@ -196,34 +197,37 @@ export default function DashboardPage() {
                       <CardDescription>系统实时操作记录</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-1">
-                        {data.recent.activities.length === 0 ? (
-                          <p className="text-sm text-muted-foreground text-center py-12">暂无活动记录</p>
-                        ) : (
-                          data.recent.activities.map((log) => (
-                            <div key={log.id} className="flex items-center gap-3 py-3 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors px-2 rounded-lg">
-                              <Avatar className="w-8 h-8 shrink-0">
-                                <AvatarImage src={log.user.avatar || undefined} />
-                                <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
-                                  {log.user.username[0].toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm truncate">
-                                  <span className="font-semibold">{log.user.name || log.user.username}</span>
-                                  <span className="text-muted-foreground ml-2">{actionLabels[log.action] || log.action}</span>
-                                </p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  {formatDistanceToNow(new Date(log.createdAt), {
-                                    addSuffix: true,
-                                    locale: zhCN,
-                                  })}
-                                </p>
+                      <ScrollArea className="h-[300px] pr-4">
+                        <div className="space-y-1">
+                          {data.recent.activities.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-12">暂无活动记录</p>
+                          ) : (
+                            data.recent.activities.map((log) => (
+                              <div key={log.id} className="flex items-center gap-3 py-3 border-b border-border/50 last:border-0 hover:bg-muted/30 transition-colors px-2 rounded-lg">
+                                {/* ... existing item content ... */}
+                                <Avatar className="w-8 h-8 shrink-0">
+                                  <AvatarImage src={log.user.avatar || undefined} />
+                                  <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                                    {log.user.username[0].toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm truncate">
+                                    <span className="font-semibold">{log.user.name || log.user.username}</span>
+                                    <span className="text-muted-foreground ml-2">{actionLabels[log.action] || log.action}</span>
+                                  </p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {formatDistanceToNow(new Date(log.createdAt), {
+                                      addSuffix: true,
+                                      locale: zhCN,
+                                    })}
+                                  </p>
+                                </div>
                               </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
+                            ))
+                          )}
+                        </div>
+                      </ScrollArea>
                     </CardContent>
                   </Card>
                 </motion.div>

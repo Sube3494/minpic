@@ -92,10 +92,31 @@ export async function DELETE(
       await Promise.all(minioDeletePromises);
     }
 
-    // Delete database record
-    await prisma.file.delete({
-      where: { id },
+    // Delete database record and update user statistics
+    await prisma.$transaction(async (tx) => {
+      // Delete the file record
+      await tx.file.delete({
+        where: { id },
+      });
+
+      // Update user storage statistics
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          storageUsed: {
+            decrement: file.fileSize,
+          },
+          fileCount: {
+            decrement: 1,
+          },
+        },
+      });
     });
+
+    // Invalidate quota cache
+    const { cache, CacheKeys } = await import('@/lib/cache');
+    await cache.del(CacheKeys.userQuota(user.id));
+
 
     return NextResponse.json({ success: true });
   } catch (error) {

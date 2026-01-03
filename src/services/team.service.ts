@@ -55,6 +55,15 @@ export interface InviteCode {
   maxUses: number;
   usedCount: number;
   createdAt: string;
+  members?: Array<{
+    id: string;
+    user: {
+      id: string;
+      username: string;
+      name: string | null;
+      avatar: string | null;
+    };
+  }>;
 }
 
 export const teamService = {

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useTransition, useCallback, useMemo } from 'react';
+import { FilePreviewDialog } from '@/components/files/file-preview-dialog';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
+import { useState, useEffect, useTransition, useCallback, useMemo } from 'react';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,7 @@ import { useFileSelection } from '@/hooks/use-file-selection';
 import { useConfigs } from '@/hooks/use-configs';
 import { useFileUpload } from '@/hooks/use-file-upload';
 import { useTeam } from '@/hooks/use-team';
+import { useQuota } from '@/hooks/use-quota';
 import { FileCard } from '@/components/files/file-card';
 import { FileListRow } from '@/components/files/file-list-row';
 import { UploadArea } from '@/components/files/upload-area';
@@ -45,12 +47,13 @@ export function FilesClient() {
   } = useConfigs();
   const { data: session } = useSession();
   const { teamInfo } = useTeam();
+  const { quota, refreshQuota } = useQuota();
 
   const { 
     files, loading, isRefreshing, search, setSearch, filter, setFilter, viewMode, setViewMode,
     refreshFn, deleteFile, batchDelete,
     hasMore, loadingMore, loadMore 
-  } = useFiles('all', 'grid', selectedConfigId);
+  } = useFiles('all', 'grid', selectedConfigId, refreshQuota);
 
 
   const { 
@@ -59,7 +62,7 @@ export function FilesClient() {
   
   const { 
     uploading, queue, aggregateProgress, uploadFiles 
-  } = useFileUpload(refreshFn);
+  } = useFileUpload(refreshFn, quota, refreshQuota);
 
   const [, startTransition] = useTransition();
   const [optimisticFilter, setOptimisticFilter] = useState(filter);
@@ -93,6 +96,8 @@ export function FilesClient() {
     open: boolean;
     fileId: string;
   }>({ open: false, fileId: '' });
+
+  const [previewFile, setPreviewFile] = useState<typeof files[0] | null>(null);
 
   const [shortlinkEnabled, setShortlinkEnabled] = useState(false);
   const [columns, setColumns] = useState(1);
@@ -170,17 +175,13 @@ export function FilesClient() {
   };
 
   // Handlers
-  const handleCopyDirectLink = useCallback(async (fileId: string) => {
+  const getDirectLink = useCallback(async (fileId: string) => {
     try {
       const url = await fileService.getDirectLink(fileId);
-      await navigator.clipboard.writeText(url);
-      const displayUrl = url.length > 80 ? url.substring(0, 80) + '...' : url;
-      toast.success('直链已复制到剪贴板', {
-        description: displayUrl
-      });
+      return url;
     } catch (err) {
       console.error('获取直链失败:', err);
-      toast.error('获取直链失败');
+      throw err;
     }
   }, []);
 
@@ -483,9 +484,10 @@ export function FilesClient() {
                                isSelected={selectedIds.includes(file.id)} 
                                isSelectionMode={selectedIds.length > 0}
                                toggleSelect={toggleSelect} 
-                               copyDirectLink={handleCopyDirectLink} 
+                               getDirectLink={getDirectLink} 
                                generateShortlink={handleGenerateShortlink}
                                shortlinkEnabled={shortlinkEnabled}
+                               onPreview={setPreviewFile}
                           />
                         ))}
                       </div>
@@ -497,9 +499,10 @@ export function FilesClient() {
                           file={file} 
                           isSelected={selectedIds.includes(file.id)} 
                           toggleSelect={toggleSelect} 
-                          copyDirectLink={handleCopyDirectLink} 
+                          getDirectLink={getDirectLink} 
                           generateShortlink={handleGenerateShortlink}
                           shortlinkEnabled={shortlinkEnabled}
+                          onPreview={setPreviewFile}
                       />
                     ))
                   )}
@@ -537,50 +540,48 @@ export function FilesClient() {
             exit={{ opacity: 0, y: 20, x: "-50%", scale: 0.98 }}
             transition={{ type: "spring", damping: 25, stiffness: 400 }}
             style={{ willChange: "transform, opacity, backdrop-filter" }}
-            className="fixed bottom-6 left-1/2 z-9999 pointer-events-auto w-[92vw] md:w-auto p-2 pl-3 md:pl-3 rounded-2xl md:rounded-full bg-white/90 dark:bg-black/20 backdrop-blur-2xl border border-zinc-200 dark:border-white/10 shadow-xl ring-1 ring-black/5 dark:ring-white/5"
+            className="fixed bottom-6 left-1/2 z-9999 pointer-events-auto min-w-[320px] max-w-[90vw] p-2 pl-3 rounded-full bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)] ring-1 ring-black/5 dark:ring-white/5 flex items-center justify-between gap-4"
           >
-            <div className="flex items-center justify-between gap-2 md:gap-4">
-              {/* Info section */}
-              <div className="flex items-center gap-2 pl-0 pr-3 py-1.5 border-r border-zinc-200 dark:border-white/10 shrink-0">
-                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-[11px] font-bold">
-                  {selectedIds.length}
-                </div>
-                <span className="text-zinc-900 dark:text-zinc-100 font-bold text-sm tracking-tight">已选文件</span>
+            {/* Info section */}
+            <div className="flex items-center gap-3 pl-1 pr-4 border-r border-zinc-200/50 dark:border-white/10 shrink-0">
+              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20">
+                {selectedIds.length}
               </div>
+              <span className="text-zinc-600 dark:text-zinc-300 font-medium text-sm hidden sm:inline-block">已选文件</span>
+            </div>
 
-              {/* Functional Buttons */}
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  className="h-8 px-3.5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-900 dark:text-zinc-100 font-bold text-xs border-0 transition-all active:scale-95"
-                  onClick={handleSelectAll}
-                >
-                  {isAllSelected ? '取消全选' : '全选'}
-                </Button>
-
-                <Button 
-                  variant="secondary" 
-                  size="sm" 
-                  className="h-8 px-3.5 rounded-full bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-900 dark:text-zinc-100 font-bold text-xs border-0 transition-all active:scale-95"
-                  onClick={() => setSelectedIds([])}
-                >
-                  清除
-                </Button>
-              </div>
-
-              {/* Crucial Action */}
-              <Button
-                variant="destructive"
-                size="sm"
-                className="h-9 px-5 rounded-full font-bold text-xs tracking-wide shadow-md shadow-red-500/10 hover:shadow-red-500/20 transition-all active:scale-95"
-                onClick={handleBatchDeleteClick}
-                disabled={isDeleting}
+            {/* Functional Buttons */}
+            <div className="flex items-center gap-1.5 flex-1 justify-center sm:justify-start">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 px-3 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 font-medium text-xs transition-colors"
+                onClick={handleSelectAll}
               >
-                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Trash2 className="w-3.5 h-3.5 mr-2" />}
-                批量删除
+                {isAllSelected ? '取消全选' : '全选'}
+              </Button>
+
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 px-3 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 font-medium text-xs transition-colors"
+                onClick={() => setSelectedIds([])}
+              >
+                清除
               </Button>
             </div>
+
+            {/* Crucial Action */}
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-9 px-5 rounded-full font-bold text-xs shadow-lg shadow-red-500/20 hover:shadow-red-500/30 bg-linear-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 transition-all active:scale-95 shrink-0"
+              onClick={handleBatchDeleteClick}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Trash2 className="w-3.5 h-3.5 mr-2" />}
+              批量删除
+            </Button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -596,6 +597,14 @@ export function FilesClient() {
       onDeleteModeChange={(mode) => setDeleteDialog(prev => ({ ...prev, deleteMode: mode }))}
       onConfirm={confirmDelete}
       isLoading={isDeleting}
+    />
+
+    {/* Preview Dialog */}
+    <FilePreviewDialog
+      open={!!previewFile}
+      onOpenChange={useCallback((open: boolean) => !open && setPreviewFile(null), [])}
+      file={previewFile}
+      getDirectLink={getDirectLink}
     />
 
     {/* Shortlink Dialog */}

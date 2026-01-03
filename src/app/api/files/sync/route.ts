@@ -44,16 +44,29 @@ export async function POST(request: NextRequest) {
           return;
         }
 
+        // Get user's githubId to match upload path structure
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { githubId: true }
+        });
+
+        if (!user?.githubId) {
+          sendEvent({ type: 'error', message: '无法获取用户 GitHub ID' });
+          controller.close();
+          return;
+        }
+
         // Connect to MinIO
         const minioService = new MinioService();
         await minioService.connect(minioConfig);
 
-        // 构建用户路径前缀:baseDir/users/{userId}/
+        // 构建用户路径前缀:baseDir/users/{githubId}/
+        // 注意：这里使用 githubId 而不是 userId，与上传逻辑保持一致
         let userPrefix = '';
         if (minioConfig.baseDir) {
           userPrefix = `${minioConfig.baseDir}/`;
         }
-        userPrefix += `users/${userId}/`;
+        userPrefix += `users/${user.githubId}/`;
 
         // List only current user's files
         const files = await minioService.listFiles(userPrefix);
@@ -106,7 +119,7 @@ export async function POST(request: NextRequest) {
             const fileSizeBigInt = BigInt(fileObj.size || 0);
             if (!existing) {
               // 检查文件数量限额
-              const fileQuotaCheck = await checkFileQuota(userId, newFilesCount);
+              const fileQuotaCheck = await checkFileQuota(userId, newFilesCount, targetConfigId);
               if (!fileQuotaCheck.allowed) {
                 sendEvent({
                   type: 'quota_exceeded',
@@ -121,7 +134,7 @@ export async function POST(request: NextRequest) {
               }
 
               // 检查存储空间限额
-              const storageQuotaCheck = await checkStorageQuota(userId, fileSizeBigInt, batchTotalSize);
+              const storageQuotaCheck = await checkStorageQuota(userId, fileSizeBigInt, batchTotalSize, targetConfigId);
               if (!storageQuotaCheck.allowed) {
                 sendEvent({
                   type: 'quota_exceeded',

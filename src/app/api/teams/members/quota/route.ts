@@ -21,8 +21,7 @@ export async function PATCH(request: Request) {
     const userId = session.user.id;
 
     // 检查用户是否是团队主
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const team = await (prisma as any).team.findUnique({
+    const team = await prisma.team.findUnique({
       where: { ownerId: userId },
     });
 
@@ -38,8 +37,7 @@ export async function PATCH(request: Request) {
 
     if (!validation.success) {
       return NextResponse.json(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        { error: '参数验证失败', details: (validation.error as any).errors },
+        { error: '参数验证失败', details: validation.error.issues },
         { status: 400 }
       );
     }
@@ -47,8 +45,7 @@ export async function PATCH(request: Request) {
     const { userId: targetUserId, storageQuota, fileQuota } = validation.data;
 
     // 验证目标用户是该团队成员
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const member = await (prisma as any).teamMember.findFirst({
+    const member = await prisma.teamMember.findFirst({
       where: {
         teamId: team.id,
         userId: targetUserId,
@@ -68,8 +65,7 @@ export async function PATCH(request: Request) {
     }
 
     // 获取团队配额和所有成员的配额状态
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const teamWithMembers = await (prisma as any).team.findUnique({
+    const teamWithMembers = await prisma.team.findUnique({
       where: { id: team.id },
       select: {
         storageQuota: true,
@@ -82,8 +78,7 @@ export async function PATCH(request: Request) {
 
     if (!teamWithMembers) throw new Error('Team not found');
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allMembers = await (prisma as any).teamMember.findMany({
+    const allMembers = await prisma.teamMember.findMany({
       where: { teamId: team.id },
       select: { userId: true, storageQuota: true, fileQuota: true }
     });
@@ -150,8 +145,7 @@ export async function PATCH(request: Request) {
     }
 
     // 更新成员配额
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updatedMember = await (prisma as any).teamMember.update({
+    const updatedMember = await prisma.teamMember.update({
       where: { id: member.id },
       data: {
         storageQuota: storageQuota !== undefined ? (storageQuota === null ? null : BigInt(storageQuota)) : undefined,

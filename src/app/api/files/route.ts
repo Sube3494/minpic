@@ -10,8 +10,12 @@ import { getUserMinioConfig, getStorageIdentityConfigIds } from '@/lib/get-user-
 import { serializeBigInt } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
-  // Rate limiting: 20 uploads per minute
-  const rateLimit = checkRateLimit(request, { limit: 20, windowMs: 60000 });
+  // Get dynamic rate limit
+  const settings = await prisma.systemSettings.findFirst();
+  const limit = settings?.uploadRateLimit || 100;
+
+  // Rate limiting
+  const rateLimit = checkRateLimit(request, { limit, windowMs: 60000 });
   if (!rateLimit.allowed) {
     return rateLimitResponse(rateLimit.resetTime);
   }
@@ -35,7 +39,7 @@ export async function POST(request: NextRequest) {
     if (contentLength) {
       const estimatedSize = parseInt(contentLength);
       if (estimatedSize > 0) {
-        const quotaCheck = await checkStorageQuota(user.id, estimatedSize);
+        const quotaCheck = await checkStorageQuota(user.id, estimatedSize, 0, configId);
         if (!quotaCheck.allowed) {
           return NextResponse.json({ 
             error: quotaCheck.reason,
@@ -46,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check file quota
-    const fileQuotaCheck = await checkFileQuota(user.id);
+    const fileQuotaCheck = await checkFileQuota(user.id, 0, configId);
     if (!fileQuotaCheck.allowed) {
       return NextResponse.json({ error: fileQuotaCheck.reason }, { status: 403 });
     }
@@ -130,6 +134,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(serializeBigInt(result));
   } catch (error) {
+    // Handle file exists error gracefully
+    if (error instanceof Error && error.message === 'FILE_EXISTS') {
+      return NextResponse.json(
+        { error: '文件已存在', message: '该文件名已存在于存储桶中，请修改配置或重命名文件' },
+        { status: 409 }
+      );
+    }
+    
     console.error('Error uploading file:', error);
     return NextResponse.json(
       { error: 'Failed to upload file', message: String(error) },
@@ -281,6 +293,7 @@ export async function DELETE(request: NextRequest) {
 
     // Update quotas
     const totalSize = files.reduce((sum, f) => sum + BigInt(f.fileSize), BigInt(0));
+    
     await Promise.all([
       updateStorageUsage(user.id, -totalSize),
       updateFileCount(user.id, -files.length),

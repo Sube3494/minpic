@@ -90,11 +90,13 @@ export const authConfig: NextAuthConfig = {
         const shouldBeAdmin = process.env.ADMIN_GITHUB_ID === githubId;
         const needsRoleUpdate = shouldBeAdmin && existingUser.role !== 'ADMIN';
         
-        // Update last login and role if needed
+        // Update last login, avatar and role if needed
+        const ghProfile = profile as unknown as GithubProfile;
         await prisma.user.update({
           where: { id: existingUser.id },
           data: { 
             lastLoginAt: new Date(),
+            avatar: ghProfile.avatar_url,
             ...(needsRoleUpdate && { role: 'ADMIN' })
           }
         });

@@ -136,6 +136,9 @@ model SystemSettings {
   siteName        String  @default("MinPic")
   siteDescription String?
 
+  // Limits
+  uploadRateLimit Int @default(100)
+
   updatedAt DateTime @updatedAt
 
   @@map("system_settings")

@@ -1,32 +1,54 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
 import { cache, CacheKeys, CacheTTL } from './cache';
 
-/**
- * 团队配额检查
- * 规则:
- * 1. 个人用户(无团队): 不限制
- * 2. 团队成员:
- *    a. 检查团队总限额
- *    b. 如果成员有个人子限额,再检查个人限额
- */
+type TeamMemberWithQuota = Prisma.TeamMemberGetPayload<{
+  include: {
+    team: {
+      select: {
+        id: true,
+        ownerId: true,
+        storageQuota: true,
+        fileQuota: true,
+        members: {
+          include: {
+            user: {
+              select: { storageUsed: true, fileCount: true },
+            },
+          },
+        },
+      },
+    },
+    user: {
+      select: { storageUsed: true, fileCount: true },
+    },
+  },
+}>;
+
+interface QuotaCacheData {
+  data: TeamMemberWithQuota;
+  timestamp: number;
+}
 
 /**
  * 获取用户的配额相关数据（包含团队信息、成员限额、所有成员的使用量）
  */
-async function getQuotaData(userId: string) {
+async function getQuotaData(userId: string): Promise<TeamMemberWithQuota | null> {
   const cacheKey = CacheKeys.userQuota(userId);
-  const cached = await cache.get<any>(cacheKey);
+  const cached = await cache.get<QuotaCacheData>(cacheKey);
 
-  if (cached && Date.now() - cached.timestamp < 60000) {
+  // Use 5-second cache to ensure fresh data after deletions
+  if (cached && Date.now() - cached.timestamp < 5000) {
     return cached.data;
   }
-
+  
   const data = await prisma.teamMember.findUnique({
     where: { userId },
     include: {
       team: {
         select: {
           id: true,
+          ownerId: true,
           storageQuota: true,
           fileQuota: true,
           members: {
@@ -42,7 +64,7 @@ async function getQuotaData(userId: string) {
         select: { storageUsed: true, fileCount: true },
       },
     },
-  });
+  }) as TeamMemberWithQuota | null;
 
   if (data) {
     await cache.set(cacheKey, { data, timestamp: Date.now() }, CacheTTL.QUOTA);
@@ -54,8 +76,19 @@ async function getQuotaData(userId: string) {
 export async function checkStorageQuota(
   userId: string,
   fileSize: number | bigint,
-  pendingUsage: number | bigint = 0
+  pendingUsage: number | bigint = 0,
+  configId?: string | null
 ): Promise<{ allowed: boolean; reason?: string }> {
+  // 1. 如果指定了配置 ID，检查是否为用户的私有配置
+  if (configId) {
+    const isPersonalConfig = await prisma.config.findUnique({
+      where: { userId_key: { userId, key: `minio_${configId}` } }
+    });
+    if (isPersonalConfig) {
+      return { allowed: true }; // 私有配置不受限
+    }
+  }
+
   const teamMember = await getQuotaData(userId);
 
   // 个人用户(无团队): 不限制
@@ -66,9 +99,17 @@ export async function checkStorageQuota(
   // 团队场景: 检查团队总限额
   const team = teamMember.team;
   
-  // 计算团队总使用量(所有成员累计)
+  // 团队主不受限制
+  if (team.ownerId === userId) {
+    return { allowed: true };
+  }
+
+  // 计算团队总使用量(只统计普通成员，排除团队主)
   const totalUsed = team.members.reduce(
-    (sum: bigint, m: any) => sum + m.user.storageUsed,
+    (sum: bigint, m) => {
+      if (m.userId === team.ownerId) return sum; // 排除团队主
+      return sum + m.user.storageUsed;
+    },
     BigInt(0)
   ) + BigInt(pendingUsage);
 
@@ -100,8 +141,19 @@ export async function checkStorageQuota(
 
 export async function checkFileQuota(
   userId: string,
-  pendingCount: number = 0
+  pendingCount: number = 0,
+  configId?: string | null
 ): Promise<{ allowed: boolean; reason?: string }> {
+  // 1. 如果指定了配置 ID，检查是否为用户的私有配置
+  if (configId) {
+    const isPersonalConfig = await prisma.config.findUnique({
+      where: { userId_key: { userId, key: `minio_${configId}` } }
+    });
+    if (isPersonalConfig) {
+      return { allowed: true }; // 私有配置不受限
+    }
+  }
+
   const teamMember = await getQuotaData(userId);
 
   // 个人用户(无团队): 不限制
@@ -112,9 +164,17 @@ export async function checkFileQuota(
   // 团队场景: 检查团队总限额
   const team = teamMember.team;
 
-  // 计算团队总文件数(所有成员累计)
+  // 团队主不受限制
+  if (team.ownerId === userId) {
+    return { allowed: true };
+  }
+
+  // 计算团队总文件数(只统计普通成员，排除团队主)
   const totalCount = team.members.reduce(
-    (sum: number, m: any) => sum + m.user.fileCount,
+    (sum: number, m) => {
+      if (m.userId === team.ownerId) return sum; // 排除团队主
+      return sum + m.user.fileCount;
+    },
     0
   ) + pendingCount;
 

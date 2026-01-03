@@ -28,8 +28,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
         className: "backdrop-blur-2xl! shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1)]! dark:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.4)]! rounded-2xl! border! border-white/25! dark:border-white/10!",
         classNames: {
           toast: "",
-          description: "text-muted-foreground! text-sm!",
-          title: "text-sm! font-normal!",
+          description: "text-muted-foreground! text-xs!",
+          title: "text-sm! font-medium!",
           success: "bg-white/25! dark:bg-white/10! text-emerald-700! dark:text-emerald-300!",
           error: "bg-white/25! dark:bg-white/10! text-red-700! dark:text-red-300!",
           warning: "bg-white/25! dark:bg-white/10! text-amber-700! dark:text-amber-300!",

@@ -1,3 +1,10 @@
+/*
+ * @Date: 2025-12-30 00:40:20
+ * @Author: Sube
+ * @FilePath: route.ts
+ * @LastEditTime: 2026-01-03 00:13:31
+ * @Description: 
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
@@ -43,7 +50,8 @@ export async function PATCH(request: NextRequest) {
       registrationEnabled, 
       requireWhitelist,
       siteName,
-      siteDescription
+      siteDescription,
+      uploadRateLimit
     } = body;
 
     // 获取或创建设置
@@ -54,20 +62,22 @@ export async function PATCH(request: NextRequest) {
         data: {
           registrationEnabled: true,
           requireWhitelist: false,
-        },
+          uploadRateLimit: 100
+        } as Prisma.SystemSettingsCreateInput & { uploadRateLimit: number },
       });
     }
 
     // 更新设置
-    const updateData: Prisma.SystemSettingsUpdateInput = {};
+    const updateData: Prisma.SystemSettingsUpdateInput & { uploadRateLimit?: number } = {};
     if (registrationEnabled !== undefined) updateData.registrationEnabled = registrationEnabled;
     if (requireWhitelist !== undefined) updateData.requireWhitelist = requireWhitelist;
     if (siteName !== undefined) updateData.siteName = siteName;
     if (siteDescription !== undefined) updateData.siteDescription = siteDescription;
+    if (uploadRateLimit !== undefined) updateData.uploadRateLimit = parseInt(uploadRateLimit);
 
     const updatedSettings = await prisma.systemSettings.update({
       where: { id: settings.id },
-      data: updateData,
+      data: updateData as Prisma.SystemSettingsUpdateInput,
     });
 
     // 记录审计日志

@@ -29,8 +29,7 @@ export async function GET() {
     });
 
     // 检查用户是否在团队中
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const membership = await (prisma as any).teamMember.findUnique({
+    const membership = await prisma.teamMember.findUnique({
       where: { userId: user.id },
       include: {
         team: {

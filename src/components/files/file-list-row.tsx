@@ -5,6 +5,7 @@
  * @LastEditTime: 2025-12-25 18:03:16
  * @Description: 
  */
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileItem } from '@/types/file';
 import Image from 'next/image';
@@ -12,6 +13,7 @@ import { CheckCircle2, Circle, Copy, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn, formatFileSize } from '@/lib/utils'; 
 import { FileIcon } from './file-icon'; 
+import { CopyFormatMenu } from './copy-format-menu';
 
 // 格式化过期时间
 function formatExpiryTime(expiresAt: string | null | undefined): string | null {
@@ -34,12 +36,14 @@ interface FileListRowProps {
   file: FileItem;
   isSelected: boolean;
   toggleSelect: (id: string) => void;
-  copyDirectLink: (id: string) => void;
+  getDirectLink: (id: string) => Promise<string>;
   generateShortlink: (id: string) => void;
   shortlinkEnabled: boolean;
+  onPreview: (file: FileItem) => void;
 }
 
-export function FileListRow({ file, isSelected, toggleSelect, copyDirectLink, generateShortlink, shortlinkEnabled }: FileListRowProps) {
+export function FileListRow({ file, isSelected, toggleSelect, getDirectLink, generateShortlink, shortlinkEnabled, onPreview }: FileListRowProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <motion.div
@@ -48,13 +52,20 @@ export function FileListRow({ file, isSelected, toggleSelect, copyDirectLink, ge
       exit={{ opacity: 0, x: -20 }}
       transition={{ duration: 0.2 }}
       className={cn(
-        "relative group cursor-pointer overflow-hidden border rounded-2xl shadow-sm bg-card p-1",
-        isSelected ? "ring-2 ring-primary border-primary z-20" : "border-black/5 dark:border-white/5"
+        "relative group cursor-pointer overflow-hidden border rounded-2xl shadow-sm bg-card p-1 transition-all duration-200",
+        isSelected || isMenuOpen ? "ring-2 ring-primary border-primary z-20" : "border-black/5 dark:border-white/5",
+        isMenuOpen && "bg-muted/30"
       )}
-      onClick={() => toggleSelect(file.id)}
+      onClick={() => onPreview(file)}
     >
       <div className="flex items-center gap-2 md:gap-4 p-2 md:p-3 relative">
-        <div className="shrink-0 pl-1">
+        <div 
+          className="shrink-0 pl-1 cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleSelect(file.id);
+          }}
+        >
           {isSelected ? (
             <CheckCircle2 className="w-5 h-5 text-primary" />
           ) : (
@@ -103,15 +114,21 @@ export function FileListRow({ file, isSelected, toggleSelect, copyDirectLink, ge
         </div>
 
         <div className="flex gap-1.5 md:gap-2" onClick={e => e.stopPropagation()}>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 md:h-10 px-2 md:px-5 rounded-full font-medium bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 shadow-sm"
-            onClick={() => copyDirectLink(file.id)}
+          <CopyFormatMenu 
+            fileId={file.id} 
+            filename={file.filename}
+            onGetUrl={getDirectLink}
+            onOpenChange={setIsMenuOpen}
           >
-            <Copy className="w-3.5 h-3.5 md:mr-2" />
-            <span className="hidden sm:inline text-xs">复制直链</span>
-          </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 md:h-10 px-2 md:px-5 rounded-full font-medium bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 shadow-sm"
+            >
+              <Copy className="w-3.5 h-3.5 md:mr-2" />
+              <span className="hidden sm:inline text-xs">复制</span>
+            </Button>
+          </CopyFormatMenu>
           {shortlinkEnabled && (
             <Button
               size="sm"

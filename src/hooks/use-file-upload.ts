@@ -1,14 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UploadTask } from '@/types/file';
 import { toast } from 'sonner';
-import { useQuota } from './use-quota';
+import { UserQuota } from './use-quota';
 import { useTeam } from './use-team';
 import { formatFileSize } from '@/lib/utils';
 
-export function useFileUpload(refreshFiles: () => void) {
+export function useFileUpload(
+  refreshFiles: () => void,
+  quota: UserQuota | null,
+  refreshQuota: () => void
+) {
   const [queue, setQueue] = useState<UploadTask[]>([]);
   const [uploading, setUploading] = useState(false);
-  const { quota, refreshQuota } = useQuota();
   const { teamInfo } = useTeam();
 
   // Compute aggregate progress

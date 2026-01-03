@@ -230,7 +230,13 @@ class CacheManager {
       const value = await this.adapter.get(key);
       if (!value) return null;
 
-      return JSON.parse(value) as T;
+      // 使用 reviver 恢复 BigInt
+      return JSON.parse(value, (_, val) => {
+        if (typeof val === 'string' && val.startsWith('_bi:')) {
+          return BigInt(val.slice(4));
+        }
+        return val;
+      }) as T;
     } catch (error) {
       console.error('Cache get error:', error);
       return null;
@@ -241,7 +247,10 @@ class CacheManager {
     if (!this.enabled) return;
 
     try {
-      const serialized = JSON.stringify(value);
+      // 使用 replacer 处理 BigInt
+      const serialized = JSON.stringify(value, (_, val) => 
+        typeof val === 'bigint' ? `_bi:${val.toString()}` : val
+      );
       await this.adapter.set(key, serialized, ttlSeconds);
     } catch (error) {
       console.error('Cache set error:', error);

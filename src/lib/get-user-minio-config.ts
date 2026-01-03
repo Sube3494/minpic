@@ -123,7 +123,7 @@ export async function getUserMinioConfig(userId: string, configId?: string | nul
  */
 export async function getStorageIdentityConfigIds(
   userId: string, 
-  activeConfig: any
+  activeConfig: MinioConfig
 ): Promise<string[]> {
   if (!activeConfig) return [];
 
@@ -142,7 +142,7 @@ export async function getStorageIdentityConfigIds(
   const storageGroupConfigIds = allConfigRecords
     .map(record => {
       try {
-        const config = JSON.parse(record.value);
+        const config = JSON.parse(record.value) as MinioConfig;
         return { 
           id: config.id || record.key.replace('minio_', ''), 
           config 
@@ -151,7 +151,7 @@ export async function getStorageIdentityConfigIds(
         return null;
       }
     })
-    .filter((item): item is { id: string; config: any } => 
+    .filter((item): item is { id: string; config: MinioConfig } => 
       item !== null &&
       item.config.accessKey === activeConfig.accessKey &&
       item.config.bucket === activeConfig.bucket &&

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Users, UserX, Crown, Shield, Calendar, Settings, HardDrive, File as FileIcon } from 'lucide-react';
+import { Users, Crown, Shield, Calendar, Settings, HardDrive, File as FileIcon, LogOut } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -85,27 +85,45 @@ export function TeamInfoCard({ teamInfo, onLeave, onUpdate }: TeamInfoCardProps)
   };
 
   return (
-    <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 overflow-hidden">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <CardTitle className="text-lg font-bold text-zinc-800 dark:text-zinc-100 tracking-tight">
-              团队信息
-            </CardTitle>
-            <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400">
-              您当前所在的团队
+    <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 overflow-hidden relative group">
+       <div className="absolute inset-0 bg-linear-to-br from-indigo-500/5 via-transparent to-transparent opacity-50" />
+      
+      <CardHeader className="pb-4 relative">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1.5">
+             <div className="flex items-center gap-2">
+                <CardTitle className="text-xl font-bold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                  {team.name}
+                </CardTitle>
+                <Badge 
+                  variant="secondary"
+                  className={cn(
+                    "text-[10px] px-2 py-0.5 border-none",
+                    isOwner ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : 
+                    isAdmin ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" :
+                    "bg-zinc-100 dark:bg-zinc-800 text-zinc-500"
+                  )}
+                >
+                  {isOwner && <Crown className="w-3 h-3 mr-1" />}
+                  {isAdmin && <Shield className="w-3 h-3 mr-1" />}
+                  {isOwner ? '所有者' : isAdmin ? '管理员' : '成员'}
+                </Badge>
+             </div>
+            <CardDescription className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 max-w-[280px]">
+              {team.description || '暂无团队描述'}
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            {isOwner && onUpdate && (
-              <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10" onClick={handleEditClick}>
-                <Settings className="w-4 h-4 text-zinc-500" />
-              </Button>
-            )}
-            <div className="p-2 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-              <Users className="w-5 h-5" />
-            </div>
-          </div>
+          
+          {isOwner && onUpdate && (
+             <Button 
+               size="icon" 
+               variant="ghost" 
+               className="h-8 w-8 rounded-full text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10" 
+               onClick={handleEditClick}
+             >
+               <Settings className="w-4 h-4" />
+             </Button>
+          )}
         </div>
       </CardHeader>
       
@@ -171,82 +189,60 @@ export function TeamInfoCard({ teamInfo, onLeave, onUpdate }: TeamInfoCardProps)
         </DialogContent>
       </Dialog>
       
-      <CardContent className="space-y-4">
-        {/* Team Name */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-zinc-900 dark:text-zinc-100">
-              {team.name}
-            </h3>
-            <Badge 
-              variant={isOwner ? 'default' : 'secondary'}
-              className={cn(
-                "text-xs",
-                isOwner && "bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20",
-                isAdmin && "bg-blue-500/10 text-blue-700 dark:text-blue-400 hover:bg-blue-500/20"
-              )}
-            >
-              {isOwner && <Crown className="w-3 h-3 mr-1" />}
-              {isAdmin && <Shield className="w-3 h-3 mr-1" />}
-              {isOwner ? '所有者' : isAdmin ? '管理员' : '成员'}
-            </Badge>
-          </div>
-          {team.description && (
-            <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">
-              {team.description}
-            </p>
-          )}
-        </div>
+      <CardContent className="space-y-6 relative">
 
-        {/* Owner Info */}
-        <div className="p-3 rounded-xl bg-zinc-50/50 dark:bg-white/5 border border-zinc-200/50 dark:border-white/5">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2 font-medium">团队所有者</p>
-          <div className="flex items-center gap-3">
-            <Avatar className="w-8 h-8 ring-2 ring-zinc-200/50 dark:ring-white/10">
-              <AvatarImage src={team.owner.avatar || undefined} />
-              <AvatarFallback className="text-xs">
-                {team.owner.name?.[0] || team.owner.username[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                {team.owner.name || team.owner.username}
-              </p>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
-                @{team.owner.username}
-              </p>
+        {/* Info Grid */}
+        <div className="grid grid-cols-1 gap-4">
+          
+           {/* Owner Row */}
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50/50 dark:bg-white/5 border border-zinc-100 dark:border-white/5">
+                <Avatar className="w-10 h-10 ring-2 ring-white dark:ring-white/5 shadow-xs">
+                  <AvatarImage src={team.owner.avatar || undefined} />
+                  <AvatarFallback className="text-xs bg-indigo-50 text-indigo-500 dark:bg-indigo-900/20 dark:text-indigo-400">
+                    {team.owner.name?.[0] || team.owner.username[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                   <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-0.5">创建者</p>
+                   <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate">
+                     {team.owner.name || team.owner.username}
+                   </p>
+                </div>
             </div>
-          </div>
+
+            {/* Stats Row */}
+            <div className="grid grid-cols-2 gap-3">
+               <div className="flex flex-col gap-1 p-3 rounded-xl bg-zinc-50/50 dark:bg-white/5 border border-zinc-100 dark:border-white/5">
+                  <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
+                     <Users className="w-3.5 h-3.5" />
+                     <span className="text-xs font-medium">团队规模</span>
+                  </div>
+                  <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mt-1">
+                    {team.members.length} <span className="text-xs font-normal text-zinc-400">人</span>
+                  </p>
+               </div>
+               
+               <div className="flex flex-col gap-1 p-3 rounded-xl bg-zinc-50/50 dark:bg-white/5 border border-zinc-100 dark:border-white/5">
+                  <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400">
+                     <Calendar className="w-3.5 h-3.5" />
+                     <span className="text-xs font-medium">成立时间</span>
+                  </div>
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mt-auto">
+                    {format(new Date(team.createdAt), 'yyyy-MM-dd', { locale: zhCN })}
+                  </p>
+               </div>
+            </div>
+
         </div>
 
-        {/* Member Count & Join Date */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-xl bg-zinc-50/50 dark:bg-white/5 border border-zinc-200/50 dark:border-white/5">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 font-medium">成员数量</p>
-            <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-              {team.members.length}
-            </p>
-          </div>
-          <div className="p-3 rounded-xl bg-zinc-50/50 dark:bg-white/5 border border-zinc-200/50 dark:border-white/5">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1 font-medium flex items-center gap-1">
-              <Calendar className="w-3 h-3" />
-              加入时间
-            </p>
-            <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              {format(new Date(team.createdAt), 'yyyy-MM-dd', { locale: zhCN })}
-            </p>
-          </div>
-        </div>
-
-        {/* Leave Team Button - Only for non-owners */}
         {/* Leave Team Button - Only for non-owners */}
         {!isOwner && (
           <AlertDialog open={open} onOpenChange={setOpen}>
             <AlertDialogTrigger asChild>
               <button
-                className="w-full p-3 rounded-xl bg-zinc-50/50 dark:bg-white/5 border border-zinc-200/50 dark:border-white/5 flex items-center justify-center gap-2 text-red-600 dark:text-red-400 hover:bg-zinc-100/50 dark:hover:bg-white/10 transition-colors"
+                className="w-full p-3 rounded-xl bg-red-50/50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 flex items-center justify-center gap-2 text-red-600 dark:text-red-400 hover:bg-red-100/50 dark:hover:bg-red-900/20 transition-colors group/btn"
               >
-                <UserX className="w-4 h-4" />
+                <LogOut className="w-4 h-4 group-hover/btn:-translate-x-0.5 transition-transform" />
                 <span className="text-sm font-medium">退出团队</span>
               </button>
             </AlertDialogTrigger>

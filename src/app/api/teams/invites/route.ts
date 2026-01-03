@@ -13,8 +13,7 @@ export async function GET() {
     }
 
     // 检查用户是否是团队主
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const team = await (prisma as any).team.findUnique({
+    const team = await prisma.team.findUnique({
       where: { ownerId: userId },
     });
 
@@ -26,8 +25,7 @@ export async function GET() {
     }
 
     // 获取团队所有邀请码
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const invites = await (prisma as any).inviteCode.findMany({
+    const invites = await prisma.inviteCode.findMany({
       where: { teamId: team.id },
       include: {
         members: {
@@ -71,8 +69,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 检查用户是否是团队主
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const team = await (prisma as any).team.findUnique({
+    const team = await prisma.team.findUnique({
       where: { ownerId: userId },
     });
 
@@ -84,8 +81,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 检查邀请码是否存在且属于该团队
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const invite = await (prisma as any).inviteCode.findUnique({
+    const invite = await prisma.inviteCode.findUnique({
       where: { id },
     });
 
@@ -98,8 +94,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 删除邀请码
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (prisma as any).inviteCode.delete({
+    await prisma.inviteCode.delete({
       where: { id },
     });
 

@@ -11,9 +11,18 @@ interface MemberQuotaCardProps {
   totalTeamStorage?: bigint;
   totalTeamFiles?: number;
   isOwner?: boolean;
+  overrideStorageUsed?: bigint;
+  overrideFileCount?: number;
 }
 
-export function MemberQuotaCard({ memberInfo, totalTeamStorage, totalTeamFiles, isOwner = false }: MemberQuotaCardProps) {
+export function MemberQuotaCard({ 
+  memberInfo, 
+  totalTeamStorage, 
+  totalTeamFiles, 
+  isOwner = false,
+  overrideStorageUsed,
+  overrideFileCount
+}: MemberQuotaCardProps) {
   if (!memberInfo) return null;
   
   // Logic: 
@@ -55,13 +64,16 @@ export function MemberQuotaCard({ memberInfo, totalTeamStorage, totalTeamFiles, 
     return `${(num / (1024 * 1024 * 1024)).toFixed(2)} GB`;
   };
 
-  const storageUsed = formatStorageSize(memberInfo.user.storageUsed);
+  const actualStorageUsed = overrideStorageUsed !== undefined ? overrideStorageUsed : BigInt(memberInfo.user.storageUsed || 0);
+  const actualFileCount = overrideFileCount !== undefined ? overrideFileCount : (memberInfo.user.fileCount || 0);
+
+  const storageUsed = formatStorageSize(actualStorageUsed);
   const storageQuotaDisplay = formatStorageSize(effectiveStorageQuota);
   const storagePercent = effectiveStorageQuota && effectiveStorageQuota > BigInt(0) 
-    ? (Number(memberInfo.user.storageUsed || 0) / Number(effectiveStorageQuota)) * 100 
+    ? (Number(actualStorageUsed) / Number(effectiveStorageQuota)) * 100 
     : 0;
 
-  const fileCount = memberInfo.user.fileCount || 0;
+  const fileCount = actualFileCount;
   const filePercent = effectiveFileQuota && effectiveFileQuota > 0 
     ? (fileCount / effectiveFileQuota) * 100 
     : 0;

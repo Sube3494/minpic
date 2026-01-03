@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 export function useFiles(
   initialFilter: FilterType = 'all', 
   initialViewMode: ViewMode = 'grid',
-  selectedConfigId?: string
+  selectedConfigId?: string,
+  refreshQuotaFn?: () => void  // Add optional quota refresh callback
 ) {
   const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,6 +105,11 @@ export function useFiles(
       await fileService.deleteFile(id, deleteMode);
       removeFile(id);
       
+      // Refresh quota after deletion
+      if (refreshQuotaFn) {
+        refreshQuotaFn();
+      }
+      
       const message = deleteMode === 'full' ? '文件已完全删除' : '记录已删除';
       const description = deleteMode === 'full' 
         ? (file?.filename || '已从存储库中移除')
@@ -127,6 +133,11 @@ export function useFiles(
           hasDataRef.current = newFiles.length > 0;
           return newFiles;
         });
+        
+        // Refresh quota after batch deletion
+        if (refreshQuotaFn) {
+          refreshQuotaFn();
+        }
         
         const message = deleteMode === 'full'
           ? `成功完全删除 ${ids.length} 个文件`

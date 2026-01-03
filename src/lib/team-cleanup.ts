@@ -90,8 +90,7 @@ export async function cleanupMemberData(teamId: string, ownerId: string, targetU
  * 清理整个团队的数据（解散团队时使用）
  */
 export async function cleanupTeamData(teamId: string, ownerId: string) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const team = await (prisma as any).team.findUnique({
+  const team = await prisma.team.findUnique({
     where: { id: teamId },
     include: { members: true }
   });

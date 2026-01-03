@@ -1,8 +1,9 @@
-import { memo, useRef } from 'react';
+import { memo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileItem } from '@/types/file';
 import { Check, Copy, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CopyFormatMenu } from './copy-format-menu';
 
 import { cn } from '@/lib/utils';
 import { FileIcon } from './file-icon';
@@ -29,12 +30,14 @@ interface FileCardProps {
   isSelected: boolean;
   isSelectionMode: boolean;
   toggleSelect: (id: string) => void;
-  copyDirectLink: (id: string) => void;
+  getDirectLink: (id: string) => Promise<string>;
   generateShortlink: (id: string) => void;
   shortlinkEnabled: boolean;
+  onPreview: (file: FileItem) => void;
 }
 
-export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMode, toggleSelect, copyDirectLink, generateShortlink, shortlinkEnabled }: FileCardProps) {
+export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMode, toggleSelect, getDirectLink, generateShortlink, shortlinkEnabled, onPreview }: FileCardProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const typeBorderStyle = file.fileType === 'video' 
     ? 'border-purple-500/20 dark:border-purple-500/40' 
     : file.fileType === 'audio'
@@ -79,12 +82,18 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
         // Unselected: standard hover lift
         isSelected 
           ? "ring-2 ring-primary border-transparent bg-muted/30" 
-          : cn("bg-card shadow-sm hover:shadow-xl hover:-translate-y-1.5", typeBorderStyle)
+          : cn(
+              "bg-card shadow-sm hover:shadow-xl hover:-translate-y-1.5", 
+              isMenuOpen && "shadow-xl -translate-y-1.5",
+              typeBorderStyle
+            )
       )}
       onClick={(e) => {
         if (isSelectionMode) {
           e.stopPropagation();
           toggleSelect(file.id);
+        } else {
+          onPreview(file);
         }
       }}
       onContextMenu={(e) => {
@@ -102,14 +111,14 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
     >
       {/* Inner Content Container - Scale Effect on Selection */}
       <div className={cn(
-        "relative w-full overflow-hidden transition-all duration-300 ease-out origin-center rounded-3xl"
+        "relative w-full overflow-hidden transition-all duration-300 ease-out origin-center rounded-2xl sm:rounded-3xl"
       )}>
         
         {/* Selection Check Circle - Modern Floating Badge */}
         <div 
           className={cn(
             "absolute top-2 right-2 z-30 transition-all duration-300 cursor-pointer w-10 h-10 flex items-center justify-center", // Increased hit area
-            isSelected ? "opacity-100" : "opacity-0 md:group-hover:opacity-100"
+            (isSelected || isMenuOpen) ? "opacity-100" : "opacity-0 md:group-hover:opacity-100"
           )}
           onClick={(e) => {
             e.stopPropagation();
@@ -129,7 +138,8 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
         {/* Thumbnail / Preview Area */}
         <div className={cn(
           "w-full transition-transform duration-700",
-          !isSelected && "group-hover:scale-105", // Only zoom hover when not selected to avoid conflict
+          (!isSelected || isMenuOpen) && "group-hover:scale-105", // Only zoom hover when not selected to avoid conflict
+          isMenuOpen && "scale-105",
           (file.fileType === 'image' || file.fileType === 'video') ? "" : "aspect-square bg-muted/30"
         )}>
           {(file.fileType === 'image' || file.fileType === 'video') ? (
@@ -137,17 +147,17 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
             <img
               src={`/api/files/${file.id}/thumbnail?v=${new Date(file.updatedAt || file.createdAt).getTime()}`}
               alt={file.filename}
-              className="w-full h-auto min-h-[140px] block object-cover"
+              className="w-full h-auto min-h-[100px] sm:min-h-[140px] block object-cover"
               loading="lazy"
             />
           ) : (
-            <div className="flex flex-col items-center justify-center gap-3 p-4 h-full">
-              <FileIcon fileType={file.fileType} className="w-12 h-12 text-primary/60" />
-              <div className="flex flex-col items-center gap-1 min-w-0 w-full">
-                <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400 truncate w-full text-center px-2">
+            <div className="flex flex-col items-center justify-center gap-2 sm:gap-3 p-3 sm:p-4 h-full min-h-[100px] sm:min-h-[140px]">
+              <FileIcon fileType={file.fileType} className="w-10 h-10 sm:w-12 sm:h-12 text-primary/60" />
+              <div className="flex flex-col items-center gap-0.5 sm:gap-1 min-w-0 w-full">
+                <span className="text-[10px] sm:text-xs font-bold text-zinc-600 dark:text-zinc-400 truncate w-full text-center px-2">
                   {file.filename}
                 </span>
-                <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest">{file.fileType}</span>
+                <span className="text-[8px] sm:text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest">{file.fileType}</span>
               </div>
             </div>
           )}
@@ -158,7 +168,10 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
         <div className="absolute inset-x-0 bottom-0 z-20 pointer-events-none">
           <div className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-black/60 via-black/20 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300" />
           
-          <div className="relative p-3 flex items-center justify-between opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 translate-y-0 md:translate-y-2 md:group-hover:translate-y-0">
+          <div className={cn(
+            "relative p-3 flex items-center justify-between opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 translate-y-0 md:translate-y-2 md:group-hover:translate-y-0",
+            isMenuOpen && "md:opacity-100 md:translate-y-0"
+          )}>
             {/* Left: Info Badges */}
             <div className="flex items-center gap-2">
                 {formatExpiryTime(file.expiresAt) && (
@@ -181,14 +194,20 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
 
             {/* Right: Actions */}
             <div className="flex gap-1.5 pointer-events-auto" onClick={e => e.stopPropagation()}>
+              <CopyFormatMenu 
+                fileId={file.id} 
+                filename={file.filename}
+                onGetUrl={getDirectLink}
+                onOpenChange={setIsMenuOpen}
+              >
                 <Button 
-                size="sm" 
-                variant="secondary" 
-                className="h-6 w-6 p-0 rounded-full shadow-lg bg-white/25 hover:bg-white/40 border-white/30 text-white transition-all hover:scale-110 active:scale-90" 
-                onClick={() => copyDirectLink(file.id)}
+                  size="sm" 
+                  variant="secondary" 
+                  className="h-6 w-6 p-0 rounded-full shadow-lg bg-white/25 hover:bg-white/40 border-white/30 text-white transition-all hover:scale-110 active:scale-90" 
                 >
-                <Copy className="w-3 h-3" />
+                  <Copy className="w-3 h-3" />
                 </Button>
+              </CopyFormatMenu>
                 
                 {shortlinkEnabled && (
                   <Button 
