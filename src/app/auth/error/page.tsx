@@ -7,6 +7,8 @@
  */
 'use client';
 
+import { Suspense } from 'react';
+
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -32,7 +34,7 @@ const errorMessages: Record<string, { title: string; description: string }> = {
   }
 };
 
-export default function AuthErrorPage() {
+const AuthErrorContent = () => {
   const searchParams = useSearchParams();
   const error = searchParams.get('error') || 'Default';
   const errorInfo = errorMessages[error] || errorMessages.Default;
@@ -78,5 +80,13 @@ export default function AuthErrorPage() {
         </div>
       </Card>
     </div>
+  );
+};
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense>
+      <AuthErrorContent />
+    </Suspense>
   );
 }

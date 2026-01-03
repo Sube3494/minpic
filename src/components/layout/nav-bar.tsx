@@ -4,17 +4,18 @@ import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Image, Settings, Github, Menu } from 'lucide-react';
+import { Home, Image as ImageIcon, Settings, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ModeToggle } from '@/components/mode-toggle';
 import { UserMenu } from './user-menu';
 import { useSession } from 'next-auth/react';
 import { useAdminSidebarStore } from '@/components/admin/sidebar-store';
+import Image from 'next/image';
 
 const navItems = [
   { href: '/', label: '首页', icon: Home },
   { href: '/settings', label: '存储配置', icon: Settings },
-  { href: '/files', label: '文件管理', icon: Image },
+  { href: '/files', label: '文件管理', icon: ImageIcon },
 ];
 
 export function NavBar() {
@@ -75,6 +76,14 @@ export function NavBar() {
           />
         )}
 
+        {/* Logo Section - Hidden on Mobile to save space */}
+        <Link href="/" className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors duration-300 z-10 mr-1">
+          <Image src="/minpic.svg" alt="Logo" width={24} height={24} className="w-6 h-6 object-contain" />
+        </Link>
+
+        {/* Vertical Divider after Logo - Hidden on Mobile */}
+        <div className="hidden sm:block w-px h-4 bg-zinc-200 dark:bg-white/10 mx-1 z-10" />
+
         {navItems.map((item, index) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -105,16 +114,6 @@ export function NavBar() {
         <UserMenu user={session.user} />
       )}
       
-      {/* GitHub Link */}
-      <a
-        href="https://github.com/Sube3494/minpic"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-full text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors shrink-0 z-10"
-        aria-label="GitHub Repository"
-      >
-        <Github className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-      </a>
       
       {/* Theme Toggle */}
       <div className="shrink-0 z-10">

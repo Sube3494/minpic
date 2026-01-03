@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { getUserMinioConfig } from '@/lib/get-user-minio-config';
+import { MinioService } from '@/lib/minio';
 
 export async function GET(
   request: NextRequest,
@@ -50,13 +51,10 @@ export async function GET(
       );
     }
 
-    // 构建直链
-    const protocol = config.useSSL ? 'https' : 'http';
-    const domain = config.customDomain || `${config.endpoint}:${config.port}`;
-    const bucket = config.bucket;
-    const path = file.minioPath;
-    
-    const url = `${protocol}://${domain}/${bucket}/${path}`;
+    // 使用 MinioService 构建链接，它能正确处理自定义域名和协议
+    const minioService = new MinioService();
+    await minioService.connect(config);
+    const url = await minioService.getFileUrl(file.minioPath);
 
     return NextResponse.json({ url });
   } catch (error) {

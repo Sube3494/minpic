@@ -143,7 +143,9 @@ class RedisCacheAdapter implements CacheAdapter {
     });
 
     this.client.on('connect', () => {
-      console.log('📦 Redis connected');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📦 Redis connected');
+      }
     });
   }
 
@@ -207,18 +209,24 @@ class CacheManager {
     if (process.env.REDIS_URL) {
       try {
         this.adapter = new RedisCacheAdapter(process.env.REDIS_URL);
-        console.log('📦 Using Redis Cache');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📦 Using Redis Cache');
+        }
       } catch (error) {
         console.error('Failed to connect to Redis, falling back to Memory Cache:', error);
         this.adapter = new MemoryCacheAdapter();
-        console.log('📦 Using Memory Cache (fallback)');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('📦 Using Memory Cache (fallback)');
+        }
       }
     } else {
       this.adapter = new MemoryCacheAdapter();
-      console.log('📦 Using Memory Cache');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📦 Using Memory Cache');
+      }
     }
 
-    if (!this.enabled) {
+    if (!this.enabled && process.env.NODE_ENV === 'development') {
       console.log('📦 Cache is disabled');
     }
   }

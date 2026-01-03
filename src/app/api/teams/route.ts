@@ -79,7 +79,6 @@ export async function GET() {
     });
 
     if (ownedTeam) {
-      console.log('Owner data:', ownedTeam.owner); // Debug log
       return NextResponse.json(serializeBigInt({
         team: ownedTeam,
         role: 'OWNER',

@@ -168,9 +168,11 @@ export function ProfileClient() {
                     />
                     <AvatarFallback className="text-3xl bg-primary/5 text-primary font-medium">{initials}</AvatarFallback>
                   </Avatar>
-                  <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary text-white rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900">
-                    <Shield className="w-3.5 h-3.5" />
-                  </div>
+                  {profile.role === 'ADMIN' && (
+                    <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary text-white rounded-full flex items-center justify-center border-2 border-white dark:border-zinc-900">
+                      <Shield className="w-3.5 h-3.5" />
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex-1 text-center md:text-left space-y-5">

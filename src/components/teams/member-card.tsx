@@ -63,7 +63,7 @@ export function MemberCard({ member, isOwner, currentUser, onQuotaCheck, onRemov
               </Badge>
             )}
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate font-mono">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
             @{member.user.username}
           </p>
         </div>

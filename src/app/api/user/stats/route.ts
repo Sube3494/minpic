@@ -18,14 +18,7 @@ export async function GET() {
       }
     });
 
-    // 调试：如果还是 0，尝试查一下所有带 minio 的 key
-    if (userConfigs.length === 0) {
-      const allMinioKeys = await prisma.config.findMany({
-        where: { userId: user.id, key: { contains: 'minio' } },
-        select: { key: true }
-      });
-      console.log('User MinIO Keys found:', allMinioKeys);
-    }
+
     
     // 找出活跃配置 ID
     const activeConfigRecord = await prisma.config.findUnique({

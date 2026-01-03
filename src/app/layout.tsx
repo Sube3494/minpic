@@ -36,6 +36,11 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: settings?.siteName || "MinPic - 现代化图床管理系统",
     description: stripMarkdown(settings?.siteDescription || "") || "基于 Next.js 16 + MinIO 构建的专业图床解决方案",
+    icons: {
+      icon: "/minpic.svg",
+      shortcut: "/minpic.svg",
+      apple: "/minpic.svg",
+    }
   };
 }
 
