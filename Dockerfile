@@ -66,9 +66,7 @@ COPY --from=builder /app/prisma ./prisma
 # 这确保了运行时可以使用 ./node_modules/.bin/prisma 进行离线同步
 COPY --from=builder /app/runtime-tools/ ./node_modules/
 
-# 修正 Next.js 静态目录结构：在 standalone 模式下，static 应该在 .next 文件夹内
-RUN mkdir -p .next && mv static .next/static
-
+# Standalone 模式下，静态资源已被 COPY 指令正确放置在 .next/static
 USER nextjs
 
 EXPOSE 3000
