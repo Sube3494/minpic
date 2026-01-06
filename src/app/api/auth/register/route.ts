@@ -63,7 +63,26 @@ export async function POST(req: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Create user
+    // Check for pending GitHub binding
+    const { cookies } = await import('next/headers');
+    const cookieStore = await cookies();
+    const pendingBindCookie = cookieStore.get('pending-github-bind');
+    let githubId: string | null = null;
+    // let githubAvatar: string | null = null;
+
+    if (pendingBindCookie) {
+      try {
+        const pendingBind = JSON.parse(pendingBindCookie.value);
+        if (pendingBind.email === email && pendingBind.githubId) {
+          githubId = pendingBind.githubId;
+          // githubAvatar = pendingBind.avatar;
+        }
+      } catch (e) {
+        console.error('Failed to parse pending bind cookie:', e);
+      }
+    }
+
+    // Create user with optional GitHub binding
     const user = await prisma.user.create({
       data: {
         username,
@@ -72,8 +91,24 @@ export async function POST(req: Request) {
         avatar: `https://cravatar.cn/avatar/${hashEmail(email)}?d=404`,
         role: isInitialAdmin ? 'ADMIN' : 'USER',
         status: 'ACTIVE',
+        githubId: githubId, // Bind directly
+        accounts: githubId ? {
+          create: {
+            type: 'oauth',
+            provider: 'github',
+            providerAccountId: githubId,
+            access_token: 'dummy', // NextAuth might update this on next login, but we need the record
+            token_type: 'Bearer',
+            scope: 'read:user,user:email',
+          }
+        } : undefined,
       }
     });
+
+    // Clear the pending cookie if it was used
+    if (githubId) {
+      cookieStore.delete('pending-github-bind');
+    }
 
     // Log audit
     const headersList = await headers();
@@ -84,7 +119,7 @@ export async function POST(req: Request) {
       data: {
         userId: user.id,
         action: 'USER_CREATED',
-        metadata: JSON.stringify({ username, provider: 'credentials' }),
+        metadata: JSON.stringify({ username, provider: 'credentials', githubBound: !!githubId }),
         ipAddress: ip,
       }
     });

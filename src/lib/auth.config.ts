@@ -255,6 +255,23 @@ export const authConfig: NextAuthConfig = {
         params.set('authMode', 'register');
         if (email) params.set('email', email);
         
+        // Save GitHub context to cookie for auto-binding after registration
+        try {
+          const { cookies } = await import('next/headers');
+          const cookieStore = await cookies();
+          cookieStore.set('pending-github-bind', JSON.stringify({
+            githubId,
+            email,
+            avatar: profile?.avatar_url || user.image
+          }), {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 60 * 10 // 10 minutes
+          });
+        } catch (e) {
+          console.error('Failed to set pending-github-bind cookie:', e);
+        }
+
         return `/auth/signin?${params.toString()}`;
       }
 
