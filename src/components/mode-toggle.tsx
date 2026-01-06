@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 
 export function ModeToggle() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -15,10 +15,13 @@ export function ModeToggle() {
   }, [])
 
   const cycleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const currentEffectiveTheme = resolvedTheme || theme || 'light';
+    const nextTheme = currentEffectiveTheme === 'dark' ? 'light' : 'dark';
+    
     // 1. Fallback for browsers not supporting View Transition API
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (typeof document === 'undefined' || !(document as any).startViewTransition) {
-        setTheme(theme === 'dark' ? 'light' : 'dark');
+        setTheme(nextTheme);
         return;
     }
 
@@ -33,7 +36,7 @@ export function ModeToggle() {
     // 3. Start the transition
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transition = (document as any).startViewTransition(() => {
-        setTheme(theme === 'dark' ? 'light' : 'dark');
+        setTheme(nextTheme);
     });
 
     // 4. Animate the clipping path
@@ -43,33 +46,31 @@ export function ModeToggle() {
             `circle(${endRadius}px at ${x}px ${y}px)`,
         ];
         
-        // Default: New content is on top (::view-transition-new)
-        // We animate the new content revealing itself.
-        // If going to dark (new is dark), expand dark circle.
-        // If going to light (new is light), expand light circle.
         document.documentElement.animate(
             {
                 clipPath: clipPath,
             },
             {
                 duration: 500,
-                easing: "cubic-bezier(0.25, 1, 0.5, 1)", // Standard ease-out
-                // We always animate the "new" snapshot growing
+                easing: "cubic-bezier(0.25, 1, 0.5, 1)", 
                 pseudoElement: "::view-transition-new(root)",
             }
         );
     });
   }
 
+  // Use resolvedTheme to handle 'system' mode correctly
+  const currentTheme = mounted ? resolvedTheme : 'light';
+
   if (!mounted) {
     return (
       <Button 
         variant="ghost" 
         size="icon" 
-        className="w-9 h-9 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
+        className="w-7 h-7 sm:w-9 sm:h-9 rounded-full opacity-50"
         disabled
       >
-        <Sun className="h-[1.2rem] w-[1.2rem]" />
+        <Sun className="h-3.5 w-3.5 sm:h-[1.2rem] sm:w-[1.2rem]" />
       </Button>
     )
   }
@@ -83,10 +84,10 @@ export function ModeToggle() {
       aria-label="切换主题"
     >
       {/* Light Mode Icon */}
-      <Sun className={`h-3.5 w-3.5 sm:h-[1.2rem] sm:w-[1.2rem] text-orange-500 transition-all ${theme === 'light' ? 'rotate-0 scale-100' : 'rotate-90 scale-0 absolute'}`} />
+      <Sun className={`h-3.5 w-3.5 sm:h-[1.2rem] sm:w-[1.2rem] text-orange-500 transition-all ${currentTheme === 'light' ? 'rotate-0 scale-100' : 'rotate-90 scale-0 absolute'}`} />
       
       {/* Dark Mode Icon */}
-      <Moon className={`h-3.5 w-3.5 sm:h-[1.2rem] sm:w-[1.2rem] text-blue-400 transition-all ${theme === 'dark' ? 'rotate-0 scale-100' : '-rotate-90 scale-0 absolute'}`} />
+      <Moon className={`h-3.5 w-3.5 sm:h-[1.2rem] sm:w-[1.2rem] text-blue-400 transition-all ${currentTheme === 'dark' ? 'rotate-0 scale-100' : '-rotate-90 scale-0 absolute'}`} />
     </Button>
   )
 }

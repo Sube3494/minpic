@@ -27,9 +27,10 @@ export default auth((req) => {
     return NextResponse.next();
   }
   
-  // If not logged in and trying to access protected page, redirect to signin
+  // If not logged in and trying to access protected page, redirect to signin with callbackUrl
   if (!isLoggedIn) {
-    return NextResponse.redirect(new URL('/auth/signin', req.url));
+    const callbackUrl = encodeURIComponent(req.nextUrl.pathname + req.nextUrl.search);
+    return NextResponse.redirect(new URL(`/auth/signin?callbackUrl=${callbackUrl}`, req.url));
   }
   
   return NextResponse.next();

@@ -65,10 +65,7 @@ export default function SignInPage() {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center text-xs text-muted-foreground pt-4">
-          登录即表示您同意我们的服务条款和隐私政策
-        </div>
+
       </Card>
     </div>
   );

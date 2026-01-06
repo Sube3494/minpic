@@ -6,7 +6,8 @@ export default async function FilesPage() {
   const session = await auth();
   
   if (!session) {
-    redirect('/auth/signin');
+    const callbackUrl = encodeURIComponent('/files');
+    redirect(`/auth/signin?callbackUrl=${callbackUrl}`);
   }
 
   return <FilesClient />;

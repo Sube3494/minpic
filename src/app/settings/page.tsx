@@ -6,7 +6,8 @@ export default async function SettingsPage() {
   const session = await auth();
   
   if (!session) {
-    redirect('/auth/signin');
+    const callbackUrl = encodeURIComponent('/settings');
+    redirect(`/auth/signin?callbackUrl=${callbackUrl}`);
   }
 
   return <SettingsClient />;

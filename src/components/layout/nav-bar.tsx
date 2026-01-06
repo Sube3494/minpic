@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Home, Image as ImageIcon, Settings, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ModeToggle } from '@/components/mode-toggle';
@@ -20,7 +20,8 @@ const navItems = [
 
 export function NavBar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const router = useRouter();
+  const { data: session, status } = useSession();
   const [indicatorStyle, setIndicatorStyle] = useState({ left: 0, width: 0, opacity: 0 });
   const itemsRef = useRef<(HTMLAnchorElement | null)[]>([]);
   const { toggle: toggleAdminSidebar } = useAdminSidebarStore();
@@ -28,7 +29,14 @@ export function NavBar() {
 
   useEffect(() => {
     const updatePosition = () => {
-      const activeIndex = navItems.findIndex(item => item.href === pathname);
+      // Find the active index, but only for '/' if not authenticated
+      const activeIndex = navItems.findIndex(item => {
+        const isPathMatch = item.href === pathname;
+        // Only allow '/' to be active if unauthenticated
+        if (status !== 'authenticated' && item.href !== '/') return false;
+        return isPathMatch;
+      });
+
       const activeEl = itemsRef.current[activeIndex];
 
       if (activeEl) {
@@ -46,7 +54,16 @@ export function NavBar() {
     window.addEventListener('resize', updatePosition);
     
     return () => window.removeEventListener('resize', updatePosition);
-  }, [pathname]);
+  }, [pathname, status]);
+
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    // If unauthenticated and clicking a protected route, intercept navigation
+    if (status !== 'authenticated' && href !== '/') {
+      e.preventDefault();
+      // Directly push to signin with callbackUrl to avoid server-side redirect flash/reload
+      router.push(`/auth/signin?callbackUrl=${encodeURIComponent(href)}`);
+    }
+  };
 
   return (
     <nav className="fixed top-3 sm:top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 sm:gap-1.5 p-1.5 rounded-full bg-white/50 dark:bg-black/20 backdrop-blur-md border border-zinc-200/50 dark:border-white/10 shadow-lg max-w-[95vw] overflow-hidden">
@@ -54,11 +71,7 @@ export function NavBar() {
         {indicatorStyle.width > 0 && (
           <motion.div
             className="absolute bg-primary shadow-md shadow-primary/20 rounded-full z-0 pointer-events-none"
-            initial={{
-              left: indicatorStyle.left,
-              width: indicatorStyle.width,
-              opacity: indicatorStyle.opacity,
-            }}
+            initial={false} // Disable initial animation for smoother transitions
             animate={{
               left: indicatorStyle.left,
               width: indicatorStyle.width,
@@ -77,15 +90,16 @@ export function NavBar() {
         )}
 
         {/* Logo Section - Hidden on Mobile to save space */}
-        <Link href="/" className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors duration-300 z-10 mr-1">
+        <Link href="/" className="hidden sm:flex items-center gap-2 px-1.5 py-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors duration-300 z-10 ml-2">
           <Image src="/minpic.svg" alt="Logo" width={24} height={24} className="w-6 h-6 object-contain" />
         </Link>
 
         {/* Vertical Divider after Logo - Hidden on Mobile */}
-        <div className="hidden sm:block w-px h-4 bg-zinc-200 dark:bg-white/10 mx-1 z-10" />
+        <div className="hidden sm:block w-px h-4 bg-zinc-200 dark:bg-white/10 mx-1.5 z-10" />
 
         {navItems.map((item, index) => {
-          const isActive = pathname === item.href;
+          // A path is active only if it matches AND (is home OR user is authenticated)
+          const isActive = pathname === item.href && (item.href === '/' || status === 'authenticated');
           const Icon = item.icon;
           
           return (
@@ -93,6 +107,7 @@ export function NavBar() {
               key={item.href}
               href={item.href}
               ref={el => { itemsRef.current[index] = el }}
+              onClick={(e) => handleLinkClick(e, item.href)}
               className={cn(
                 "relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full transition-colors duration-300 text-sm font-medium whitespace-nowrap outline-none z-10",
                 isActive
@@ -106,17 +121,16 @@ export function NavBar() {
           );
         })}
       
-      {/* Divider */}
-      <div className="w-px h-4 sm:h-5 bg-zinc-200 dark:bg-white/10 mx-0.5 z-10" />
-      
+      {/* Action Divider - Always Visible */}
+      <div className="w-px h-4 sm:h-5 bg-zinc-200 dark:bg-white/10 mx-1.5 z-10" />
+
       {/* User Menu (if logged in) */}
-      {session?.user && (
+      {status === 'authenticated' && session?.user && (
         <UserMenu user={session.user} />
       )}
       
-      
       {/* Theme Toggle */}
-      <div className="shrink-0 z-10">
+      <div className="shrink-0 z-10 ml-0.5">
         <ModeToggle />
       </div>
 

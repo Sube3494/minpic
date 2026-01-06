@@ -2,7 +2,7 @@
  * @Date: 2025-12-24 21:26:18
  * @Author: Sube
  * @FilePath: layout.tsx
- * @LastEditTime: 2026-01-02 02:36:19
+ * @LastEditTime: 2026-01-06 14:35:02
  * @Description: 
  */
 import type { Metadata } from "next";
@@ -12,6 +12,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { NavBar } from "@/components/layout/nav-bar";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 import "./globals.css";
 
 const inter = Inter({
@@ -44,11 +45,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body
@@ -60,7 +62,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <SessionProvider>
+            <SessionProvider session={session}>
               {/* Ambient Background - Updated for Theme Support */}
               <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] right-[-5%] w-140 h-140 bg-purple-500/10 rounded-full blur-3xl animate-blob" />
