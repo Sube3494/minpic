@@ -69,7 +69,7 @@ export async function POST(req: Request) {
         username,
         email,
         password: hashedPassword,
-        avatar: `https://www.gravatar.com/avatar/${hashEmail(email)}?d=404`,
+        avatar: `https://cravatar.cn/avatar/${hashEmail(email)}?d=404`,
         role: isInitialAdmin ? 'ADMIN' : 'USER',
         status: 'ACTIVE',
       }

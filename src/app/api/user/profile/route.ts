@@ -96,3 +96,40 @@ export async function GET() {
     );
   }
 }
+
+export async function PATCH(req: Request) {
+  const { error, user } = await requireAuth();
+  if (error) return error;
+
+  try {
+    const { name } = await req.json();
+
+    // Validation
+    if (typeof name !== 'string') {
+      return NextResponse.json({ error: 'Invalid name format' }, { status: 400 });
+    }
+
+    if (name.length > 32) {
+      return NextResponse.json({ error: '昵称不能超过 32 个字符' }, { status: 400 });
+    }
+
+    // Update user
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { name: name.trim() || null }, // Set to null if empty string
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      user: {
+        name: updatedUser.name,
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    return NextResponse.json(
+      { error: 'Failed to update profile' },
+      { status: 500 }
+    );
+  }
+}

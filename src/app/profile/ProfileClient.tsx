@@ -2,7 +2,7 @@
  * @Date: 2026-01-06 19:19:14
  * @Author: Sube
  * @FilePath: ProfileClient.tsx
- * @LastEditTime: 2026-01-07 01:06:56
+ * @LastEditTime: 2026-01-07 03:04:10
  * @Description: 
  */
 'use client';
@@ -71,6 +71,40 @@ export function ProfileClient() {
   // Unbind GitHub State
   const [unbindDialogOpen, setUnbindDialogOpen] = useState(false);
   const [unbindLoading, setUnbindLoading] = useState(false);
+
+  // Edit Profile State
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '' });
+  
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditLoading(true);
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editForm.name }),
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '更新失败');
+
+      await update(); // Update next-auth session
+      await fetchData(); // Refresh local data
+      setEditProfileOpen(false);
+      toast.success('个人资料已更新');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '更新失败');
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const openEditDialog = () => {
+    setEditForm({ name: profile?.name || '' });
+    setEditProfileOpen(true);
+  };
 
   const { teamInfo, leaveTeam } = useTeam();
 
@@ -275,10 +309,24 @@ export function ProfileClient() {
                 <div className="flex-1 text-center md:text-left space-y-5">
                   <div className="space-y-1">
                     <div className="flex items-center justify-center md:justify-start gap-3">
-                      <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-zinc-900 dark:text-zinc-100">{displayName}</h2>
+                      <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-zinc-900 dark:text-zinc-100">
+                        {profile.name && profile.name.toLowerCase() !== profile.username.toLowerCase() 
+                          ? profile.name 
+                          : `@${profile.username}`}
+                      </h2>
                       {profile.role === 'ADMIN' && <Badge className="bg-primary/10 text-primary border-primary/20">管理员</Badge>}
+                      
+                      <button 
+                        onClick={openEditDialog}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-zinc-100 dark:hover:bg-white/10 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                        title="编辑资料"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                      </button>
                     </div>
-                    <p className="text-lg text-zinc-500 font-medium">@{profile.username}</p>
+                    {profile.name && profile.name.toLowerCase() !== profile.username.toLowerCase() && (
+                      <p className="text-lg text-zinc-500 font-medium">@{profile.username}</p>
+                    )}
                   </div>
                   
                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-xs">
@@ -619,6 +667,37 @@ export function ProfileClient() {
           isLoading={unbindLoading}
           variant="destructive"
         />
+        
+        <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>编辑个人资料</DialogTitle>
+              <DialogDescription>
+                设置一个独特的昵称，让他人更容易记住您。
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleUpdateProfile} className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="nickname">昵称</Label>
+                <Input
+                  id="nickname"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                  maxLength={32}
+                />
+                <p className="text-[10px] text-zinc-500">
+                  留空则默认显示您的用户名 @{profile?.username}
+                </p>
+              </div>
+              <DialogFooter>
+                <Button type="submit" disabled={editLoading}>
+                  {editLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  保存更改
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </motion.div>
     </PageWrapper>
   );

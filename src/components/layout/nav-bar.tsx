@@ -125,7 +125,7 @@ export function NavBar() {
       <div className="w-px h-4 sm:h-5 bg-zinc-200 dark:bg-white/10 mx-1.5 z-10" />
 
       {/* User Menu (if logged in) */}
-      {status === 'authenticated' && session?.user && (
+      {session?.user && (
         <UserMenu user={session.user} />
       )}
       
