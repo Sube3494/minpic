@@ -274,7 +274,7 @@ export function ProfileClient() {
   return (
     <PageWrapper>
       <motion.div 
-        className="container mx-auto space-y-10 pt-28 pb-20 px-4 sm:px-8 max-w-7xl"
+        className="container mx-auto space-y-6 sm:space-y-8 pt-24 sm:pt-28 pb-20 px-4 sm:px-8 max-w-7xl"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -288,10 +288,10 @@ export function ProfileClient() {
         <motion.div variants={itemVariants}>
           <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 overflow-hidden relative group">
             <div className="absolute inset-0 bg-linear-to-br from-primary/5 via-transparent to-transparent opacity-50" />
-            <CardContent className="p-8 sm:p-10 relative">
-              <div className="flex flex-col md:flex-row items-center gap-10">
+            <CardContent className="p-6 sm:p-10 relative">
+              <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10">
                 <div className="relative">
-                  <Avatar className="w-28 h-28 ring-4 ring-zinc-50 dark:ring-white/5 shadow-xl">
+                  <Avatar className="w-24 h-24 sm:w-28 sm:h-28 ring-4 ring-zinc-50 dark:ring-white/5 shadow-xl">
                     <AvatarImage 
                       src={profile.avatar || session?.user?.image || undefined} 
                       alt={displayName}
@@ -306,36 +306,39 @@ export function ProfileClient() {
                   )}
                 </div>
                 
-                <div className="flex-1 text-center md:text-left space-y-5">
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-center md:justify-start gap-3">
+                <div className="flex-1 w-full text-center md:text-left space-y-4 sm:space-y-5">
+                  <div className="space-y-1.5">
+                    <div className="relative inline-flex items-center justify-center md:justify-start">
                       <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-zinc-900 dark:text-zinc-100">
                         {profile.name && profile.name.toLowerCase() !== profile.username.toLowerCase() 
                           ? profile.name 
                           : `@${profile.username}`}
                       </h2>
-                      {profile.role === 'ADMIN' && <Badge className="bg-primary/10 text-primary border-primary/20">管理员</Badge>}
                       
                       <button 
                         onClick={openEditDialog}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-zinc-100 dark:hover:bg-white/10 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                        className="absolute -right-8 md:static md:ml-2 opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-zinc-100 dark:hover:bg-white/10 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                         title="编辑资料"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                       </button>
                     </div>
-                    {profile.name && profile.name.toLowerCase() !== profile.username.toLowerCase() && (
-                      <p className="text-lg text-zinc-500 font-medium">@{profile.username}</p>
-                    )}
+                    
+                    <div className="flex items-center justify-center md:justify-start gap-2 h-7">
+                      {profile.name && profile.name.toLowerCase() !== profile.username.toLowerCase() && (
+                        <p className="text-lg text-zinc-500 font-medium">@{profile.username}</p>
+                      )}
+                      {profile.role === 'ADMIN' && <Badge className="bg-primary/10 text-primary border-primary/20 h-5 px-1.5 min-w-fit">管理员</Badge>}
+                    </div>
                   </div>
                   
-                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-xs">
+                  <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center md:justify-start gap-2.5 sm:gap-3 text-xs w-full">
                     {profile.email && (
-                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200/50 dark:text-zinc-400 font-medium text-zinc-600">
-                        <Mail className="w-3.5 h-3.5 opacity-70" /> {profile.email}
+                      <div className="flex items-center justify-center sm:justify-start w-full sm:w-auto gap-2 px-3 py-2 sm:py-1.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200/50 dark:text-zinc-400 font-medium text-zinc-600">
+                        <Mail className="w-3.5 h-3.5 opacity-70" /> <span className="truncate max-w-[200px] sm:max-w-none">{profile.email}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200/50 dark:text-zinc-400 font-medium text-zinc-600">
+                    <div className="flex items-center justify-center sm:justify-start w-full sm:w-auto gap-2 px-3 py-2 sm:py-1.5 rounded-lg bg-zinc-50 dark:bg-white/5 border border-zinc-200/50 dark:text-zinc-400 font-medium text-zinc-600">
                       <Calendar className="w-3.5 h-3.5 opacity-70" /> 加入于 {new Date(profile.createdAt).toLocaleDateString('zh-CN')}
                     </div>
                   </div>
@@ -353,7 +356,7 @@ export function ProfileClient() {
             
             return (
               <div className={cn(
-                "grid gap-8",
+                "grid gap-6 sm:gap-8",
                 (hasTeamCard && hasPersonalCard) 
                   ? "grid-cols-1 lg:grid-cols-2" 
                   : "grid-cols-1 w-full"
@@ -382,7 +385,7 @@ export function ProfileClient() {
         </motion.div>
 
         {/* Secondary Info Grid */}
-        <motion.div className="grid grid-cols-1 lg:grid-cols-3 gap-8" variants={itemVariants}>
+        <motion.div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8" variants={itemVariants}>
            {/* Account Details */}
             <div className="lg:col-span-1">
               <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 h-full overflow-hidden">

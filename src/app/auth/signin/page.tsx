@@ -20,6 +20,7 @@ export default function SignInPage() {
   const callbackUrl = searchParams.get('callbackUrl') || '/settings';
   
   const [loading, setLoading] = useState(false);
+  const [codeLoading, setCodeLoading] = useState(false);
   const [ghLoading, setGhLoading] = useState(false);
   const [githubEnabled, setGithubEnabled] = useState(true);
   const [authMode, setAuthMode] = useState<AuthMode>(() => {
@@ -68,6 +69,7 @@ export default function SignInPage() {
       return;
     }
 
+    setCodeLoading(true);
     try {
       const res = await fetch('/api/auth/send-code', {
         method: 'POST',
@@ -87,6 +89,8 @@ export default function SignInPage() {
       }
     } catch {
        toast.error('发送请求失败');
+    } finally {
+      setCodeLoading(false);
     }
   };
 
@@ -214,15 +218,15 @@ export default function SignInPage() {
       <Card className="glass-strong max-w-[800px] w-full p-0 overflow-hidden animate-fade-in-up border-zinc-200/50 dark:border-white/10 shadow-2xl">
         <div className="grid grid-cols-1 md:grid-cols-2">
           {/* Left Column: Form */}
-          <div className="p-8 sm:p-10 space-y-6 border-b md:border-b-0 md:border-r border-border/50 bg-white/30 dark:bg-black/20">
-            <div className="space-y-2">
+          <div className="p-6 sm:p-10 space-y-6 border-b md:border-b-0 md:border-r border-border/50 bg-white/30 dark:bg-black/20">
+            <div className="space-y-1 sm:space-y-2">
               <h2 className="text-2xl font-bold tracking-tight">{getTitle()}</h2>
               <p className="text-muted-foreground text-xs italic">{getSubtitle()}</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               {authMode === 'register' && (
-                <div className="space-y-1.5">
+                <div className="space-y-1 sm:space-y-1.5">
                   <Label htmlFor="username" className="text-xs font-semibold">用户名</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -239,7 +243,7 @@ export default function SignInPage() {
               )}
 
               {/* Email / Account Field */}
-              <div className="space-y-1.5">
+              <div className="space-y-1 sm:space-y-1.5">
                 <Label htmlFor="account" className="text-xs font-semibold">
                   {authMode === 'signin' ? '账号' : '电子邮箱'}
                 </Label>
@@ -266,7 +270,7 @@ export default function SignInPage() {
 
               {/* Verification Code for Register/Forgot */}
               {authMode !== 'signin' && (
-                 <div className="space-y-1.5">
+                 <div className="space-y-1 sm:space-y-1.5">
                    <Label htmlFor="code" className="text-xs font-semibold">验证码</Label>
                    <div className="flex gap-2">
                      <div className="relative flex-1">
@@ -286,15 +290,16 @@ export default function SignInPage() {
                        variant="outline" 
                        className="w-24 shrink-0 bg-white/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 hover:bg-zinc-100 dark:hover:bg-white/10"
                        onClick={handleSendCode}
-                       disabled={countdown > 0}
+                       disabled={countdown > 0 || codeLoading}
                      >
-                       {countdown > 0 ? `${countdown}s` : '获取'}
+                       {codeLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (countdown > 0 ? `${countdown}s` : '获取')}
                      </Button>
                    </div>
                  </div>
               )}
               
-              <div className="space-y-1.5">
+              
+              <div className="space-y-1 sm:space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="text-xs font-semibold">
                     {authMode === 'forgot' ? '新密码' : '密码'}
@@ -325,7 +330,7 @@ export default function SignInPage() {
               </div>
 
               {authMode === 'register' && (
-                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-1">
+                <div className="space-y-1 sm:space-y-1.5 animate-in fade-in slide-in-from-top-1">
                   <div className="flex justify-between">
                     <Label htmlFor="confirmPassword" className="text-xs font-semibold">确认密码</Label>
                   </div>
@@ -390,8 +395,11 @@ export default function SignInPage() {
           </div>
 
           {/* Right Column: Social & Info */}
-          <div className="p-8 sm:p-10 flex flex-col justify-center gap-12 bg-white/30 dark:bg-black/20">
-            <div className="space-y-8">
+          <div className={cn(
+            "p-6 sm:p-10 flex flex-col justify-center gap-8 md:gap-12 bg-white/30 dark:bg-black/20",
+            authMode === 'register' ? "hidden md:flex" : "flex"
+          )}>
+            <div className="space-y-6 md:space-y-8">
               {/* Branding (Small) */}
               <div className="space-y-4 flex flex-col items-center text-center">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/5 border border-primary/10 text-[10px] font-bold uppercase tracking-wider text-primary">
@@ -434,8 +442,8 @@ export default function SignInPage() {
               )}
             </div>
 
-            {/* Features List */}
-            <div className="pt-8 space-y-4">
+            {/* Features List - Hidden on Mobile */}
+            <div className="hidden md:block pt-8 space-y-4">
               <div className="flex items-start gap-3">
                 <div className="p-1.5 rounded-md bg-emerald-500/10 text-emerald-500">
                   <Shield className="w-3.5 h-3.5" />

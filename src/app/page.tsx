@@ -2,7 +2,7 @@ import { PageWrapper } from '@/components/layout/page-wrapper';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import { Upload, Link2, BarChart3, ArrowRight, Sparkles, Zap, Shield, MousePointerClick, Share2, Layers, Users, Cloud, History, Globe, Clock, HardDrive, ShieldCheck, Lock } from 'lucide-react';
+import { Upload, Link2, BarChart3, ArrowRight, Sparkles, Zap, Shield, MousePointerClick, Share2, Layers, Users, Cloud, Globe, Clock, HardDrive, ShieldCheck, Lock } from 'lucide-react';
 import { auth } from '@/lib/auth';
 import { getSystemSettings } from '@/lib/settings';
 import { MarkdownText } from '@/components/ui/markdown-text';
@@ -209,14 +209,14 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Square Feature 4: Audit Logs */}
+            {/* Square Feature 4: IPv6 Support */}
             <div className="md:col-span-3 lg:col-span-4 group rounded-4xl glass-card p-8 flex flex-col justify-between">
               <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform">
-                <History className="w-6 h-6" />
+                <Globe className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-2xl font-bold mb-2">安全审计日志</h3>
-                <p className="text-muted-foreground">全程记录每项操作，支持审计追踪与动向监控，守护每一份数字资产。</p>
+                <h3 className="text-2xl font-bold mb-2">IPv6 网络就绪</h3>
+                <p className="text-muted-foreground">原生支持 IPv4/IPv6 双栈网络架构，为下一代互联网提供无缝连接体验。</p>
               </div>
             </div>
           </div>
