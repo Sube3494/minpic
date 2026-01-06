@@ -8,88 +8,100 @@ export async function GET() {
   if (error) return error;
 
   try {
-    // 1. 获取用户自己拥有的所有 MinIO 配置
-    const userConfigs = await prisma.config.findMany({
-      where: {
-        userId: user.id,
-        // 放宽判定：只要是 minio_ 开头且不是保留字段，或者任何可能代表存储配置的 key
-        key: { startsWith: 'minio_' },
-        NOT: { key: { in: ['minio_active_id', 'minio_configs', 'minio_test'] } }
-      }
-    });
+    // 1. 获取用户配置信息
+    const [userConfigs, activeConfigRecord, teamMember] = await Promise.all([
+      prisma.config.findMany({
+        where: {
+          userId: user.id,
+          key: { startsWith: 'minio_' },
+          NOT: { key: { in: ['minio_active_id', 'minio_configs', 'minio_test'] } }
+        }
+      }),
+      prisma.config.findUnique({
+        where: { userId_key: { userId: user.id, key: 'minio_active_id' } }
+      }),
+      prisma.teamMember.findUnique({
+        where: { userId: user.id },
+        include: { team: true }
+      })
+    ]);
 
-
-    
-    // 找出活跃配置 ID
-    const activeConfigRecord = await prisma.config.findUnique({
-      where: { userId_key: { userId: user.id, key: 'minio_active_id' } }
-    });
     const activeConfigId = activeConfigRecord?.value;
     const personalKeys = userConfigs.map(c => c.key);
     const personalIds = userConfigs.map(c => c.key.replace('minio_', ''));
-
-    // 2. 获取用户身份和团队属性
-    const teamMember = await prisma.teamMember.findUnique({
-      where: { userId: user.id },
-      include: { team: true }
-    });
     const isOwner = teamMember?.team?.ownerId === user.id;
 
-    // 3. 开始统计
-    const allFiles = await prisma.file.findMany({
-      where: { userId: user.id },
-      select: { fileSize: true, configId: true, createdAt: true, fileType: true }
-    });
-
-    const categories = {
-      personal: { totalFiles: 0, totalStorage: BigInt(0) },
-      team: { totalFiles: 0, totalStorage: BigInt(0) },
-    };
-    
-    const context = {
-      recentFiles: 0,
-      fileTypeDistribution: {} as Record<string, number>
-    };
-
+    // 2. 使用数据库聚合查询代替全表加载
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-
-    allFiles.forEach(file => {
-      const configId = file.configId;
-      // 判定所有权：是否属于用户自己拥有的配置
-      const belongsToUser = configId ? (personalIds.includes(configId) || personalKeys.includes(configId)) : false;
-      
-      // 判定情境：是否属于团队协作情境 (是活跃配置，或者不是自己的配置)
-      const isTeamContext = configId ? (configId === activeConfigId || !belongsToUser) : true;
-
-      // 1. 如果属于用户拥有的配置，计入个人统计（所有权维度）
-      if (belongsToUser) {
-        categories.personal.totalFiles++;
-        categories.personal.totalStorage += file.fileSize;
-      }
-
-      // 2. 如果属于团队活跃配置或他人分享配置，计入团队统计（情境维度）
-      if (isTeamContext) {
-        categories.team.totalFiles++;
-        categories.team.totalStorage += file.fileSize;
-      }
-
-      // 3. 全局通用统计（不重叠）
-      if (file.createdAt >= sevenDaysAgo) context.recentFiles++;
-      context.fileTypeDistribution[file.fileType] = (context.fileTypeDistribution[file.fileType] || 0) + 1;
-    });
-
-    const totalStorageGlobal = allFiles.reduce((acc, file) => acc + file.fileSize, BigInt(0));
+    
+    const [totalStats, recentCount, typeDistribution, personalFiles, teamFiles] = await Promise.all([
+      // 全局统计
+      prisma.file.aggregate({
+        where: { userId: user.id },
+        _count: true,
+        _sum: { fileSize: true }
+      }),
+      // 最近7天文件数
+      prisma.file.count({
+        where: {
+          userId: user.id,
+          createdAt: { gte: sevenDaysAgo }
+        }
+      }),
+      // 按文件类型分组统计
+      prisma.file.groupBy({
+        by: ['fileType'],
+        where: { userId: user.id },
+        _count: true
+      }),
+      // 个人文件统计 (属于用户自己配置的)
+      prisma.file.aggregate({
+        where: {
+          userId: user.id,
+          OR: [
+            { configId: { in: personalIds } },
+            { configId: { in: personalKeys } }
+          ]
+        },
+        _count: true,
+        _sum: { fileSize: true }
+      }),
+      // 团队文件统计 (活跃配置或非个人配置)
+      prisma.file.aggregate({
+        where: {
+          userId: user.id,
+          OR: [
+            { configId: activeConfigId },
+            { 
+              AND: [
+                { configId: { not: null } },
+                { configId: { notIn: [...personalIds, ...personalKeys] } }
+              ]
+            },
+            { configId: null }
+          ]
+        },
+        _count: true,
+        _sum: { fileSize: true }
+      })
+    ]);
 
     return NextResponse.json(serializeBigInt({
-      personalStats: categories.personal,
-      teamStats: categories.team,
+      personalStats: {
+        totalFiles: personalFiles._count || 0,
+        totalStorage: personalFiles._sum.fileSize || BigInt(0)
+      },
+      teamStats: {
+        totalFiles: teamFiles._count || 0,
+        totalStorage: teamFiles._sum.fileSize || BigInt(0)
+      },
       personalConfigCount: userConfigs.length,
-      totalFiles: allFiles.length,
-      totalStorage: totalStorageGlobal,
-      recentFiles: context.recentFiles,
-      fileTypeDistribution: Object.entries(context.fileTypeDistribution).map(([type, count]) => ({
-        type,
-        count
+      totalFiles: totalStats._count || 0,
+      totalStorage: totalStats._sum.fileSize || BigInt(0),
+      recentFiles: recentCount,
+      fileTypeDistribution: typeDistribution.map(({ fileType, _count }) => ({
+        type: fileType,
+        count: _count
       })),
       debug: {
         isOwner,

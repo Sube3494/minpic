@@ -1,11 +1,9 @@
-// Prisma schemafile
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -56,6 +54,7 @@ model User {
   @@index([username])
   @@index([role])
   @@index([status])
+  @@index([lastLoginAt])
   @@map("users")
 }
 
@@ -88,6 +87,8 @@ model Session {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, expires])
+  @@index([expires])
   @@map("sessions")
 }
 
@@ -165,9 +166,10 @@ model AuditLog {
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  @@index([userId])
-  @@index([action])
-  @@index([createdAt])
+  // 优化的索引策略
+  @@index([userId, action, createdAt(sort: Desc)]) // 覆盖用户+操作+时间的复合查询
+  @@index([createdAt(sort: Desc), userId, action]) // 按时间全局查询,可按用户/操作过滤
+  @@index([action]) // 单独按操作类型查询
   @@map("audit_logs")
 }
 
@@ -196,7 +198,7 @@ model File {
   id            String    @id @default(cuid())
   userId        String
   filename      String
-  minioPath     String // 缁夊锟?@unique閿涘本鏁奸悽銊ワ拷閸氬牆鏁稉鈧痪锔芥将
+  minioPath     String    // MinIO 存储路径
   fileSize      BigInt
   mimeType      String
   fileType      String
@@ -214,12 +216,15 @@ model File {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, minioPath]) // 婢跺秴鎮庨崬锟界缁撅附娼敍姘倱娑撯偓閻劍鍩涙稉宥堝厴閺堝娴夐崥宀冪熅瀵板嫮娈戦弬鍥︽
+  @@unique([userId, minioPath]) // 确保每个用户存储的文件路径唯一
   @@index([userId])
   @@index([fileType])
   @@index([createdAt])
   @@index([pinyin])
   @@index([configId])
+  @@index([userId, fileType, createdAt(sort: Desc)])
+  @@index([userId, configId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc), fileType])
   @@map("files")
 }
 
@@ -265,9 +270,9 @@ model TeamMember {
 
   role String @default("MEMBER") // ADMIN | MEMBER
 
-  // 閹存劕鎲抽悪锟界彌闁板秹锟介敍鍫濆讲闁绱歯ull鐞涖劎銇氭担璺ㄦ暏閸ャ垽妲﹂柊宥夛拷
-  storageQuota BigInt? // 鐎涙ê鍋嶉柊宥夛拷閿涘牆鐡ч懞鍌︾礆
-  fileQuota    Int? // 閺傚洣娆㈤弫浼村帳妫帮拷
+  // 成员专属配额 (null 表示使用团队默认配额)
+  storageQuota BigInt? // 存储配额 (字节)
+  fileQuota    Int?    // 文件数量配额
 
   inviteCodeId String?
   inviteCode   InviteCode? @relation(fields: [inviteCodeId], references: [id], onDelete: SetNull)
@@ -278,12 +283,13 @@ model TeamMember {
   @@index([teamId])
   @@index([userId])
   @@index([inviteCodeId])
+  @@index([teamId, userId])
   @@map("team_members")
 }
 
 model InviteCode {
   id   String @id @default(cuid())
-  code String @unique // 32娴ｅ秹鍊嬬拠椋庣垳
+  code String @unique // 32 字符随机邀请码
 
   teamId String
   team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -291,7 +297,7 @@ model InviteCode {
   createdBy String
   creator   User   @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
-  expiresAt DateTime // 鏉╁洦婀￠弮鍫曟？
+  expiresAt DateTime // 过期时间
   maxUses   Int      @default(5) // 最大使用次数
   usedCount Int      @default(0) // 已使用次数
 
@@ -306,7 +312,7 @@ model InviteCode {
 }
 
 // ============================================
-// Multipart Upload (鍒嗙墖涓婁紶)
+// Multipart Upload (分片上传)
 // ============================================
 
 model MultipartUpload {
@@ -323,14 +329,14 @@ model MultipartUpload {
   bucket    String
   objectKey String
 
-  // 宸蹭笂浼犵殑鍒嗙墖淇℃伅 (JSON 瀛楃涓?
+  // 已上传的分片信息 (JSON 字符串)
   parts String @default("[]") // Array<{ partNumber: number, etag: string }>
 
   status String @default("pending") // pending | completed | aborted
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  expiresAt DateTime // 24灏忔椂鍚庤繃鏈?
+  expiresAt DateTime // 24小时后过期
   @@index([userId])
   @@index([uploadId])
   @@index([status])

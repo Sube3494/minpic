@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
+import { cache } from '@/lib/cache';
 
 export async function GET() {
   const { error } = await requireAdmin();
@@ -17,7 +18,7 @@ export async function GET() {
       // 总用户数
       prisma.user.count(),
       
-      // 活跃用户数（最近7天登录）
+      // 活跃用户数(最近7天登录)
       prisma.user.count({
         where: {
           lastLoginAt: {
@@ -51,26 +52,47 @@ export async function GET() {
       }),
     ]);
 
-    // 获取用户注册趋势（最近7天）- 合并为活跃趋势逻辑
+    // 优化: 获取用户趋势(最近7天) - 使用缓存
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
     const userTrend = await Promise.all(
-      Array.from({ length: 7 }, (_, i) => {
-        const date = new Date();
+      Array.from({ length: 7 }, async (_, i) => {
+        const date = new Date(today);
         date.setDate(date.getDate() - (6 - i));
-        date.setHours(0, 0, 0, 0);
         const nextDate = new Date(date);
         nextDate.setDate(nextDate.getDate() + 1);
+        
+        const dateString = date.toISOString().split('T')[0];
+        const isToday = i === 6;
+        
+        // 对于历史日期使用缓存(数据不会变),今天的数据使用短缓存
+        const cacheKey = `admin:dashboard:trend:${dateString}`;
+        const cached = await cache.get<{ name: string; users: number }>(cacheKey);
+        
+        if (cached && !isToday) {
+          return cached;
+        }
 
-        return prisma.user.count({
+        const count = await prisma.user.count({
           where: {
             lastLoginAt: {
               gte: date,
               lt: nextDate,
             },
           },
-        }).then(count => ({
+        });
+
+        const result = {
           name: date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }),
           users: count,
-        }));
+        };
+
+        // 历史数据缓存24小时,今天的数据缓存5分钟
+        const ttl = isToday ? 300 : 86400;
+        await cache.set(cacheKey, result, ttl);
+
+        return result;
       })
     );
 

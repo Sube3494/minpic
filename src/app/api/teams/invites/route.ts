@@ -68,29 +68,25 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: '缺少邀请码ID' }, { status: 400 });
     }
 
-    // 检查用户是否是团队主
-    const team = await prisma.team.findUnique({
-      where: { ownerId: userId },
-    });
-
-    if (!team) {
-      return NextResponse.json(
-        { error: '只有团队主可以删除邀请码' },
-        { status: 403 }
-      );
-    }
-
-    // 检查邀请码是否存在且属于该团队
+    // 优化: 一次查询获取邀请码及其团队所有者信息
     const invite = await prisma.inviteCode.findUnique({
       where: { id },
+      select: {
+        id: true,
+        teamId: true,
+        team: {
+          select: { ownerId: true }
+        }
+      }
     });
 
+    // 验证邀请码存在且当前用户是团队所有者
     if (!invite) {
       return NextResponse.json({ error: '邀请码不存在' }, { status: 404 });
     }
 
-    if (invite.teamId !== team.id) {
-      return NextResponse.json({ error: '无权删除此邀请码' }, { status: 403 });
+    if (invite.team.ownerId !== userId) {
+      return NextResponse.json({ error: '只有团队主可以删除邀请码' }, { status: 403 });
     }
 
     // 删除邀请码

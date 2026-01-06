@@ -18,36 +18,7 @@ export async function GET() {
 
     const userId = session.user.id;
 
-    // 检查用户的团队（作为团队主或成员）
-    const ownedTeam = await prisma.team.findUnique({
-      where: { ownerId: userId },
-      include: {
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                name: true,
-                avatar: true,
-                githubId: true,
-              },
-            },
-          },
-          orderBy: { joinedAt: 'asc' },
-        },
-      },
-    });
-
-    if (ownedTeam) {
-      const sortedMembers = ownedTeam.members.sort((a, b) => {
-        if (a.userId === userId) return -1;
-        if (b.userId === userId) return 1;
-        return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
-      });
-      return NextResponse.json({ members: sortedMembers });
-    }
-
+    // 优化: 先检查用户的成员关系(更常见的情况)
     const membership = await prisma.teamMember.findUnique({
       where: { userId },
       include: {
@@ -76,6 +47,36 @@ export async function GET() {
       const sortedMembers = membership.team.members.sort((a, b) => {
         if (a.userId === ownerId) return -1;
         if (b.userId === ownerId) return 1;
+        return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
+      });
+      return NextResponse.json({ members: sortedMembers });
+    }
+
+    // 如果不是成员,检查是否是团队主(但没有成员记录的边缘情况)
+    const ownedTeam = await prisma.team.findUnique({
+      where: { ownerId: userId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                name: true,
+                avatar: true,
+                githubId: true,
+              },
+            },
+          },
+          orderBy: { joinedAt: 'asc' },
+        },
+      },
+    });
+
+    if (ownedTeam) {
+      const sortedMembers = ownedTeam.members.sort((a, b) => {
+        if (a.userId === userId) return -1;
+        if (b.userId === userId) return 1;
         return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
       });
       return NextResponse.json({ members: sortedMembers });

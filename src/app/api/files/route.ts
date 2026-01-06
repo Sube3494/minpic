@@ -7,6 +7,7 @@ import { checkStorageQuota, checkFileQuota, updateStorageUsage, updateFileCount 
 import { checkRateLimit } from '@/lib/rate-limit';
 import { rateLimitResponse } from '@/lib/rate-limit-response';
 import { getUserMinioConfig, getStorageIdentityConfigIds } from '@/lib/get-user-minio-config';
+import { decryptMinioConfig } from '@/lib/config-encryption';
 import { serializeBigInt } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
@@ -113,6 +114,26 @@ export async function POST(request: NextRequest) {
         configId: config.id,
         expiresAt: expiresAt || (expiresAtStr ? new Date(expiresAtStr) : null),
       },
+      select: {
+        id: true,
+        userId: true,
+        filename: true,
+        minioPath: true,
+        fileSize: true,
+        mimeType: true,
+        fileType: true,
+        thumbnailPath: true,
+        // thumbnailData: false, // 明确排除大字段,减少传输开销
+        width: true,
+        height: true,
+        duration: true,
+        tags: true,
+        pinyin: true,
+        configId: true,
+        expiresAt: true,
+        createdAt: true,
+        updatedAt: true,
+      }
     });
 
     // Update quotas
@@ -259,11 +280,35 @@ export async function DELETE(request: NextRequest) {
       groups[cid].push(f);
     }
 
-    // Step 2: Delete from MinIO per group
+    // Step 2: 批量加载所有需要的配置 (避免 N+1 查询)
+    const configIds = Object.keys(groups).filter(id => id !== 'unknown');
+    const configRecords = await prisma.config.findMany({
+      where: {
+        userId: user.id,
+        key: { in: configIds.map(id => `minio_${id}`) }
+      }
+    });
+    
+    // 构建配置映射
+    const configMap = new Map<string, any>();
+    for (const record of configRecords) {
+      try {
+        const config = JSON.parse(record.value);
+        const decrypted = decryptMinioConfig(config);
+        const configId = record.key.replace('minio_', '');
+        configMap.set(configId, decrypted);
+      } catch (err) {
+        console.error(`Failed to parse config ${record.key}:`, err);
+      }
+    }
+
+    // Step 3: Delete from MinIO per group
     if (deleteMode === 'full') {
       for (const [configId, groupFiles] of Object.entries(groups)) {
+        if (configId === 'unknown') continue;
+        
         try {
-          const config = await getUserMinioConfig(user.id, configId);
+          const config = configMap.get(configId);
           if (config) {
             const minioService = new MinioService();
             await minioService.connect(config);

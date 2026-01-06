@@ -45,47 +45,7 @@ export async function GET() {
 
     const userId = session.user.id;
 
-    // 检查用户是否是团队主
-    const ownedTeam = await prisma.team.findUnique({
-      where: { ownerId: userId },
-      include: {
-        members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                name: true,
-                avatar: true,
-                githubId: true,
-                storageUsed: true,
-                fileCount: true,
-              },
-            },
-          },
-        },
-        owner: {
-          select: {
-            id: true,
-            username: true,
-            name: true,
-            avatar: true,
-            githubId: true,
-            storageUsed: true,
-            fileCount: true,
-          },
-        },
-      },
-    });
-
-    if (ownedTeam) {
-      return NextResponse.json(serializeBigInt({
-        team: ownedTeam,
-        role: 'OWNER',
-      }));
-    }
-
-    // 检查用户是否是团队成员
+    // 优化: 先检查用户是否是团队成员(大多数用户是成员而非所有者)
     const membership = await prisma.teamMember.findUnique({
       where: { userId },
       include: {
@@ -123,9 +83,52 @@ export async function GET() {
     });
 
     if (membership) {
+      // 如果用户是团队所有者,返回 OWNER 角色
+      const isOwner = membership.team.ownerId === userId;
       return NextResponse.json(serializeBigInt({
         team: membership.team,
-        role: membership.role,
+        role: isOwner ? 'OWNER' : membership.role,
+      }));
+    }
+
+    // 只有在用户不是成员时,才检查是否拥有团队(但没有成员记录的边缘情况)
+    // 这种情况理论上不应该发生,因为创建团队时会同时创建成员记录
+    const ownedTeam = await prisma.team.findUnique({
+      where: { ownerId: userId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                name: true,
+                avatar: true,
+                githubId: true,
+                storageUsed: true,
+                fileCount: true,
+              },
+            },
+          },
+        },
+        owner: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            avatar: true,
+            githubId: true,
+            storageUsed: true,
+            fileCount: true,
+          },
+        },
+      },
+    });
+
+    if (ownedTeam) {
+      return NextResponse.json(serializeBigInt({
+        team: ownedTeam,
+        role: 'OWNER',
       }));
     }
 

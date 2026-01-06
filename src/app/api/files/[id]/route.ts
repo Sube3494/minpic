@@ -140,22 +140,12 @@ export async function PUT(
     const body = await request.json();
     const { filename, tags } = body;
 
-    // 验证所有权
-    const existingFile = await prisma.file.findUnique({
-      where: { id },
-      select: { userId: true },
-    });
-
-    if (!existingFile) {
-      return NextResponse.json({ error: 'File not found' }, { status: 404 });
-    }
-
-    if (existingFile.userId !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
-
+    // 优化: 使用 update 的 where 条件同时检查所有权,减少一次查询
     const file = await prisma.file.update({
-      where: { id },
+      where: { 
+        id,
+        userId: user.id  // 同时验证所有权
+      },
       data: {
         ...(filename && { 
           filename,
@@ -167,6 +157,14 @@ export async function PUT(
 
     return NextResponse.json(serializeBigInt(file));
   } catch (error) {
+    // Prisma 在找不到记录时会抛出 P2025 错误
+    if (error instanceof Error && 'code' in error && error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'File not found or unauthorized' },
+        { status: 404 }
+      );
+    }
+    
     console.error('Error updating file:', error);
     return NextResponse.json(
       { error: 'Failed to update file' },
