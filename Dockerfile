@@ -33,6 +33,13 @@ COPY . .
 # 生成 Prisma Client
 RUN npx prisma generate
 
+# 归集运行时需要的工具 (Prisma CLI 和引擎)，防止 pnpm 符号链接在跨阶段拷贝时丢失
+RUN mkdir -p /app/runtime-tools/bin && \
+    cp -r node_modules/prisma /app/runtime-tools/ && \
+    cp -r node_modules/@prisma /app/runtime-tools/ && \
+    (cp -r node_modules/.prisma /app/runtime-tools/ || echo "No .prisma found") && \
+    cp node_modules/.bin/prisma /app/runtime-tools/bin/prisma
+
 # 构建应用
 RUN npm run build
 
@@ -49,17 +56,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# 拷贝构建产物 (Next.js standalone 模式)
+# 拷贝构建产物 (Standalone 模式)
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 
-# 关键修复：显式拷贝 Prisma CLI 及其二进制文件，确保运行时完全脱离网络
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
-COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# 拷贝归集的 Prisma 工具链到 node_modules
+# 这确保了运行时可以使用 ./node_modules/.bin/prisma 进行离线同步
+COPY --from=builder /app/runtime-tools/ ./node_modules/
 
 # 修正 Next.js 静态目录结构：在 standalone 模式下，static 应该在 .next 文件夹内
 RUN mkdir -p .next && mv static .next/static
@@ -71,5 +76,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# 运行容器时自动同步数据库结构 (使用本地二进制文件，无需联网)
+# 运行容器时自动同步数据库结构 (使用本地工具链，无需联网)
 CMD ["sh", "-c", "./node_modules/.bin/prisma db push --skip-generate && node server.js"]
