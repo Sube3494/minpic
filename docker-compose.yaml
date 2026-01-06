@@ -56,6 +56,10 @@ services:
 networks:
   minpic-network:
     driver: bridge
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: fd00:1::/64
 
 volumes:
   postgres_data:
