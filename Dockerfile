@@ -34,11 +34,11 @@ COPY . .
 RUN npx prisma generate
 
 # 归集运行时需要的工具 (Prisma CLI 和引擎)，防止 pnpm 符号链接在跨阶段拷贝时丢失
-RUN mkdir -p /app/runtime-tools/bin && \
+RUN mkdir -p /app/runtime-tools/.bin && \
     cp -r node_modules/prisma /app/runtime-tools/ && \
     cp -r node_modules/@prisma /app/runtime-tools/ && \
     (cp -r node_modules/.prisma /app/runtime-tools/ || echo "No .prisma found") && \
-    cp node_modules/.bin/prisma /app/runtime-tools/bin/prisma
+    cp -a node_modules/.bin/prisma /app/runtime-tools/.bin/prisma
 
 # 构建应用
 RUN npm run build
@@ -66,9 +66,7 @@ COPY --from=builder /app/prisma ./prisma
 # 这确保了运行时可以使用 ./node_modules/.bin/prisma 进行离线同步
 COPY --from=builder /app/runtime-tools/ ./node_modules/
 
-# 修正 Next.js 静态目录结构：在 standalone 模式下，static 应该在 .next 文件夹内
-RUN mkdir -p .next && mv static .next/static
-
+# Standalone 模式下，静态资源已被 COPY 指令正确放置在 .next/static
 USER nextjs
 
 EXPOSE 3000
@@ -76,5 +74,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# 运行容器时自动同步数据库结构 (使用本地工具链，无需联网)
-CMD ["sh", "-c", "./node_modules/.bin/prisma db push --skip-generate && node server.js"]
+# 运行容器时自动同步数据库结构 (直接运行 prisma 入口文件，兼容性最强)
+CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --skip-generate && node server.js"]
