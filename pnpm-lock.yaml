@@ -98,6 +98,9 @@ importers:
       pinyin-pro:
         specifier: ^3.27.0
         version: 3.27.0
+      prisma:
+        specifier: 5.22.0
+        version: 5.22.0
       react:
         specifier: 19.2.3
         version: 19.2.3
@@ -162,9 +165,6 @@ importers:
       happy-dom:
         specifier: ^20.0.11
         version: 20.0.11
-      prisma:
-        specifier: 5.22.0
-        version: 5.22.0
       tailwindcss:
         specifier: ^4
         version: 4.1.18
