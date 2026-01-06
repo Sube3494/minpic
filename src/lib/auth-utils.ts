@@ -7,7 +7,7 @@ export interface AuthUser {
   role: UserRole;
   status: UserStatus;
   username: string;
-  githubId: string;
+  githubId?: string | null;
 }
 
 export async function requireAuth() {
@@ -25,7 +25,7 @@ export async function requireAuth() {
     role: UserRole;
     status: UserStatus;
     username: string;
-    githubId: string;
+    githubId?: string | null;
   }
   
   const sessionUser = session.user as AuthUserSession;

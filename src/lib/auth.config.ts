@@ -30,13 +30,6 @@ declare module 'next-auth' {
   }
 }
 
-interface GithubProfile {
-  id: number;
-  login: string;
-  name: string;
-  email: string;
-  avatar_url: string;
-}
 
 export const authConfig: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),
@@ -48,18 +41,35 @@ export const authConfig: NextAuthConfig = {
       token: process.env.GITHUB_PROXY_URL ? `${process.env.GITHUB_PROXY_URL}/github/login/oauth/access_token` : undefined,
       userinfo: process.env.GITHUB_PROXY_URL ? `${process.env.GITHUB_PROXY_URL}/api/v3/user` : undefined,
       allowDangerousEmailAccountLinking: true,
-      profile(profile) {
+      async profile(profile, tokens) {
+        let email = profile.email;
+        if (!email && tokens.access_token) {
+          try {
+            const proxyUrl = process.env.GITHUB_PROXY_URL;
+            const apiUrl = proxyUrl ? `${proxyUrl}/api/v3/user/emails` : 'https://api.github.com/user/emails';
+            const res = await fetch(apiUrl, {
+              headers: { Authorization: `Bearer ${tokens.access_token}` }
+            });
+            if (res.ok) {
+              const emails = await res.json();
+              const primary = emails.find((e: { primary: boolean; verified: boolean; email: string }) => e.primary && e.verified);
+              if (primary) email = primary.email;
+            }
+          } catch (e) {
+            console.error('Failed to fetch GitHub emails in profile callback:', e);
+          }
+        }
+
         return {
           id: profile.id.toString(),
           githubId: profile.id.toString(),
           username: profile.login,
           name: profile.name,
-          email: profile.email,
-          avatar: profile.avatar_url,
+          email: email,
           role: 'USER',
           status: 'ACTIVE',
-        };
-      },
+        }
+      }
     }),
     Credentials({
       name: 'Credentials',
@@ -120,7 +130,24 @@ export const authConfig: NextAuthConfig = {
       let ip = forwardedFor ? forwardedFor.split(',')[0].trim() : (headersList.get('x-real-ip') || '127.0.0.1');
       if (ip === '::1') ip = '127.0.0.1';
 
-      // 2. Determine admin email
+      // 2. Check for active session (Binding Mode)
+      // If user is already logged in, they will have a session cookie.
+      // In this case, we allow the sign-in to proceed (NextAuth will handle the linking).
+      try {
+        const { cookies } = await import('next/headers'); // Dynamic import to avoid edge issues if any
+        const cookieStore = await cookies();
+        const hasSession = 
+          cookieStore.has('authjs.session-token') || 
+          cookieStore.has('__Secure-authjs.session-token') ||
+          cookieStore.has('next-auth.session-token') || 
+          cookieStore.has('__Secure-next-auth.session-token');
+        
+        if (hasSession) return true;
+      } catch {
+        // Ignore cookie read errors
+      }
+
+      // 3. Determine admin email
       const adminEmail = process.env.ADMIN_EMAIL;
 
       if (account?.provider === 'credentials') {
@@ -159,54 +186,24 @@ export const authConfig: NextAuthConfig = {
       }
 
       if (account?.provider === 'github') {
-
         const githubId = profile?.id?.toString();
         if (!githubId) return false;
 
-        const ghProfile = profile as unknown as GithubProfile;
-        let email = ghProfile.email;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let emails: any[] = [];
-        
-        // Fetch emails from GitHub API to handle private emails and check for admin
-        if (account?.access_token) {
-           try {
-             const proxyUrl = process.env.GITHUB_PROXY_URL;
-             const apiUrl = proxyUrl ? `${proxyUrl}/api/v3/user/emails` : 'https://api.github.com/user/emails';
-             const res = await fetch(apiUrl, {
-               headers: { Authorization: `Bearer ${account.access_token}` }
-             });
-             if (res.ok) {
-               emails = await res.json();
-                // If profile.email is null, try to find primary
-                if (!email) {
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  const primary = emails.find((e: any) => e.primary && e.verified);
-                  if (primary) email = primary.email;
-                }
-             }
-           } catch (e) { console.error('Failed to fetch GitHub emails:', e); }
-        }
+        const email = user.email; // Already resolved in profile() callback
 
-        // Determine admin status
-        let shouldBeAdmin = false;
-        if (adminEmail) {
-           // Check profile email
-           if (email === adminEmail) shouldBeAdmin = true;
-           // Check fetched verified emails
-           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-           else if (emails.some((e: any) => e.email === adminEmail && e.verified)) {
-             shouldBeAdmin = true;
-           }
-        }
+        // Determine if this user should be admin based on email
+        const shouldBeAdmin = !!(email && adminEmail && email === adminEmail);
 
         // Check if GitHub login is enabled in settings
         const settings = await getSystemSettings();
         if (settings && !settings.githubLoginEnabled) {
           return '/auth/error?error=GithubLoginDisabled';
         }
+
+        // With allowDangerousEmailAccountLinking: true and the email resolved in profile(),
+        // the adapter will find the existing user by email if githubId doesn't match yet.
         
-        // Find by GitHub ID or Email (using the resolved email)
+        // Find existing user by githubId or email to enrich the session
         const existingUser = await prisma.user.findFirst({
           where: {
             OR: [
@@ -221,62 +218,26 @@ export const authConfig: NextAuthConfig = {
             return '/auth/error?error=AccountSuspended';
           }
 
-          const needsRoleUpdate = shouldBeAdmin && existingUser.role !== 'ADMIN';
-          const shouldDemote = !shouldBeAdmin && existingUser.role === 'ADMIN';
-          
-          if (needsRoleUpdate) {
-            await prisma.user.update({
-              where: { id: existingUser.id },
-               data: { role: 'ADMIN' }
-             });
-             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-             (user as any).role = 'ADMIN';
-           } else if (shouldDemote) {
-              await prisma.user.update({
-               where: { id: existingUser.id },
-               data: { role: 'USER' }
-             });
-             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-             (user as any).role = 'USER';
-           }
-          
+          // Update profile-related info
           await prisma.user.update({
             where: { id: existingUser.id },
             data: { 
               lastLoginAt: new Date(),
-              avatar: ghProfile.avatar_url,
-              githubId, // Ensure githubId is linked
-              ...(email ? { email } : {}) // Update email if we found a better one
+              githubId, // Ensure it's linked
+              role: shouldBeAdmin ? 'ADMIN' : undefined // Promote if adminEmail matches
             }
           });
 
-          // Ensure Account link exists (for manual handling or cases where only email matched)
-           const existingAccount = await prisma.account.findUnique({
-            where: {
-              provider_providerAccountId: {
-                provider: 'github',
-                providerAccountId: githubId
-              }
-            }
-          });
-
-          if (!existingAccount) {
-             await prisma.account.create({
-              data: {
-                userId: existingUser.id,
-                type: account.type,
-                provider: account.provider,
-                providerAccountId: githubId,
-                refresh_token: account.refresh_token,
-                access_token: account.access_token,
-                expires_at: account.expires_at,
-                token_type: account.token_type,
-                scope: account.scope,
-                id_token: account.id_token,
-                session_state: account.session_state as string,
-              }
-            });
-          }
+          // Session enrichment - database info takes priority
+          user.id = existingUser.id;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (user as any).role = shouldBeAdmin ? 'ADMIN' : existingUser.role;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (user as any).status = existingUser.status;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (user as any).username = existingUser.username;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (user as any).githubId = githubId;
 
           await prisma.auditLog.create({
             data: {
@@ -289,75 +250,12 @@ export const authConfig: NextAuthConfig = {
           return true;
         }
 
-        // New User Registration Checks
-        const registrationEnabled = settings?.registrationEnabled ?? true;
-        if (!shouldBeAdmin && !registrationEnabled) {
-          return '/auth/error?error=RegistrationClosed';
-        }
-
-        // Whitelist check
-        if (!shouldBeAdmin && settings?.requireWhitelist) {
-          const whitelistEntry = await prisma.registrationWhitelist.findFirst({
-            where: {
-              OR: [
-                { githubId },
-                ...(email ? [{ email }] : []),
-                // Also check all verified emails from GitHub against whitelist
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                ...emails.filter((e: any) => e.verified).map((e: any) => ({ email: e.email }))
-              ]
-            }
-          });
-
-          if (!whitelistEntry || whitelistEntry.used) {
-            return '/auth/error?error=NotWhitelisted';
-          }
-
-          await prisma.registrationWhitelist.update({
-            where: { id: whitelistEntry.id },
-            data: { used: true, usedAt: new Date() }
-          });
-        }
-
-        // Manually create new GitHub user and Account
-        // This ensures email and proper role are set immediately
-        const newUser = await prisma.user.create({
-          data: {
-            githubId,
-            username: ghProfile.login,
-            name: ghProfile.name,
-            email: email, // Use resolved email
-            avatar: ghProfile.avatar_url,
-            role: shouldBeAdmin ? 'ADMIN' : 'USER',
-            status: 'ACTIVE',
-            lastLoginAt: new Date(),
-            accounts: {
-              create: {
-                type: account.type,
-                provider: account.provider,
-                providerAccountId: githubId,
-                refresh_token: account.refresh_token,
-                access_token: account.access_token,
-                expires_at: account.expires_at,
-                token_type: account.token_type,
-                scope: account.scope,
-                id_token: account.id_token,
-                session_state: account.session_state as string,
-              }
-            }
-          }
-        });
-
-        await prisma.auditLog.create({
-            data: {
-              userId: newUser.id,
-              action: 'USER_CREATED',
-              metadata: JSON.stringify({ githubId, username: ghProfile.login, provider: 'github' }),
-              ipAddress: ip,
-            }
-        });
-
-        return true;
+        // If no user found, redirect to registration page with email pre-filled
+        const params = new URLSearchParams();
+        params.set('authMode', 'register');
+        if (email) params.set('email', email);
+        
+        return `/auth/signin?${params.toString()}`;
       }
 
       return false;
@@ -412,6 +310,33 @@ export const authConfig: NextAuthConfig = {
         session.user.email = token.email as string;
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === baseUrl) return url;
+      return baseUrl;
+    }
+  },
+  events: {
+    async linkAccount({ user, account }) {
+      // Ensure githubId is synced to User table when account is linked
+      if (account.provider === 'github' && account.providerAccountId && user.id) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { githubId: account.providerAccountId }
+        });
+      }
+    },
+    async createUser({ user }) {
+      // Sync lastLoginAt for newly created users
+      if (user.id) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() }
+        });
+      }
     }
   },
 };

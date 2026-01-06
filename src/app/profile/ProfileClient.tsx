@@ -1,11 +1,19 @@
+/*
+ * @Date: 2026-01-06 19:19:14
+ * @Author: Sube
+ * @FilePath: ProfileClient.tsx
+ * @LastEditTime: 2026-01-07 01:06:56
+ * @Description: 
+ */
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
 import { PageWrapper } from '@/components/layout/page-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Shield, Calendar, Mail, User as UserIcon, Activity, BarChart3, Github, KeyRound, Loader2 } from 'lucide-react';
+import { Shield, Calendar, Mail, User as UserIcon, Activity, BarChart3, Github, KeyRound, Loader2, Info } from 'lucide-react';
 import { useSession, signIn, signOut } from 'next-auth/react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { formatFileSize, cn } from '@/lib/utils';
 import { useTeam } from '@/hooks/use-team';
 import { TeamResourceCard } from '@/components/settings/team-resource-card';
@@ -17,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface UserProfile {
   id: string;
@@ -46,16 +55,22 @@ interface UserStats {
 }
 
 export function ProfileClient() {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Password Change State
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '' });
+
+  // Unbind GitHub State
+  const [unbindDialogOpen, setUnbindDialogOpen] = useState(false);
+  const [unbindLoading, setUnbindLoading] = useState(false);
 
   const { teamInfo, leaveTeam } = useTeam();
 
@@ -102,34 +117,70 @@ export function ProfileClient() {
     }
   };
 
+  const handleUnbindGithub = async () => {
+    setUnbindLoading(true);
+    try {
+      const res = await fetch('/api/user/profile/unbind', { method: 'POST' });
+      const data = await res.json();
+      
+      if (res.ok) {
+        toast.success('GitHub 账户已成功解绑');
+        // Force refresh all data including session to clear avatar everywhere
+        await update(); // Update next-auth session
+        await fetchData(); // Refresh local profile state
+        setUnbindDialogOpen(false);
+      } else {
+        toast.error(data.error || '解绑失败');
+      }
+    } catch {
+      toast.error('请求失败');
+    } finally {
+      setUnbindLoading(false);
+    }
+  };
+
   const currentMemberInfo = useMemo(() => {
     if (!teamInfo?.team || !session?.user?.id) return null;
     return teamInfo.team.members.find(m => m.userId === session.user.id);
   }, [teamInfo, session]);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const [profileRes, statsRes] = await Promise.all([
-          fetch('/api/user/profile', { cache: 'no-store' }),
-          fetch(`/api/user/stats?t=${Date.now()}`, { cache: 'no-store' }),
-        ]);
-
-        if (!profileRes.ok) throw new Error('Failed to fetch profile');
-        if (!statsRes.ok) throw new Error('Failed to fetch stats');
-
-        const profileData = await profileRes.json();
-        const statsData = await statsRes.json();
-        setProfile(profileData);
-        setStats(statsData);
-      } catch (err) {
-        console.error('Failed to fetch user data:', err);
-        setError(err instanceof Error ? err.message : '加载失败');
-      } finally {
-        setLoading(false);
-      }
+    // Check if we just linked GitHub - Use searchParams for reliability
+    if (searchParams.get('linked') === 'true') {
+      toast.success('GitHub 账户绑定成功', {
+        id: 'github-bind-success', // Prevent duplicates
+      });
+      // Clean URL without full reload
+      const newParams = new URLSearchParams(window.location.search);
+      newParams.delete('linked');
+      const queryString = newParams.toString();
+      router.replace(window.location.pathname + (queryString ? `?${queryString}` : ''));
     }
+  }, [searchParams, router]);
 
+  const fetchData = async () => {
+    try {
+      const [profileRes, statsRes] = await Promise.all([
+        fetch('/api/user/profile', { cache: 'no-store' }),
+        fetch(`/api/user/stats?t=${Date.now()}`, { cache: 'no-store' }),
+      ]);
+
+      if (!profileRes.ok) throw new Error('Failed to fetch profile');
+      if (!statsRes.ok) throw new Error('Failed to fetch stats');
+
+      const profileData = await profileRes.json();
+      const statsData = await statsRes.json();
+      setProfile(profileData);
+      setStats(statsData);
+    } catch (err) {
+      console.error('Failed to fetch user data:', err);
+      setError(err instanceof Error ? err.message : '加载失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -285,64 +336,111 @@ export function ProfileClient() {
         {/* Secondary Info Grid */}
         <motion.div className="grid grid-cols-1 lg:grid-cols-3 gap-8" variants={itemVariants}>
            {/* Account Details */}
-           <div className="lg:col-span-1">
-             <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 h-full overflow-hidden">
-               <CardHeader className="pb-3 border-b border-zinc-100 dark:border-white/5">
-                 <CardTitle className="flex items-center gap-2.5 text-sm font-medium tracking-wide text-zinc-600 dark:text-zinc-400">
-                   <div className="p-1.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                     <UserIcon className="w-4 h-4" />
-                   </div>
-                   账户详情
-                 </CardTitle>
-               </CardHeader>
-               <CardContent className="pt-6 space-y-1">
-                   <div className="flex justify-between items-center group/item hover:bg-zinc-50 dark:hover:bg-white/5 p-2 rounded-lg -mx-2 transition-all cursor-default">
-                      <span className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2.5">
-                        <Mail className="w-3.5 h-3.5" /> 注册邮箱
-                      </span>
-                      <span className="text-sm text-zinc-700 dark:text-zinc-200 select-all">{profile.email}</span>
-                   </div>
-                   
-                  {/* GitHub Binding Row - Only Show if Enabled or Already Bound */}
+            <div className="lg:col-span-1">
+              <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 h-full overflow-hidden">
+                <CardHeader className="pb-3 border-b border-zinc-100 dark:border-white/5">
+                  <CardTitle className="flex items-center gap-2.5 text-sm font-medium tracking-wide text-zinc-600 dark:text-zinc-400">
+                    <div className="p-1.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                      <UserIcon className="w-4 h-4" />
+                    </div>
+                    账户详情
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6 px-5 space-y-4">
+                  {/* Email Row */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] uppercase tracking-widest font-semibold text-zinc-400 pl-1">注册邮箱</label>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50/50 dark:bg-white/5 border border-zinc-100 dark:border-white/5 group transition-all hover:border-blue-500/20">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="p-2 rounded-lg bg-blue-500/5 dark:bg-blue-500/10 border border-blue-500/20 text-blue-500">
+                          <Mail className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-sm text-zinc-700 dark:text-zinc-200 truncate select-all font-medium">
+                          {profile.email}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* GitHub Row */}
                   {(profile.githubLoginEnabled || profile.githubId) && (
-                   <div className="flex justify-between items-center group/item hover:bg-zinc-50 dark:hover:bg-white/5 p-2 rounded-lg -mx-2 transition-all cursor-default">
-                      <span className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2.5">
-                        <Github className="w-3.5 h-3.5" /> GitHub
-                      </span>
-                      {profile.githubId ? (
-                        <span className="text-sm text-zinc-700 dark:text-zinc-200 select-all">{profile.githubId}</span>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-xs text-primary hover:text-primary/80 hover:bg-primary/5"
-                          onClick={() => signIn('github', { callbackUrl: '/profile' })}
-                        >
-                          立即绑定
-                        </Button>
-                      )}
-                   </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] uppercase tracking-widest font-semibold text-zinc-400 pl-1">社交关联</label>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50/50 dark:bg-white/5 border border-zinc-100 dark:border-white/5 group transition-all hover:border-zinc-500/20">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <div className="p-2 rounded-lg bg-zinc-500/5 dark:bg-zinc-500/10 border border-zinc-500/20 text-zinc-500">
+                            <Github className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="text-[11px] text-zinc-400 font-medium">GitHub 账户</span>
+                            {profile.githubId ? (
+                              <Badge variant="outline" className="w-fit h-5 px-1.5 py-0 text-[10px] font-mono border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-black/20 text-zinc-500">
+                                {profile.githubId}
+                              </Badge>
+                            ) : (
+                              <span className="text-[11px] text-zinc-500">尚未绑定</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {profile.githubId ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2.5 text-xs text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all rounded-lg"
+                            onClick={() => setUnbindDialogOpen(true)}
+                          >
+                            解绑
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="h-8 px-3 text-xs bg-primary/10 hover:bg-primary/20 text-primary border-none shadow-none font-medium transition-all rounded-lg"
+                            onClick={() => signIn('github', { callbackUrl: '/profile?linked=true' })}
+                          >
+                            立即绑定
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   )}
 
-                  <div className="flex justify-between items-center group/item hover:bg-zinc-50 dark:hover:bg-white/5 p-2 rounded-lg -mx-2 transition-all cursor-default">
-                     <span className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2.5">
-                       <Activity className="w-3.5 h-3.5" /> 账号状态
-                     </span>
-                     <div className="flex items-center gap-1.5">
-                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                       <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">活跃中</span>
-                     </div>
-                   </div>
+                  {/* Last Login Row */}
+                  <div className="flex flex-col gap-1.5 pt-1">
+                    <label className="text-[10px] uppercase tracking-widest font-semibold text-zinc-400 pl-1">安全审计</label>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50/50 dark:bg-white/5 border border-zinc-100 dark:border-white/5 group transition-all hover:border-emerald-500/20">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="p-2 rounded-lg bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
+                          <Activity className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[11px] text-zinc-400 font-medium">上一次登录活动</span>
+                          <span className="text-[11px] text-zinc-600 dark:text-zinc-300 font-medium truncate">
+                            {profile.lastLoginAt ? new Date(profile.lastLoginAt).toLocaleString('zh-CN', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false
+                            }) : '刚刚'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-                  {/* Change Password Button */}
-                  <div className="pt-4 mt-4 border-t border-dashed border-zinc-200 dark:border-white/10">
+                  {/* Action Footer */}
+                  <div className="pt-4 mt-2 border-t border-dashed border-zinc-200 dark:border-white/10">
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="w-full h-8 text-xs gap-2 text-zinc-600 dark:text-zinc-400"
+                      className="w-full h-9 text-xs gap-2 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-white/10 hover:bg-zinc-50 dark:hover:bg-white/5 transition-all rounded-xl font-medium shadow-none"
                       onClick={() => setPasswordDialogOpen(true)}
                     >
-                      <KeyRound className="w-3.5 h-3.5" /> 修改密码
+                      <KeyRound className="w-3.5 h-3.5 opacity-60" /> 
+                      更新账户密码
                     </Button>
                   </div>
                 </CardContent>
@@ -500,6 +598,27 @@ export function ProfileClient() {
              </Card>
            </div>
         </motion.div>
+
+        {/* Unbind GitHub Confirmation Dialog */}
+        <ConfirmDialog
+          open={unbindDialogOpen}
+          onOpenChange={setUnbindDialogOpen}
+          title="确认解绑 GitHub？"
+          description={
+            <div className="space-y-3">
+              <p>解绑后，您将无法使用此 GitHub 账号登录。请确保您已设置登录密码。</p>
+              <div className="bg-amber-50 dark:bg-amber-500/5 p-3 rounded-xl border border-amber-100 dark:border-amber-500/10 flex gap-3 text-xs text-amber-700 dark:text-amber-400">
+                <Info className="w-4 h-4 shrink-0 mt-0.5" />
+                <p>解绑不会删除您的数据或物理文件，仅移除社交账号关联。</p>
+              </div>
+            </div>
+          }
+          confirmText="确认解绑"
+          cancelText="取消"
+          onConfirm={handleUnbindGithub}
+          isLoading={unbindLoading}
+          variant="destructive"
+        />
       </motion.div>
     </PageWrapper>
   );

@@ -26,7 +26,7 @@ export class MinioService {
     file: Buffer,
     filename: string,
     mimeType: string,
-    githubId: string  // 使用GitHub ID进行路径隔离
+    ownerId: string  // Use Prisma userId for robust path isolation
   ): Promise<{ objectName: string; expiresAt: string | null }> {
     if (!this.client || !this.config) {
       throw new Error('MinIO client not initialized');
@@ -39,8 +39,9 @@ export class MinioService {
         objectPath += `${this.config.baseDir}/`;
     }
 
-    // 用户隔离层：使用稳定的GitHub ID
-    objectPath += `users/${githubId}/`;
+    // 用户隔离层：使用稳定的本地 ID (userId)
+    // 保证了即使不绑定 GitHub 也有唯一隔离空间
+    objectPath += `users/${ownerId}/`;
 
     // Handle archiveStrategy
     if (this.config.archiveStrategy && this.config.archiveStrategy !== 'none') {

@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
       fileBuffer,
       file.name,
       mimeType,
-      user.githubId
+      user.id
     );
 
     // Generate metadata

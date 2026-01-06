@@ -44,7 +44,19 @@ export default function SignInPage() {
         }
       })
       .catch(() => {});
-  }, []);
+
+    // Handle URL params for auto-switching mode and pre-filling email
+    const mode = searchParams.get('authMode');
+    const email = searchParams.get('email');
+    
+    if (mode === 'register' || mode === 'forgot') {
+      setAuthMode(mode);
+    }
+    
+    if (email) {
+      setFormData(prev => ({ ...prev, email }));
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -403,7 +415,7 @@ export default function SignInPage() {
               </div>
 
               {/* GitHub OAuth */}
-              {githubEnabled && authMode !== 'forgot' && (
+              {githubEnabled && authMode === 'signin' && (
                 <div className="space-y-4">
                   <div className="relative">
                     <div className="absolute inset-0 flex items-center">

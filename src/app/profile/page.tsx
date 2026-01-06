@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { ProfileClient } from './ProfileClient';
@@ -9,5 +10,9 @@ export default async function ProfilePage() {
     redirect('/auth/signin');
   }
 
-  return <ProfileClient />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ProfileClient />
+    </Suspense>
+  );
 }

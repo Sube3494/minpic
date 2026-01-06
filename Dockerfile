@@ -67,6 +67,8 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# 启动时自动同步数据库结构
-# 由于全局安装了 prisma，这里可以直接使用 prisma 命令
-CMD ["sh", "-c", "prisma db push --skip-generate && node server.js"]
+# 启动应用
+# 由于应用内部已集成 ensureDatabaseExists 逻辑，支持自动建库、建表和初始化
+# 这里的启动命令回归简洁，不再需要 shell 脚本前缀
+USER nextjs
+CMD ["node", "server.js"]
