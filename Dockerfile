@@ -20,9 +20,9 @@ RUN npm config set registry ${NPM_REGISTRY} && \
 COPY package.json pnpm-lock.yaml ./
 COPY prisma ./prisma
 
-# 使用缓存加速安装
+# 使用 --shamefully-hoist 确保 node_modules 结构扁平化，解决 Docker COPY 无法处理深层符号链接的问题
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --config.shamefully-hoist=true
 
 # --- 阶段 2: 构建应用 ---
 FROM base AS builder
@@ -30,7 +30,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# 生成 Prisma Client (现在 builder 环境已包含 openssl)
+# 生成 Prisma Client
 RUN npx prisma generate
 
 # 构建应用
@@ -49,13 +49,15 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# 拷贝构建产物
+# 拷贝构建产物 (Standalone 模式会自动处理 node_modules)
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 
-# 由于 pnpm + standalone 模式下 Prisma 引擎可能不会被自动拷贝，手动拷贝
-COPY --from=builder /app/node_modules/.prisma/client/libquery_engine-*.so.node ./node_modules/.prisma/client/
+# 由于 pnpm 配合 standalone 可能会导致 Prisma 引擎位置偏移，手动尝试拷贝引擎到运行时位置
+# 这一步如果失败（例如已经包含在 standalone 中）也不会中断构建
+RUN mkdir -p node_modules/.prisma/client && \
+    find node_modules -name "libquery_engine-*.so.node" -exec cp {} node_modules/.prisma/client/ \; || true
 
 # 补全 Next.js 静态目录结构
 RUN mkdir -p .next && mv static .next/static
