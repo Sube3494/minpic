@@ -50,10 +50,19 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # 拷贝构建产物 (Next.js standalone 模式)
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
+
+# 关键修复：显式拷贝 Prisma CLI 及其二进制文件，确保运行时完全脱离网络
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder /app/node_modules/@prisma/client ./node_modules/@prisma/client
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# 修正 Next.js 静态目录结构：在 standalone 模式下，static 应该在 .next 文件夹内
+RUN mkdir -p .next && mv static .next/static
 
 USER nextjs
 
@@ -62,6 +71,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# 运行容器时自动同步数据库结构
-# 使用 --registry 参数防止 npx 回退到官方源导致超时
-CMD ["sh", "-c", "npx --registry=https://registry.npmmirror.com prisma db push --skip-generate && node server.js"]
+# 运行容器时自动同步数据库结构 (使用本地二进制文件，无需联网)
+CMD ["sh", "-c", "./node_modules/.bin/prisma db push --skip-generate && node server.js"]
