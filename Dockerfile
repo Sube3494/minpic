@@ -33,13 +33,6 @@ COPY . .
 # 生成 Prisma Client
 RUN npx prisma generate
 
-# 归集运行时需要的工具 (Prisma CLI 和引擎)，防止 pnpm 符号链接在跨阶段拷贝时丢失
-RUN mkdir -p /app/runtime-tools/.bin && \
-    cp -r node_modules/prisma /app/runtime-tools/ && \
-    cp -r node_modules/@prisma /app/runtime-tools/ && \
-    (cp -r node_modules/.prisma /app/runtime-tools/ || echo "No .prisma found") && \
-    cp -a node_modules/.bin/prisma /app/runtime-tools/.bin/prisma
-
 # 构建应用
 RUN npm run build
 
@@ -47,8 +40,12 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
-# 额外安装运行时需要的 FFmpeg
-RUN apk add --no-cache ffmpeg
+ARG NPM_REGISTRY=https://registry.npmmirror.com
+
+# 安装运行时需要的工具库：FFmpeg (视频) 和 Prisma (数据库同步)
+RUN apk add --no-cache ffmpeg && \
+    npm config set registry ${NPM_REGISTRY} && \
+    npm install -g prisma@5.22.0
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -62,11 +59,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 
-# 拷贝归集的 Prisma 工具链到 node_modules
-# 这确保了运行时可以使用 ./node_modules/.bin/prisma 进行离线同步
-COPY --from=builder /app/runtime-tools/ ./node_modules/
-
-# Standalone 模式下，静态资源已被 COPY 指令正确放置在 .next/static
+# 此时静态资源已经通过 COPY 指令存放在 .next/static 和 public 目录中
 USER nextjs
 
 EXPOSE 3000
@@ -74,5 +67,6 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# 运行容器时自动同步数据库结构 (直接运行 prisma 入口文件，兼容性最强)
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push --skip-generate && node server.js"]
+# 启动时自动同步数据库结构
+# 由于全局安装了 prisma，这里可以直接使用 prisma 命令
+CMD ["sh", "-c", "prisma db push --skip-generate && node server.js"]
