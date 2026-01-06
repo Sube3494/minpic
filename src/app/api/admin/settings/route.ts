@@ -9,7 +9,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { getClientIp } from '@/lib/utils';
-import { Prisma } from '@prisma/client';
 
 // GET /api/admin/settings - 获取系统设置
 export async function GET() {
@@ -51,7 +50,8 @@ export async function PATCH(request: NextRequest) {
       requireWhitelist,
       siteName,
       siteDescription,
-      uploadRateLimit
+      uploadRateLimit,
+      githubLoginEnabled
     } = body;
 
     // 获取或创建设置
@@ -62,22 +62,26 @@ export async function PATCH(request: NextRequest) {
         data: {
           registrationEnabled: true,
           requireWhitelist: false,
-          uploadRateLimit: 100
-        } as Prisma.SystemSettingsCreateInput & { uploadRateLimit: number },
+          uploadRateLimit: 100,
+          githubLoginEnabled: true
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
       });
     }
 
     // 更新设置
-    const updateData: Prisma.SystemSettingsUpdateInput & { uploadRateLimit?: number } = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: any = {};
     if (registrationEnabled !== undefined) updateData.registrationEnabled = registrationEnabled;
     if (requireWhitelist !== undefined) updateData.requireWhitelist = requireWhitelist;
     if (siteName !== undefined) updateData.siteName = siteName;
     if (siteDescription !== undefined) updateData.siteDescription = siteDescription;
     if (uploadRateLimit !== undefined) updateData.uploadRateLimit = parseInt(uploadRateLimit);
+    if (githubLoginEnabled !== undefined) updateData.githubLoginEnabled = githubLoginEnabled;
 
     const updatedSettings = await prisma.systemSettings.update({
       where: { id: settings.id },
-      data: updateData as Prisma.SystemSettingsUpdateInput,
+      data: updateData,
     });
 
     // 记录审计日志

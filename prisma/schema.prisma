@@ -18,9 +18,10 @@ datasource db {
 model User {
   id String @id @default(cuid())
 
-  // GitHub OAuth info
-  githubId String  @unique
+  // GitHub OAuth info (变为可选)
+  githubId String? @unique
   username String  @unique
+  password String? // 账号密码加密存储
   name     String?
   email    String? @unique
   avatar   String?
@@ -108,7 +109,8 @@ model VerificationToken {
 
 model RegistrationWhitelist {
   id        String    @id @default(cuid())
-  githubId  String    @unique
+  githubId  String?   @unique
+  email     String?   @unique
   username  String
   addedBy   String
   reason    String?
@@ -140,6 +142,9 @@ model SystemSettings {
 
   // Limits
   uploadRateLimit Int @default(100)
+
+  // Auth limits
+  githubLoginEnabled Boolean @default(true)
 
   updatedAt DateTime @updatedAt
 

@@ -4,18 +4,23 @@ import { useEffect, useState, useMemo } from 'react';
 import { PageWrapper } from '@/components/layout/page-wrapper';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Shield, Calendar, Mail, User as UserIcon, Activity, BarChart3, Github } from 'lucide-react';
-import { useSession } from 'next-auth/react';
+import { Shield, Calendar, Mail, User as UserIcon, Activity, BarChart3, Github, KeyRound, Loader2 } from 'lucide-react';
+import { useSession, signIn, signOut } from 'next-auth/react';
 import { formatFileSize, cn } from '@/lib/utils';
 import { useTeam } from '@/hooks/use-team';
 import { TeamResourceCard } from '@/components/settings/team-resource-card';
 import { PersonalStorageCard } from '@/components/settings/personal-storage-card';
 import { Badge } from '@/components/ui/badge';
 import { motion, Variants } from 'framer-motion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 
 interface UserProfile {
   id: string;
-  githubId: string;
+  githubId: string | null;
   username: string;
   name: string | null;
   email: string | null;
@@ -27,6 +32,7 @@ interface UserProfile {
   lastLoginAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  githubLoginEnabled: boolean;
 }
 
 interface UserStats {
@@ -46,6 +52,11 @@ export function ProfileClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Password Change State
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '' });
+
   const { teamInfo, leaveTeam } = useTeam();
 
   const handleLeaveTeam = async () => {
@@ -53,6 +64,41 @@ export function ProfileClient() {
       await leaveTeam();
     } catch {
       // Error already handled in useTeam
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordLoading(true);
+
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[^\s]{8,}$/;
+    if (!passwordRegex.test(passwordForm.newPassword)) {
+       toast.error('密码需包含字母和数字，且不少于 8 位');
+       setPasswordLoading(false);
+       return;
+    }
+
+    try {
+      const res = await fetch('/api/user/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(passwordForm),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || '修改失败');
+      } else {
+        toast.success('密码修改成功，请重新登录');
+        setPasswordDialogOpen(false);
+        setPasswordForm({ oldPassword: '', newPassword: '' });
+        // Force logout
+        signOut({ callbackUrl: '/auth/signin' });
+      }
+    } catch {
+      toast.error('请求失败');
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -250,32 +296,130 @@ export function ProfileClient() {
                  </CardTitle>
                </CardHeader>
                <CardContent className="pt-6 space-y-1">
-                 <div className="flex justify-between items-center group/item hover:bg-zinc-50 dark:hover:bg-white/5 p-2 rounded-lg -mx-2 transition-all cursor-default">
-                    <span className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2.5">
-                      <Github className="w-3.5 h-3.5" /> GitHub ID
-                    </span>
-                    <span className="text-sm text-zinc-700 dark:text-zinc-200 select-all">{profile.githubId}</span>
-                 </div>
-                 <div className="flex justify-between items-center group/item hover:bg-zinc-50 dark:hover:bg-white/5 p-2 rounded-lg -mx-2 transition-all cursor-default">
-                    <span className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2.5">
-                      <Shield className="w-3.5 h-3.5" /> 权限等级
-                    </span>
-                    <span className="text-sm text-zinc-700 dark:text-zinc-200 font-medium">
-                      {profile.role === 'ADMIN' ? '管理员' : '普通用户'}
-                    </span>
-                 </div>
-                 <div className="flex justify-between items-center group/item hover:bg-zinc-50 dark:hover:bg-white/5 p-2 rounded-lg -mx-2 transition-all cursor-default">
-                    <span className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2.5">
-                      <Activity className="w-3.5 h-3.5" /> 账号状态
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">活跃中</span>
-                    </div>
-                 </div>
-               </CardContent>
-             </Card>
-           </div>
+                   <div className="flex justify-between items-center group/item hover:bg-zinc-50 dark:hover:bg-white/5 p-2 rounded-lg -mx-2 transition-all cursor-default">
+                      <span className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2.5">
+                        <Mail className="w-3.5 h-3.5" /> 注册邮箱
+                      </span>
+                      <span className="text-sm text-zinc-700 dark:text-zinc-200 select-all">{profile.email}</span>
+                   </div>
+                   
+                  {/* GitHub Binding Row - Only Show if Enabled or Already Bound */}
+                  {(profile.githubLoginEnabled || profile.githubId) && (
+                   <div className="flex justify-between items-center group/item hover:bg-zinc-50 dark:hover:bg-white/5 p-2 rounded-lg -mx-2 transition-all cursor-default">
+                      <span className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2.5">
+                        <Github className="w-3.5 h-3.5" /> GitHub
+                      </span>
+                      {profile.githubId ? (
+                        <span className="text-sm text-zinc-700 dark:text-zinc-200 select-all">{profile.githubId}</span>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs text-primary hover:text-primary/80 hover:bg-primary/5"
+                          onClick={() => signIn('github', { callbackUrl: '/profile' })}
+                        >
+                          立即绑定
+                        </Button>
+                      )}
+                   </div>
+                  )}
+
+                  <div className="flex justify-between items-center group/item hover:bg-zinc-50 dark:hover:bg-white/5 p-2 rounded-lg -mx-2 transition-all cursor-default">
+                     <span className="text-sm text-zinc-500 dark:text-zinc-400 flex items-center gap-2.5">
+                       <Activity className="w-3.5 h-3.5" /> 账号状态
+                     </span>
+                     <div className="flex items-center gap-1.5">
+                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                       <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">活跃中</span>
+                     </div>
+                   </div>
+
+                  {/* Change Password Button */}
+                  <div className="pt-4 mt-4 border-t border-dashed border-zinc-200 dark:border-white/10">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full h-8 text-xs gap-2 text-zinc-600 dark:text-zinc-400"
+                      onClick={() => setPasswordDialogOpen(true)}
+                    >
+                      <KeyRound className="w-3.5 h-3.5" /> 修改密码
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Password Change Dialog */}
+            <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+               <DialogContent className="sm:max-w-[480px]">
+                  <DialogHeader className="space-y-3">
+                    <DialogTitle>修改密码</DialogTitle>
+                    <DialogDescription className="space-y-2.5" asChild>
+                      <div>
+                        <span className="block text-zinc-500 dark:text-zinc-400">
+                          为了您的账号安全，请定期修改密码并确保新密码足够复杂。
+                        </span>
+                        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10 text-[11px] text-amber-700 dark:text-amber-400/90 leading-relaxed">
+                          <Activity className="w-3.5 h-3.5 mt-0.5 shrink-0 opacity-70" />
+                          <div>
+                            <p className="font-semibold mb-0.5">安全要求：</p>
+                            <p>密码必须包含<span className="font-bold underline decoration-amber-500/30 underline-offset-2">字母和数字</span>，长度不少于 <span className="font-bold">8</span> 位。</p>
+                          </div>
+                        </div>
+                      </div>
+                    </DialogDescription>
+                  </DialogHeader>
+                 <form onSubmit={handleChangePassword} className="grid gap-4 py-4">
+                   <div className="grid gap-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="oldPassword">旧密码</Label>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setPasswordDialogOpen(false);
+                            signOut({ callbackUrl: '/auth/signin?mode=forgot' });
+                          }}
+                          className="text-[10px] text-zinc-400 hover:text-primary transition-colors"
+                        >
+                          忘记旧密码？
+                        </button>
+                      </div>
+                     <Input
+                       id="oldPassword"
+                       type="password"
+                       value={passwordForm.oldPassword}
+                       onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+                       required
+                     />
+                   </div>
+                   <div className="grid gap-2">
+                     <Label htmlFor="newPassword">新密码</Label>
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        className={cn(
+                          passwordForm.newPassword && !/^(?=.*[A-Za-z])(?=.*\d)[^\s]{8,}$/.test(passwordForm.newPassword) && "border-red-500/50 dark:border-red-500/50 focus-visible:ring-red-500/20"
+                        )}
+                        value={passwordForm.newPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                        required
+                        minLength={6}
+                      />
+                      {passwordForm.newPassword && !/^(?=.*[A-Za-z])(?=.*\d)[^\s]{8,}$/.test(passwordForm.newPassword) && (
+                        <span className="text-[10px] text-red-500 font-medium animate-in fade-in block mt-1 ml-1">
+                          密码需包含字母和数字，且不少于 8 位
+                        </span>
+                      )}
+                   </div>
+                   <DialogFooter>
+                     <Button type="submit" disabled={passwordLoading}>
+                       {passwordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                       确认修改
+                     </Button>
+                   </DialogFooter>
+                 </form>
+               </DialogContent>
+            </Dialog>
 
            {/* Activity & Distribution */}
            <div className="lg:col-span-2">

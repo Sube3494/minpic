@@ -37,6 +37,21 @@ export interface CacheAdapter {
    * 清空所有缓存
    */
   clear(): Promise<void>;
+
+  /**
+   * 原子递增 (用于限流)
+   * @param key 缓存键
+   * @param ttlSeconds 过期时间(秒), 仅在键不存在时设置
+   * @returns 递增后的值
+   */
+  incr(key: string, ttlSeconds?: number): Promise<number>;
+
+  /**
+   * 设置过期时间
+   * @param key 缓存键
+   * @param ttlSeconds 过期时间(秒)
+   */
+  expire(key: string, ttlSeconds: number): Promise<void>;
 }
 
 /**
@@ -92,6 +107,35 @@ class MemoryCacheAdapter implements CacheAdapter {
 
   async clear(): Promise<void> {
     this.cache.clear();
+  }
+
+  async incr(key: string, ttlSeconds?: number): Promise<number> {
+    const item = this.cache.get(key);
+    let value = 0;
+    
+    if (item && Date.now() <= item.expiry) {
+      const parsed = parseInt(item.value, 10);
+      if (!isNaN(parsed)) value = parsed;
+    }
+
+    value++;
+    
+    // If new key or expired, set expiry
+    let expiry = item ? item.expiry : (Date.now() + (ttlSeconds || 60) * 1000);
+    if (!item && ttlSeconds) {
+       expiry = Date.now() + ttlSeconds * 1000;
+    }
+    
+    this.cache.set(key, { value: value.toString(), expiry });
+    return value;
+  }
+
+  async expire(key: string, ttlSeconds: number): Promise<void> {
+    const item = this.cache.get(key);
+    if (item) {
+      item.expiry = Date.now() + ttlSeconds * 1000;
+      this.cache.set(key, item);
+    }
   }
 
   /**
@@ -190,6 +234,27 @@ class RedisCacheAdapter implements CacheAdapter {
       await this.client.flushdb();
     } catch (error) {
       console.error('Redis clear error:', error);
+    }
+  }
+
+  async incr(key: string, ttlSeconds?: number): Promise<number> {
+    try {
+      const value = await this.client.incr(key);
+      if (value === 1 && ttlSeconds) {
+        await this.client.expire(key, ttlSeconds);
+      }
+      return value;
+    } catch (error) {
+      console.error('Redis incr error:', error);
+      return 1;
+    }
+  }
+
+  async expire(key: string, ttlSeconds: number): Promise<void> {
+    try {
+      await this.client.expire(key, ttlSeconds);
+    } catch (error) {
+      console.error('Redis expire error:', error);
     }
   }
 }
@@ -292,6 +357,25 @@ class CacheManager {
       await this.adapter.clear();
     } catch (error) {
       console.error('Cache clear error:', error);
+    }
+  }
+
+  async incr(key: string, ttlSeconds?: number): Promise<number> {
+    if (!this.enabled) return 1;
+    try {
+      return await this.adapter.incr(key, ttlSeconds);
+    } catch (error) {
+      console.error('Cache incr error:', error);
+      return 1;
+    }
+  }
+
+  async expire(key: string, ttlSeconds: number): Promise<void> {
+    if (!this.enabled) return;
+    try {
+      await this.adapter.expire(key, ttlSeconds);
+    } catch (error) {
+      console.error('Cache expire error:', error);
     }
   }
 }

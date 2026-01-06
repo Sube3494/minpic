@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { serializeBigInt } from '@/lib/utils';
+import { hashEmail } from '@/lib/md5';
 
 export async function GET() {
   const { error, user } = await requireAuth();
@@ -33,6 +34,12 @@ export async function GET() {
         { error: 'User not found' },
         { status: 404 }
       );
+    }
+
+    // Gravatar fallback for API
+    if (!userInfo.avatar && userInfo.email) {
+      const hash = hashEmail(userInfo.email);
+      userInfo.avatar = `https://www.gravatar.com/avatar/${hash}?d=404`;
     }
 
     // Get quota limits from TeamMember or Team
@@ -72,10 +79,13 @@ export async function GET() {
       }
     }
 
+    const settings = await prisma.systemSettings.findFirst();
+    
     return NextResponse.json(serializeBigInt({
       ...userInfo,
       storageQuota: effectiveStorageQuota,
       fileQuota: effectiveFileQuota,
+      githubLoginEnabled: settings?.githubLoginEnabled ?? true,
     }));
   } catch (error) {
     console.error('Error fetching user profile:', error);

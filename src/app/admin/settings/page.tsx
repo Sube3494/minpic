@@ -16,6 +16,7 @@ interface Settings {
   id: string;
   registrationEnabled: boolean;
   requireWhitelist: boolean;
+  githubLoginEnabled: boolean;
   siteName: string;
   siteDescription: string;
   uploadRateLimit: number;
@@ -54,6 +55,7 @@ export default function SettingsPage() {
         body: JSON.stringify({
           registrationEnabled: settings.registrationEnabled,
           requireWhitelist: settings.requireWhitelist,
+          githubLoginEnabled: settings.githubLoginEnabled,
           siteName: settings.siteName,
           siteDescription: settings.siteDescription,
           uploadRateLimit: settings.uploadRateLimit
@@ -188,7 +190,7 @@ export default function SettingsPage() {
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="grid gap-4 sm:grid-cols-2">
+                      <CardContent className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                         <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-50/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 hover:bg-zinc-100/50 dark:hover:bg-white/10 transition-colors">
                           <div className="space-y-0.5">
                             <Label className="text-base font-medium">开放注册</Label>
@@ -208,6 +210,17 @@ export default function SettingsPage() {
                           <Switch
                             checked={settings.requireWhitelist}
                             onCheckedChange={(checked) => setSettings({ ...settings, requireWhitelist: checked })}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-50/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 hover:bg-zinc-100/50 dark:hover:bg-white/10 transition-colors">
+                          <div className="space-y-0.5">
+                            <Label className="text-base font-medium">GitHub 登录</Label>
+                            <p className="text-xs text-muted-foreground">允许用户通过 GitHub OAuth 登录</p>
+                          </div>
+                          <Switch
+                            checked={settings.githubLoginEnabled}
+                            onCheckedChange={(checked) => setSettings({ ...settings, githubLoginEnabled: checked })}
                           />
                         </div>
                       </CardContent>
