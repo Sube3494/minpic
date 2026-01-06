@@ -40,7 +40,7 @@ export async function GET() {
     // Gravatar fallback for API
     if (!userInfo.avatar && userInfo.email) {
       const hash = hashEmail(userInfo.email);
-      userInfo.avatar = `https://www.gravatar.com/avatar/${hash}?d=404`;
+      userInfo.avatar = `https://cravatar.cn/avatar/${hash}?d=404`;
     }
 
     // Get quota limits from TeamMember or Team
