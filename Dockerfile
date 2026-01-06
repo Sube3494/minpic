@@ -49,18 +49,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# 拷贝构建产物 (Standalone 模式会自动处理 node_modules)
-COPY --from=builder /app/public ./public
+# 拷贝构建产物 (Next.js standalone 模式)
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-
-# 由于 pnpm 配合 standalone 可能会导致 Prisma 引擎位置偏移，手动尝试拷贝引擎到运行时位置
-# 这一步如果失败（例如已经包含在 standalone 中）也不会中断构建
-RUN mkdir -p node_modules/.prisma/client && \
-    find node_modules -name "libquery_engine-*.so.node" -exec cp {} node_modules/.prisma/client/ \; || true
-
-# 补全 Next.js 静态目录结构
-RUN mkdir -p .next && mv static .next/static
+COPY --from=builder /app/public ./public
 
 USER nextjs
 
