@@ -63,4 +63,5 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
 # 运行容器时自动同步数据库结构
-CMD ["sh", "-c", "npx prisma db push --skip-generate && node server.js"]
+# 使用 --registry 参数防止 npx 回退到官方源导致超时
+CMD ["sh", "-c", "npx --registry=https://registry.npmmirror.com prisma db push --skip-generate && node server.js"]
