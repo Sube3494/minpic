@@ -8,9 +8,9 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('开始初始化多用户系统...\n');
   
-  const adminGithubId = process.env.ADMIN_GITHUB_ID;
-  if (!adminGithubId) {
-    console.error('错误: 请在 .env.local 中设置 ADMIN_GITHUB_ID');
+  const adminEmail = process.env.ADMIN_EMAIL;
+  if (!adminEmail) {
+    console.error('错误: 请在 .env 中设置 ADMIN_EMAIL');
     process.exit(1);
   }
   
@@ -35,11 +35,11 @@ async function main() {
   // 2. 检查管理员是否已存在
   console.log('2. 检查管理员账户...');
   const existingAdmin = await prisma.user.findUnique({
-    where: { githubId: adminGithubId }
+    where: { email: adminEmail }
   });
   
   if (existingAdmin) {
-    console.log(`✓ 管理员账户已存在: ${existingAdmin.username || existingAdmin.githubId}`);
+    console.log(`✓ 管理员账户已存在: ${existingAdmin.username || existingAdmin.email}`);
     
     // 确保是 ADMIN 角色
     if (existingAdmin.role !== 'ADMIN') {
@@ -51,15 +51,15 @@ async function main() {
     }
   } else {
     console.log('ℹ 管理员账户尚未创建');
-    console.log('  请使用 GitHub 登录，系统会自动将您设置为管理员\n');
+    console.log('  请使用 GitHub 或账号密码登录，系统会自动将您设置为管理员\n');
   }
   
   console.log('初始化完成！');
   console.log('\n下一步:');
   console.log('1. 访问 http://localhost:3000');
   console.log('2. 点击"立即登录"');
-  console.log('3. 使用 GitHub 账号登录');
-  console.log('4. 系统会自动创建管理员账户');
+  console.log('3. 使用管理员邮箱登录/注册');
+  console.log('4. 系统会自动识别管理员权限');
 }
 
 main()

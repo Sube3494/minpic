@@ -78,8 +78,9 @@ DATABASE_URL="file:./dev.db"
 AUTH_SECRET="your-random-secret-key"
 GITHUB_ID="your-github-client-id"
 GITHUB_SECRET="your-github-client-secret"
-# 管理员白名单 GitHub ID (可选)
-ADMIN_GITHUB_ID="your-github-id"
+# 管理员邮箱 (必填)
+# 对应登录后即获得 ADMIN 权限
+ADMIN_EMAIL="your-admin@example.com"
 
 # 系统配置密钥 (用于加密存储凭据)
 CONFIG_ENCRYPTION_KEY="32-char-random-string"
