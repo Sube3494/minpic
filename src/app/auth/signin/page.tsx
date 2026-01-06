@@ -22,13 +22,16 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [ghLoading, setGhLoading] = useState(false);
   const [githubEnabled, setGithubEnabled] = useState(true);
-  const [authMode, setAuthMode] = useState<AuthMode>('signin');
+  const [authMode, setAuthMode] = useState<AuthMode>(() => {
+    const mode = searchParams.get('authMode');
+    return (mode === 'register' || mode === 'forgot') ? mode : 'signin';
+  });
   const [countdown, setCountdown] = useState(0);
 
   const [formData, setFormData] = useState({
     account: '',
     username: '',
-    email: '',
+    email: searchParams.get('email') || '',
     password: '',
     confirmPassword: '',
     code: '',
@@ -44,19 +47,7 @@ export default function SignInPage() {
         }
       })
       .catch(() => {});
-
-    // Handle URL params for auto-switching mode and pre-filling email
-    const mode = searchParams.get('authMode');
-    const email = searchParams.get('email');
-    
-    if (mode === 'register' || mode === 'forgot') {
-      setAuthMode(mode);
-    }
-    
-    if (email) {
-      setFormData(prev => ({ ...prev, email }));
-    }
-  }, [searchParams]);
+  }, []);
 
   useEffect(() => {
     if (countdown > 0) {
@@ -437,7 +428,7 @@ export default function SignInPage() {
                     ) : (
                       <Github className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" />
                     )}
-                    {authMode === 'register' ? '使用 GitHub 注册' : '使用 GitHub 继续'}
+                    使用 GitHub 继续
                   </Button>
                 </div>
               )}
