@@ -7,7 +7,7 @@ export function withRateLimit(
   config = RATE_LIMITS.GENERAL_API
 ) {
   return async (request: NextRequest) => {
-    const { allowed, remaining, resetTime } = checkRateLimit(request, config);
+    const { allowed, remaining, resetTime } = await checkRateLimit(request, config);
 
     if (!allowed) {
       return rateLimitResponse(resetTime);

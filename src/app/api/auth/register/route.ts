@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSystemSettings } from '@/lib/settings';
 import bcrypt from 'bcryptjs';
 import { headers } from 'next/headers';
 import { cache } from '@/lib/cache';
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     // Get system settings
-    const settings = await prisma.systemSettings.findFirst();
+    const settings = await getSystemSettings();
     const adminEmail = process.env.ADMIN_EMAIL;
     const isInitialAdmin = adminEmail && email === adminEmail;
 

@@ -11,7 +11,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { NavBar } from "@/components/layout/nav-bar";
-import { prisma } from "@/lib/prisma";
+import { getSystemSettings } from "@/lib/settings";
 import { auth } from "@/lib/auth";
 import "./globals.css";
 
@@ -32,7 +32,7 @@ function stripMarkdown(text: string): string {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await prisma.systemSettings.findFirst();
+  const settings = await getSystemSettings();
   
   return {
     title: settings?.siteName || "MinPic - 现代化图床管理系统",

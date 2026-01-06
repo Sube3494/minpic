@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
+import { getSystemSettings } from '@/lib/settings';
 import { serializeBigInt } from '@/lib/utils';
 import { hashEmail } from '@/lib/md5';
 
@@ -79,7 +80,7 @@ export async function GET() {
       }
     }
 
-    const settings = await prisma.systemSettings.findFirst();
+    const settings = await getSystemSettings();
     
     return NextResponse.json(serializeBigInt({
       ...userInfo,

@@ -6,6 +6,7 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import bcrypt from 'bcryptjs';
 import { hashEmail } from './md5';
 import { prisma } from './prisma';
+import { getSystemSettings } from './settings';
 
 declare module 'next-auth' {
   interface Session {
@@ -200,7 +201,7 @@ export const authConfig: NextAuthConfig = {
         }
 
         // Check if GitHub login is enabled in settings
-        const settings = await prisma.systemSettings.findFirst();
+        const settings = await getSystemSettings();
         if (settings && !settings.githubLoginEnabled) {
           return '/auth/error?error=GithubLoginDisabled';
         }

@@ -7,7 +7,7 @@ import { rateLimitResponse } from '@/lib/rate-limit-response';
 
 export async function POST(request: NextRequest) {
   // Rate limiting: 10 tests per minute
-  const rateLimit = checkRateLimit(request, { limit: 10, windowMs: 60000 });
+  const rateLimit = await checkRateLimit(request, { limit: 10, windowMs: 60000 });
   if (!rateLimit.allowed) {
     return rateLimitResponse(rateLimit.resetTime);
   }

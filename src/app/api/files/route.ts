@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { MinioService } from '@/lib/minio';
+import { getSystemSettings } from '@/lib/settings';
+import { MinioService, MinioConfig } from '@/lib/minio';
 import { generateThumbnail, generateVideoThumbnail, getImageDimensions, getFileType, generatePinyin } from '@/lib/image-utils';
 import { requireAuth } from '@/lib/auth-utils';
 import { checkStorageQuota, checkFileQuota, updateStorageUsage, updateFileCount } from '@/lib/team-quota';
@@ -12,11 +13,11 @@ import { serializeBigInt } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
   // Get dynamic rate limit
-  const settings = await prisma.systemSettings.findFirst();
+  const settings = await getSystemSettings();
   const limit = settings?.uploadRateLimit || 100;
 
   // Rate limiting
-  const rateLimit = checkRateLimit(request, { limit, windowMs: 60000 });
+  const rateLimit = await checkRateLimit(request, { limit, windowMs: 60000 });
   if (!rateLimit.allowed) {
     return rateLimitResponse(rateLimit.resetTime);
   }
@@ -290,11 +291,11 @@ export async function DELETE(request: NextRequest) {
     });
     
     // 构建配置映射
-    const configMap = new Map<string, any>();
+    const configMap = new Map<string, MinioConfig>();
     for (const record of configRecords) {
       try {
         const config = JSON.parse(record.value);
-        const decrypted = decryptMinioConfig(config);
+        const decrypted = decryptMinioConfig(config) as MinioConfig;
         const configId = record.key.replace('minio_', '');
         configMap.set(configId, decrypted);
       } catch (err) {

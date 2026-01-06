@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
+import { getSystemSettings } from '@/lib/settings';
 import { getClientIp } from '@/lib/utils';
 
 // GET /api/admin/settings - 获取系统设置
@@ -16,18 +17,7 @@ export async function GET() {
   if (error) return error;
 
   try {
-    let settings = await prisma.systemSettings.findFirst();
-
-    // 如果不存在，创建默认设置
-    if (!settings) {
-      settings = await prisma.systemSettings.create({
-        data: {
-          registrationEnabled: true,
-          requireWhitelist: false,
-        },
-      });
-    }
-
+    const settings = await getSystemSettings();
     return NextResponse.json(settings);
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -55,19 +45,7 @@ export async function PATCH(request: NextRequest) {
     } = body;
 
     // 获取或创建设置
-    let settings = await prisma.systemSettings.findFirst();
-
-    if (!settings) {
-      settings = await prisma.systemSettings.create({
-        data: {
-          registrationEnabled: true,
-          requireWhitelist: false,
-          uploadRateLimit: 100,
-          githubLoginEnabled: true
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
-      });
-    }
+    const settings = await getSystemSettings();
 
     // 更新设置
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

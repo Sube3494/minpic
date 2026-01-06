@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { Upload, Link2, BarChart3, ArrowRight, Sparkles, Zap, Shield, MousePointerClick, Share2, Layers, Users, Cloud, History, Globe, Clock, HardDrive, ShieldCheck, Lock } from 'lucide-react';
 import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getSystemSettings } from '@/lib/settings';
 import { MarkdownText } from '@/components/ui/markdown-text';
 
 export default async function HomePage() {
@@ -12,7 +12,7 @@ export default async function HomePage() {
   const isLoggedIn = !!session?.user;
   
   // Fetch site settings
-  const settings = await prisma.systemSettings.findFirst();
+  const settings = await getSystemSettings();
   const siteName = settings?.siteName || "MinPic";
   const siteDescription = settings?.siteDescription || "简单好用的图床系统";
   
