@@ -178,7 +178,7 @@ export const authConfig: NextAuthConfig = {
           where: { id: user.id! },
           data: { 
             lastLoginAt: new Date(),
-            ...(!user.avatar ? { avatar: `https://www.gravatar.com/avatar/${hashEmail(user.email!)}?d=404` } : {})
+            ...(!user.avatar ? { avatar: `https://cravatar.cn/avatar/${hashEmail(user.email!)}?d=404` } : {})
           }
         });
 
@@ -279,7 +279,7 @@ export const authConfig: NextAuthConfig = {
         // Gravatar Fallback
         if (!token.avatar && token.email) {
           const hash = hashEmail(token.email);
-          token.avatar = `https://www.gravatar.com/avatar/${hash}?d=404`;
+          token.avatar = `https://cravatar.cn/avatar/${hash}?d=404`;
         }
 
         // Double check admin status by email as a fail-safe
