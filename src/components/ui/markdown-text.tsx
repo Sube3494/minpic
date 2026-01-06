@@ -1,3 +1,10 @@
+/*
+ * @Date: 2025-12-31 20:01:18
+ * @Author: Sube
+ * @FilePath: markdown-text.tsx
+ * @LastEditTime: 2026-01-07 00:37:45
+ * @Description: 
+ */
 'use client';
 
 import { cn } from "@/lib/utils";
@@ -10,11 +17,11 @@ interface MarkdownTextProps {
 export function MarkdownText({ content, className }: MarkdownTextProps) {
   if (!content) return null;
 
-  // Split by bold patterns first
+  // Split by bold patterns
   const parts = content.split(/(\*\*.*?\*\*)/g);
 
   return (
-    <span className={cn("inline-block", className)}>
+    <span className={cn("block", className)}>
       {parts.map((part, index) => {
         // Handle bold: **text**
         if (part.startsWith('**') && part.endsWith('**')) {
@@ -29,7 +36,7 @@ export function MarkdownText({ content, className }: MarkdownTextProps) {
           );
         }
         
-        // Handle normal text and inner line breaks
+        // Handle normal text and inner line breaks (\n will work due to whitespace-pre-wrap)
         return (
           <span key={index} className="whitespace-pre-wrap">
             {part}
