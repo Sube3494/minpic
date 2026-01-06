@@ -50,14 +50,9 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # 拷贝构建产物 (Next.js standalone 模式)
-# Standalone 模式需要将 public 和 static 拷贝到指定位置以供 node 服务使用
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-
-# 由于 standalone 并不包含 .next 目录（除了 server.js 本身），
-# 我们需要确保 static 资源在正确的位置
-RUN mkdir -p .next && mv static .next/static
 
 USER nextjs
 
