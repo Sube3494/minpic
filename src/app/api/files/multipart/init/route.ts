@@ -5,7 +5,7 @@ import { MinioService, MinioConfig } from '@/lib/minio';
 import { getUserMinioConfig } from '@/lib/get-user-minio-config';
 import { checkStorageQuota, checkFileQuota } from '@/lib/team-quota';
 
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
+const CHUNK_SIZE = 20 * 1024 * 1024; // 20MB - 优化大文件上传速度
 
 /**
  * POST /api/files/multipart/init

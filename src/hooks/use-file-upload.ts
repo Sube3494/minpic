@@ -103,11 +103,22 @@ export function useFileUpload(
         const uploadedParts: { partNumber: number; etag: string }[] = [];
         let uploadedBytes = 0;
 
-        // 2. Upload Chunks
+        // 2. Upload Chunks (并行上传,限制并发数)
+        const MAX_CONCURRENT = 3; // 最大并发数
+
+        // 创建上传任务
+        const uploadTasks = [];
         for (let partNumber = 1; partNumber <= totalChunks; partNumber++) {
             const start = (partNumber - 1) * chunkSize;
             const end = Math.min(start + chunkSize, task.file.size);
             const chunk = task.file.slice(start, end);
+
+            uploadTasks.push({ partNumber, chunk, size: chunk.size });
+        }
+
+        // 并发上传分片
+        const uploadChunk = async (taskItem: { partNumber: number; chunk: Blob; size: number }) => {
+            const { partNumber, chunk, size } = taskItem;
 
             // Get Presigned URL
             const presignRes = await fetch('/api/files/multipart/presign', {
@@ -127,15 +138,21 @@ export function useFileUpload(
 
             if (!uploadRes.ok) throw new Error('上传分片失败');
 
-            const etag = uploadRes.headers.get('ETag')?.replace(/['"]/g, '');
+            const etag = uploadRes.headers.get('ETag')?.replace(/['\"]/g, '');
             if (etag) {
                 uploadedParts.push({ partNumber, etag });
             }
 
-            uploadedBytes += chunk.size;
+            uploadedBytes += size;
             
             // Update Progress
             setQueue(prev => prev.map(t => t.id === taskId ? { ...t, loaded: uploadedBytes } : t));
+        };
+
+        // 分批并发上传
+        for (let i = 0; i < uploadTasks.length; i += MAX_CONCURRENT) {
+            const batch = uploadTasks.slice(i, i + MAX_CONCURRENT);
+            await Promise.all(batch.map(uploadChunk));
         }
 
         // 3. Complete Upload
