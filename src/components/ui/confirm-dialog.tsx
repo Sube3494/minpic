@@ -52,11 +52,11 @@ export function ConfirmDialog({
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="w-[90vw] sm:max-w-[500px] gap-6">
-        <AlertDialogHeader>
-          <AlertDialogTitle className="text-xl font-semibold">{title}</AlertDialogTitle>
+      <AlertDialogContent className="w-[90vw] sm:max-w-[520px] gap-5 p-6">
+        <AlertDialogHeader className="space-y-3">
+          <AlertDialogTitle className="text-2xl font-bold tracking-tight">{title}</AlertDialogTitle>
           <AlertDialogDescription asChild>
-            <div className="whitespace-pre-line text-base text-muted-foreground/80">
+            <div className="text-[15px] leading-relaxed text-zinc-600 dark:text-zinc-400">
               {description}
             </div>
           </AlertDialogDescription>
@@ -64,46 +64,54 @@ export function ConfirmDialog({
         
         {/* Delete Mode Selector */}
         {deleteMode !== undefined && onDeleteModeChange && (
-          <div className="space-y-3">
+          <div className="-mt-1">
             <div 
               className={cn(
-                "flex items-center justify-between p-4 rounded-xl border transition-all duration-200 cursor-pointer group",
+                "flex items-start gap-4 p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer group",
                 deleteMode === 'full'
-                  ? "bg-red-50/50 border-red-200 dark:bg-red-500/10 dark:border-red-500/20"
-                  : "bg-zinc-50 dark:bg-white/5 border-zinc-100 dark:border-white/5 hover:bg-zinc-100 dark:hover:bg-white/10"
+                  ? "bg-red-50 border-red-300 dark:bg-red-950/20 dark:border-red-800/40 shadow-sm shadow-red-100 dark:shadow-red-950/10"
+                  : "border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-white/5 backdrop-blur-sm hover:border-zinc-300 dark:hover:border-zinc-700"
               )}
               onClick={() => onDeleteModeChange(deleteMode === 'full' ? 'record-only' : 'full')}
             >
-              <div className="grid gap-1">
+              <Checkbox 
+                id="delete-physical" 
+                checked={deleteMode === 'full'}
+                onCheckedChange={(checked) => onDeleteModeChange(checked ? 'full' : 'record-only')}
+                className={cn(
+                  "mt-0.5 shrink-0 transition-all rounded-full w-5 h-5 bg-transparent! dark:bg-transparent!",
+                  deleteMode === 'full' 
+                    ? "data-[state=checked]:bg-transparent! dark:data-[state=checked]:bg-transparent! data-[state=checked]:border-red-600 data-[state=checked]:text-red-600 border-2" 
+                    : "border-zinc-400 dark:border-zinc-600 hover:border-zinc-500 dark:hover:border-zinc-500"
+                )}
+                onClick={(e) => e.stopPropagation()} 
+              />
+              <div className="flex-1 grid gap-1.5">
                 <label
                   htmlFor="delete-physical"
                   className={cn(
-                    "text-sm font-medium cursor-pointer transition-colors",
-                    deleteMode === 'full' ? "text-red-700 dark:text-red-300" : "text-zinc-700 dark:text-zinc-200"
+                    "text-[15px] font-semibold cursor-pointer transition-colors leading-tight",
+                    deleteMode === 'full' ? "text-red-700 dark:text-red-400" : "text-zinc-800 dark:text-zinc-200"
                   )}
                   style={{ pointerEvents: 'none' }}
                 >
                   同时删除 MinIO 中的物理文件
                 </label>
-                <p className="text-[13px] text-muted-foreground leading-relaxed pr-4">
-                  默认仅移除记录。勾选则彻底删除文件且 <span className="text-red-600 dark:text-red-400 font-medium">无法恢复</span>。
+                <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                  默认仅移除记录。勾选则彻底删除文件且 <span className="text-red-600 dark:text-red-500 font-semibold">无法恢复</span>。
                 </p>
               </div>
-              <Checkbox 
-                id="delete-physical" 
-                checked={deleteMode === 'full'}
-                onCheckedChange={(checked) => onDeleteModeChange(checked ? 'full' : 'record-only')}
-                className="data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500 transition-colors shrink-0"
-                onClick={(e) => e.stopPropagation()} 
-              />
             </div>
           </div>
         )}
         
         {footer ? footer : (
-          <AlertDialogFooter className="gap-3 sm:gap-4">
+          <AlertDialogFooter className="gap-3 sm:gap-3 mt-2">
             {!hideCancelButton && (
-              <AlertDialogCancel disabled={cancelDisabled ?? isLoading} className="rounded-full h-9 px-6 font-medium">
+              <AlertDialogCancel 
+                disabled={cancelDisabled ?? isLoading} 
+                className="rounded-full h-11 px-6 font-semibold text-[15px] border-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
                 {cancelText}
               </AlertDialogCancel>
             )}
@@ -114,10 +122,10 @@ export function ConfirmDialog({
               }}
               disabled={confirmDisabled ?? isLoading}
               className={cn(
-                "rounded-full h-9 px-6 font-medium shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none",
+                "rounded-full h-11 px-6 font-bold text-[15px] shadow-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none",
                 activeVariant === 'destructive' 
-                  ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20' 
-                  : 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/20'
+                  ? 'bg-linear-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white shadow-red-500/30' 
+                  : 'bg-linear-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 text-white shadow-primary/30'
               )}
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

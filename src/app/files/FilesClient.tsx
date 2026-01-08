@@ -156,13 +156,37 @@ export function FilesClient() {
     loadShortlinkConfig();
   }, []);
 
-  const isAllSelected = files.length > 0 && files.every(f => selectedIds.includes(f.id));
+  const [isSelectingAll, setIsSelectingAll] = useState(false);
+  const [totalFilesCount, setTotalFilesCount] = useState<number | null>(null);
+  
+  // 检查是否真正全选了所有文件(包括未加载的)
+  const isAllSelected = totalFilesCount !== null && selectedIds.length === totalFilesCount && totalFilesCount > 0;
 
-  const handleSelectAll = () => {
+  const handleSelectAll = async () => {
     if (isAllSelected) {
+      // 如果已经全选,则清空选择
       setSelectedIds([]);
+      setTotalFilesCount(null);
     } else {
-      setSelectedIds(files.map(f => f.id));
+      // 全选所有符合过滤条件的文件
+      setIsSelectingAll(true);
+      try {
+        const allIds = await fileService.getAllFileIds(filter, search, selectedConfigId);
+        setSelectedIds(allIds);
+        setTotalFilesCount(allIds.length);
+        if (allIds.length > files.length) {
+          toast.success(`已选中全部 ${allIds.length} 个文件`, {
+            description: '包括未加载的文件'
+          });
+        }
+      } catch (error) {
+        console.error('获取文件 ID 失败:', error);
+        toast.error('全选失败', {
+          description: '无法获取文件列表,请重试'
+        });
+      } finally {
+        setIsSelectingAll(false);
+      }
     }
   };
 
@@ -554,10 +578,9 @@ export function FilesClient() {
           >
             {/* Info section */}
             <div className="flex items-center gap-3 pl-1 pr-4 border-r border-zinc-200/50 dark:border-white/10 shrink-0">
-              <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/20">
-                {selectedIds.length}
-              </div>
-              <span className="text-zinc-600 dark:text-zinc-300 font-medium text-sm hidden sm:inline-block">已选文件</span>
+              <span className="text-zinc-700 dark:text-zinc-200 font-semibold text-sm">
+                已选 {selectedIds.length} 个文件
+              </span>
             </div>
 
             {/* Functional Buttons */}
@@ -567,17 +590,16 @@ export function FilesClient() {
                 size="sm" 
                 className="h-8 px-3 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 font-medium text-xs transition-colors"
                 onClick={handleSelectAll}
+                disabled={isSelectingAll}
               >
-                {isAllSelected ? '取消全选' : '全选'}
-              </Button>
-
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 px-3 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 font-medium text-xs transition-colors"
-                onClick={() => setSelectedIds([])}
-              >
-                清除
+                {isSelectingAll ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin mr-1.5" />
+                    加载中
+                  </>
+                ) : (
+                  isAllSelected ? '取消全选' : '全选'
+                )}
               </Button>
             </div>
 

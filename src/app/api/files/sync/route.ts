@@ -44,29 +44,17 @@ export async function POST(request: NextRequest) {
           return;
         }
 
-        // Get user's githubId to match upload path structure
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { githubId: true }
-        });
-
-        if (!user?.githubId) {
-          sendEvent({ type: 'error', message: '无法获取用户 GitHub ID' });
-          controller.close();
-          return;
-        }
 
         // Connect to MinIO
         const minioService = new MinioService();
         await minioService.connect(minioConfig);
 
-        // 构建用户路径前缀:baseDir/users/{githubId}/
-        // 注意：这里使用 githubId 而不是 userId，与上传逻辑保持一致
+        // 构建用户路径前缀:baseDir/users/{userId}/
         let userPrefix = '';
         if (minioConfig.baseDir) {
           userPrefix = `${minioConfig.baseDir}/`;
         }
-        userPrefix += `users/${user.githubId}/`;
+        userPrefix += `users/${userId}/`;
 
         // List only current user's files
         const files = await minioService.listFiles(userPrefix);
@@ -160,16 +148,23 @@ export async function POST(request: NextRequest) {
               'gif': 'image/gif',
               'webp': 'image/webp',
               'svg': 'image/svg+xml',
+              'bmp': 'image/bmp',
+              'tiff': 'image/tiff',
+              'ico': 'image/x-icon',
+              'avif': 'image/avif',
               'mp4': 'video/mp4',
               'webm': 'video/webm',
               'mov': 'video/quicktime',
               'avi': 'video/x-msvideo',
               'mkv': 'video/x-matroska',
+              'm4v': 'video/x-m4v',
               'mp3': 'audio/mpeg',
               'wav': 'audio/wav',
               'ogg': 'audio/ogg',
               'm4a': 'audio/mp4',
               'flac': 'audio/flac',
+              'aac': 'audio/aac',
+              'wma': 'audio/x-ms-wma',
             };
             
             const mimeType = mimeTypeMap[extension] || 'application/octet-stream';

@@ -83,5 +83,39 @@ export const fileService = {
       const response = await fetch('/api/config/shortlink');
       if (!response.ok) throw new Error('Failed to fetch shortlink config');
       return response.json();
+  },
+
+  async getFilesCount(
+    filter: string = 'all',
+    search: string = '',
+    configId?: string
+  ): Promise<number> {
+    const params = new URLSearchParams();
+    params.append('mode', 'count');
+    if (filter !== 'all') params.append('fileType', filter);
+    if (search) params.append('search', search);
+    if (configId) params.append('configId', configId);
+
+    const response = await fetch(`/api/files?${params}`);
+    if (!response.ok) throw new Error('Failed to fetch files count');
+    const data = await response.json();
+    return data.count;
+  },
+
+  async getAllFileIds(
+    filter: string = 'all',
+    search: string = '',
+    configId?: string
+  ): Promise<string[]> {
+    const params = new URLSearchParams();
+    params.append('mode', 'ids');
+    if (filter !== 'all') params.append('fileType', filter);
+    if (search) params.append('search', search);
+    if (configId) params.append('configId', configId);
+
+    const response = await fetch(`/api/files?${params}`);
+    if (!response.ok) throw new Error('Failed to fetch file IDs');
+    const data = await response.json();
+    return data.ids;
   }
 };

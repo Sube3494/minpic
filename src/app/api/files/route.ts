@@ -183,6 +183,7 @@ export async function GET(request: NextRequest) {
     const fileType = searchParams.get('fileType');
     const search = searchParams.get('search');
     const configId = searchParams.get('configId');
+    const mode = searchParams.get('mode'); // 新增: 'count' | 'ids' | null
 
     // Determine effective config IDs for filtering using refactored utility
     let filterConfigIds: string[] | undefined = undefined;
@@ -204,6 +205,23 @@ export async function GET(request: NextRequest) {
       }),
     };
 
+    // Mode: count - 只返回总数
+    if (mode === 'count') {
+      const total = await prisma.file.count({ where });
+      return NextResponse.json({ count: total });
+    }
+
+    // Mode: ids - 只返回所有文件 ID
+    if (mode === 'ids') {
+      const files = await prisma.file.findMany({
+        where,
+        select: { id: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      return NextResponse.json({ ids: files.map(f => f.id) });
+    }
+
+    // 默认模式: 返回分页文件列表
     const [files, total] = await Promise.all([
       prisma.file.findMany({
         where,

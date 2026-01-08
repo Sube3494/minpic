@@ -13,6 +13,7 @@ import {
 import { Check, RefreshCw, Loader2, Info, ChevronDown, Server, PlugZap, Settings2, Save } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { useState, useRef, useEffect } from 'react';
+import { cn } from '@/lib/utils';
 
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -90,16 +91,32 @@ export function ConfigEditor({
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => onSync(config.id)}
-              disabled={isSyncing}
-              className="h-9 hover:bg-zinc-100 dark:hover:bg-white/10 text-xs"
-            >
-              {isSyncing ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
-              同步文件库
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="inline-block">
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => onSync(config.id)}
+                    disabled={isSyncing || config.status !== 'success'}
+                    className={cn(
+                      "h-9 transition-all text-xs",
+                      config.status === 'success' 
+                        ? "hover:bg-zinc-100 dark:hover:bg-white/10" 
+                        : "opacity-50 cursor-not-allowed bg-zinc-100/50 dark:bg-white/5"
+                    )}
+                  >
+                    {isSyncing ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1.5" />}
+                    同步文件库
+                  </Button>
+                </div>
+              </TooltipTrigger>
+              {config.status !== 'success' && (
+                <TooltipContent>
+                  请先测试连接成功后再同步
+                </TooltipContent>
+              )}
+            </Tooltip>
              
             {canEdit && (
               <>
