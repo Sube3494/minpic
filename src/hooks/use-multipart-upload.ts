@@ -214,6 +214,8 @@ export function useMultipartUpload() {
         const uploadNext = async (): Promise<void> => {
           if (currentIndex >= chunks.length) return;
 
+          try {
+
           const index = currentIndex++;
           const partNumber = index + 1;
           const chunk = chunks[index];

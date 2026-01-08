@@ -207,7 +207,6 @@ export function useFileUpload(
   };
 
   // Queue processing effect
-  // Queue processing effect
   useEffect(() => {
     const CONCURRENCY_LIMIT = 3;
     const activeCount = queue.filter(t => t.status === 'uploading' || t.status === 'processing').length;

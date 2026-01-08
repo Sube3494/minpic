@@ -1,18 +1,8 @@
 import { prisma } from './prisma';
 import { decryptMinioConfig } from './config-encryption';
+import { MinioConfigItem } from '@/types/config';
 
-interface MinioConfig {
-  id: string;
-  endpoint: string;
-  port: number;
-  accessKey: string;
-  secretKey: string;
-  bucket: string;
-  useSSL: boolean;
-  baseDir?: string;
-  customDomain?: string;
-  region?: string;
-}
+type MinioConfig = MinioConfigItem;
 
 /**
  * 获取用户的 MinIO 配置

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Upload, Loader2, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,32 @@ interface UploadAreaProps {
 export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, selectedConfigId, disabled, disabledMessage }: UploadAreaProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Debounce effect for progress bar to prevent jumps on fast failures
+  const hasDisplayableTasks = queue.some(t => t.status !== 'error');
+  const isActive = uploading && hasDisplayableTasks && queue.length > 0;
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (isActive) {
+      if (!showProgress) {
+        // Delay showing progress bar by 200ms
+        timer = setTimeout(() => {
+          setShowProgress(true);
+        }, 200);
+      }
+    } else {
+      // Hide immediately when done/cleared or on error
+      // Wrapped in setTimeout to avoid "synchronous setState in effect" warning
+      timer = setTimeout(() => {
+        setShowProgress(false);
+      }, 0);
+    }
+    return () => clearTimeout(timer);
+  }, [isActive, showProgress]);
 
   const handlePasteInput = (e: React.ClipboardEvent) => {
     if (disabled) return;
@@ -126,7 +151,7 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
             {isDragging ? '拖放文件到此处' : '支持拖拽、粘贴 (Ctrl+V) 或点击选择'}
           </p>
 
-          {uploading && aggregateProgress.total > 0 && (
+          {showProgress && aggregateProgress.total > 0 && (
             <div className="mb-6 space-y-3">
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
