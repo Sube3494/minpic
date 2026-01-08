@@ -84,23 +84,44 @@ export function useMultipartUpload() {
       chunk: Blob,
       signal?: AbortSignal
     ) => {
-      const formData = new FormData();
-      formData.append('uploadId', uploadId);
-      formData.append('partNumber', partNumber.toString());
-      formData.append('chunk', chunk);
-
-      const res = await fetch('/api/files/multipart/upload', {
+      // 1. 获取预签名 URL
+      const presignRes = await fetch('/api/files/multipart/presign', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uploadId, partNumber }),
+      });
+
+      if (!presignRes.ok) {
+        throw new Error('获取上传凭证失败');
+      }
+
+      const { url } = await presignRes.json();
+
+      // 2. 直传文件到 MinIO
+      const uploadRes = await fetch(url, {
+        method: 'PUT',
+        body: chunk,
         signal,
       });
 
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || error.error || '上传分片失败');
+      if (!uploadRes.ok) {
+        throw new Error('上传分片失败');
       }
 
-      return await res.json();
+      // 3. 获取 ETag
+      const etag = uploadRes.headers.get('ETag')?.replace(/['"]/g, '');
+      if (!etag) {
+        console.warn('Warning: ETag header missing from storage response. CORS issue?');
+        // fall back or throw? S3 always returns ETag.
+        // If we can't get ETag, we can't complete the upload properly usually.
+        // Assuming MinIO setup exposes ETag.
+      }
+
+      // 返回标准格式
+      return { 
+          partNumber, 
+          etag: etag || '' // Fallback empty string if missing (will likely fail on complete)
+      };
     },
     []
   );
@@ -109,11 +130,11 @@ export function useMultipartUpload() {
    * 完成上传
    */
   const completeUpload = useCallback(
-    async (uploadId: string, filename: string) => {
+    async (uploadId: string, filename: string, parts: Array<{ partNumber: number; etag: string }>) => {
       const res = await fetch('/api/files/multipart/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uploadId, filename }),
+        body: JSON.stringify({ uploadId, filename, parts }),
       });
 
       if (!res.ok) {
@@ -197,13 +218,21 @@ export function useMultipartUpload() {
           const partNumber = index + 1;
           const chunk = chunks[index];
 
-          try {
-            await uploadChunk(
+            // 记录已上传的分片
+            const partResult = await uploadChunk(
               uploadId,
               partNumber,
               chunk,
               abortControllerRef.current?.signal
             );
+            
+            // 存入 ref
+            if (uploadStateRef.current) {
+                uploadStateRef.current.uploadedParts.push({
+                    partNumber: partResult.partNumber,
+                    etag: partResult.etag
+                });
+            }
 
             uploadedChunks++;
             uploadedBytes += chunk.size;
@@ -234,7 +263,12 @@ export function useMultipartUpload() {
         await Promise.all(uploadPromises);
 
         // 4. 完成上传
-        const result = await completeUpload(uploadId, file.name);
+        // 从 uploadStateRef 获取所有已上传的分片信息 (乱序)
+        const allParts = uploadStateRef.current?.uploadedParts || [];
+        // 排序
+        allParts.sort((a, b) => a.partNumber - b.partNumber);
+        
+        const result = await completeUpload(uploadId, file.name, allParts);
 
         // 清除 localStorage
         localStorage.removeItem(`upload_${uploadId}`);

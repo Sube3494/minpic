@@ -27,73 +27,112 @@ export function useFileUpload(
     return { loaded, total, percent, isProcessing };
   })();
 
-  const startUploadTask = useCallback((taskId: string, configId: string) => {
+  const startUploadTask = useCallback(async (taskId: string, configId: string) => {
     const task = queue.find(t => t.id === taskId);
     if (!task) return;
 
-    const formData = new FormData();
-    formData.append('file', task.file);
-    if (configId) formData.append('configId', configId);
+    setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'uploading' } : t));
 
-    const xhr = new XMLHttpRequest();
-    
-    setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'uploading', xhr } : t));
+    try {
+        // 1. Init Upload
+        const initRes = await fetch('/api/files/multipart/init', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                filename: task.file.name,
+                fileSize: task.file.size,
+                mimeType: task.file.type,
+                configId,
+            }),
+        });
 
-    xhr.upload.addEventListener('progress', (e) => {
-      if (e.lengthComputable) {
-        setQueue(prev => prev.map(t => t.id === taskId ? { ...t, loaded: e.loaded } : t));
-      }
-    });
+        if (!initRes.ok) {
+            const errorData = await initRes.json();
+            
+            // Handle duplicate explicitly
+            if (initRes.status === 409) {
+                toast.info(`${task.file.name} 已存在`, {
+                    description: '该文件已在存储库中，已跳过上传'
+                });
+            } else {
+                toast.error(`${task.file.name} 上传失败`, {
+                    description: errorData.error || '初始化上传失败'
+                });
+            }
+            
+            setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
+            return;
+        }
 
-    xhr.addEventListener('load', () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
+        const { uploadId, chunkSize, totalChunks } = await initRes.json();
+        const uploadedParts: { partNumber: number; etag: string }[] = [];
+        let uploadedBytes = 0;
+
+        // 2. Upload Chunks
+        for (let partNumber = 1; partNumber <= totalChunks; partNumber++) {
+            const start = (partNumber - 1) * chunkSize;
+            const end = Math.min(start + chunkSize, task.file.size);
+            const chunk = task.file.slice(start, end);
+
+            // Get Presigned URL
+            const presignRes = await fetch('/api/files/multipart/presign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uploadId, partNumber }),
+            });
+
+            if (!presignRes.ok) throw new Error('获取预签名 URL 失败');
+            const { url } = await presignRes.json();
+
+            // Upload to MinIO
+            const uploadRes = await fetch(url, {
+                method: 'PUT',
+                body: chunk,
+            });
+
+            if (!uploadRes.ok) throw new Error('上传分片失败');
+
+            const etag = uploadRes.headers.get('ETag')?.replace(/['"]/g, '');
+            if (etag) {
+                uploadedParts.push({ partNumber, etag });
+            }
+
+            uploadedBytes += chunk.size;
+            
+            // Update Progress
+            setQueue(prev => prev.map(t => t.id === taskId ? { ...t, loaded: uploadedBytes } : t));
+        }
+
+        // 3. Complete Upload
+        const completeRes = await fetch('/api/files/multipart/complete', {
+             method: 'POST',
+             headers: { 'Content-Type': 'application/json' },
+             body: JSON.stringify({ 
+                 uploadId, 
+                 filename: task.file.name,
+                 parts: uploadedParts.sort((a, b) => a.partNumber - b.partNumber)
+             }),
+        });
+
+        if (!completeRes.ok) throw new Error((await completeRes.json()).error || '完成上传失败');
+
+        await completeRes.json();
+        
         const sizeInMB = (task.file.size / (1024 * 1024)).toFixed(2);
         toast.success(`${task.file.name} 上传成功`, {
           description: `文件大小 ${sizeInMB} MB`
         });
+        
         setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed', loaded: task.total } : t));
         refreshQuota();
-      } else {
-        try {
-          const errorData = JSON.parse(xhr.responseText);
-          if (errorData.message?.includes('FILE_EXISTS')) {
-            toast.info(`${task.file.name} 已存在`, {
-              description: '该文件已在存储库中，已跳过上传'
-            });
-          } else {
-            toast.error(`${task.file.name} 上传失败`, {
-              description: errorData.message || errorData.error || '请检查网络连接和存储配置'
-            });
-          }
-        } catch {
-          toast.error(`${task.file.name} 上传失败`, {
-            description: '请检查网络连接和存储配置'
-          });
-        }
+
+    } catch (error) {
+        console.error('Upload failed:', error);
+        toast.error(`${task.file.name} 上传失败`, {
+            description: error instanceof Error ? error.message : '未知错误'
+        });
         setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
-      }
-    });
-
-    xhr.addEventListener('error', () => {
-      toast.error(`${task.file.name} 网络错误`, {
-        description: '请检查网络连接后重试'
-      });
-      setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
-    });
-
-    xhr.upload.addEventListener('load', () => {
-      setQueue(prev => prev.map(t => {
-        // Only switch to processing if we are still uploading
-        // This prevents overwriting 'completed' or 'error' if the main load event fired first/concurrently
-        if (t.id === taskId && t.status === 'uploading') {
-          return { ...t, status: 'processing', loaded: task.total };
-        }
-        return t;
-      }));
-    });
-
-    xhr.open('POST', '/api/files');
-    xhr.send(formData);
+    }
   }, [queue, refreshQuota]);
 
 

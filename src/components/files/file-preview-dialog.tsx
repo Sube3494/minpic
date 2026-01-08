@@ -85,10 +85,10 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                 {/* Contrast Scrim - Top-down gradient */}
                 <div className="absolute inset-x-0 top-0 h-32 bg-linear-to-b from-black/40 to-transparent -z-10" />
                 
-                <div className="p-6 flex items-start justify-between">
+                <div className="p-6 flex items-start justify-between gap-4">
                   {/* Left: Info Overlay - Pure Text */}
-                  <div className="flex flex-col gap-0.5 pointer-events-auto">
-                    <span className="text-white/90 text-sm font-medium tracking-tight drop-shadow-md truncate max-w-[200px] sm:max-w-md">
+                  <div className="flex flex-col gap-0.5 pointer-events-auto flex-1 min-w-0 text-left">
+                    <span className="text-white/90 text-sm font-medium tracking-tight drop-shadow-md truncate w-full block">
                       {file.filename}
                     </span>
                     <div className="flex items-center gap-2 text-[10px] text-white/50 font-medium drop-shadow-md">
