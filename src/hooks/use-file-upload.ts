@@ -1,9 +1,25 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { UploadTask } from '@/types/file';
 import { toast } from 'sonner';
 import { UserQuota } from './use-quota';
 import { useTeam } from './use-team';
 import { formatFileSize } from '@/lib/utils';
+
+// Helper to parse potential BigInt strings
+const parseSize = (val: string | number) => {
+  if (typeof val === 'number') return val;
+  return Number(val);
+};
+
+const translateError = (err: unknown) => {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (msg.includes('failed to fetch')) return '网络连接失败 (Failed to fetch)';
+  if (msg.includes('networkerror') || msg.includes('network error')) return '网络异常';
+  if (msg.includes('aborted')) return '上传已取消';
+  if (msg.includes('failed to presign')) return '获取分片凭证失败';
+  if (msg.includes('initialization failed') || msg.includes('初始化上传失败')) return '存储源初始化失败';
+  return err instanceof Error ? err.message : String(err);
+};
 
 export function useFileUpload(
   refreshFiles: () => void,
@@ -15,17 +31,37 @@ export function useFileUpload(
   const { teamInfo } = useTeam();
 
   // Compute aggregate progress
-  const aggregateProgress = (() => {
-    const activeTasks = queue.filter(t => t.status !== 'completed' || t.loaded < t.total);
-    if (activeTasks.length === 0) return { loaded: 0, total: 0, percent: 0, isProcessing: false };
+  const aggregateProgress = useMemo(() => {
+    if (queue.length === 0) return { loaded: 0, total: 0, percent: 0, isProcessing: false, isAllDone: false, successCount: 0, errorCount: 0, totalCount: 0 };
     
-    const total = activeTasks.reduce((acc, t) => acc + t.total, 0);
-    const loaded = activeTasks.reduce((acc, t) => acc + t.loaded, 0);
-    const percent = total > 0 ? Math.min(99, Math.round((loaded / total) * 100)) : 0;
-    const isProcessing = activeTasks.every(t => t.status === 'processing' || t.status === 'completed');
+    // Only count tasks that are NOT in error or skipped status for the progress bar
+    const validTasks = queue.filter(t => t.status !== 'error' && t.status !== 'skipped');
+    const successTasks = queue.filter(t => t.status === 'completed');
+    const errorTasks = queue.filter(t => t.status === 'error');
     
-    return { loaded, total, percent, isProcessing };
-  })();
+    if (validTasks.length === 0) return { loaded: 0, total: 0, percent: 0, isProcessing: false, isAllDone: true, successCount: 0, errorCount: errorTasks.length, totalCount: queue.length };
+
+    const total = validTasks.reduce((acc, t) => acc + t.total, 0);
+    const loaded = validTasks.reduce((acc, t) => {
+        if (t.status === 'completed') return acc + t.total;
+        return acc + t.loaded;
+    }, 0);
+    
+    const isAllDone = queue.every(t => t.status === 'completed' || t.status === 'error' || t.status === 'skipped');
+    const percent = total > 0 ? (isAllDone ? 100 : Math.min(99, Math.round((loaded / total) * 100))) : 0;
+    const isProcessing = validTasks.length > 0 && validTasks.every(t => t.status === 'processing');
+    
+    return { 
+      loaded, 
+      total, 
+      percent, 
+      isProcessing,
+      isAllDone,
+      successCount: successTasks.length,
+      errorCount: errorTasks.length,
+      totalCount: validTasks.length + errorTasks.length // Total count shown to user excludes skipped
+    };
+  }, [queue]);
 
   const startUploadTask = useCallback(async (taskId: string, configId: string) => {
     const task = queue.find(t => t.id === taskId);
@@ -49,18 +85,17 @@ export function useFileUpload(
         if (!initRes.ok) {
             const errorData = await initRes.json();
             
-            // Handle duplicate explicitly
             if (initRes.status === 409) {
                 toast.info(`${task.file.name} 已存在`, {
-                    description: '该文件已在存储库中，已跳过上传'
+                    description: '已跳过上传'
                 });
+                setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'skipped', loaded: t.total } : t));
             } else {
                 toast.error(`${task.file.name} 上传失败`, {
-                    description: errorData.error || '初始化上传失败'
+                    description: translateError(errorData.error || '初始化上传失败')
                 });
+                setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
             }
-            
-            setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
             return;
         }
 
@@ -129,19 +164,11 @@ export function useFileUpload(
     } catch (error) {
         console.error('Upload failed:', error);
         toast.error(`${task.file.name} 上传失败`, {
-            description: error instanceof Error ? error.message : '未知错误'
+            description: translateError(error)
         });
         setQueue(prev => prev.map(t => t.id === taskId ? { ...t, status: 'error' } : t));
     }
   }, [queue, refreshQuota]);
-
-
-
-  // Helper to parse potential BigInt strings
-  const parseSize = (val: string | number) => {
-    if (typeof val === 'number') return val;
-    return Number(val);
-  };
 
   const uploadFiles = async (selectedFiles: FileList, configId: string) => {
     if (!selectedFiles || selectedFiles.length === 0) return;
@@ -222,16 +249,28 @@ export function useFileUpload(
       }
     }
 
-    // When everything is done, wait a bit then reset uploading state and refresh list
-    if (queue.length > 0 && queue.every(t => t.status === 'completed' || t.status === 'error')) {
+    // When everything is done, handle cleanup
+    if (queue.length > 0 && queue.every(t => t.status === 'completed' || t.status === 'error' || t.status === 'skipped')) {
+      const hasSuccess = queue.some(t => t.status === 'completed');
+      
+      if (!hasSuccess) {
+        // If all failed, reset immediately
+        setUploading(false);
+        setQueue([]);
+        refreshFiles();
+        return;
+      }
+
+      // If at least one succeeded, wait a bit then reset
       const timer = setTimeout(() => {
         setUploading(false);
         setQueue([]);
         refreshFiles();
-      }, 800);
+        refreshQuota(); // Refresh quota on success
+      }, 2000); 
       return () => clearTimeout(timer);
     }
-  }, [queue, refreshFiles, startUploadTask]);
+  }, [queue, refreshFiles, refreshQuota, startUploadTask]);
 
   return {
     queue,

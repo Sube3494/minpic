@@ -63,11 +63,11 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <SessionProvider session={session}>
-              {/* Ambient Background - Updated for Theme Support */}
+              {/* Ambient Background - Optimized for Performance */}
               <div className="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
-                <div className="absolute top-[-10%] right-[-5%] w-140 h-140 bg-purple-500/10 rounded-full blur-3xl animate-blob" />
-                <div className="absolute top-[-10%] left-[-5%] w-120 h-120 bg-blue-500/10 rounded-full blur-3xl animate-blob animation-delay-2000" />
-                <div className="absolute bottom-[-20%] left-[20%] w-160 h-160 bg-indigo-500/10 rounded-full blur-3xl animate-blob animation-delay-4000" />
+                <div className="aurora-blob top-[-10%] right-[-5%] w-80 h-80 md:w-140 md:h-140 bg-purple-500/10" />
+                <div className="aurora-blob top-[-10%] left-[-5%] w-60 h-60 md:w-120 md:h-120 bg-blue-500/10 animation-delay-2000" />
+                <div className="aurora-blob bottom-[-20%] left-[20%] w-100 h-100 md:w-160 md:h-160 bg-indigo-500/10 animation-delay-4000 hidden md:block" />
               </div>
 
               {/* Global Navigation */}

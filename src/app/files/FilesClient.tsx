@@ -1,14 +1,13 @@
 'use client';
 
 import { FilePreviewDialog } from '@/components/files/file-preview-dialog';
-import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { useState, useEffect, useTransition, useCallback, useMemo } from 'react';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Server, ChevronDown, Trash2 } from 'lucide-react';
+import { Loader2, Server, ChevronDown, Trash2, ExternalLink } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,14 +31,7 @@ import { fileService } from '@/services/file.service';
 import { PageWrapper } from '@/components/layout/page-wrapper';
 import { toast } from 'sonner';
 
-// Portal helper component
-function Portal({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  // eslint-disable-next-line
-  useEffect(() => setMounted(true), []);
-  if (!mounted) return null;
-  return createPortal(children, document.body);
-}
+
 
 export function FilesClient() {
   const { 
@@ -193,11 +185,30 @@ export function FilesClient() {
     const loadingToast = toast.loading('正在生成短链...');
     try {
       const url = await fileService.generateShortlink(shortlinkDialog.fileId, expiresIn, unit);
-      await navigator.clipboard.writeText(url);
-      toast.success('短链已生成并复制到剪贴板', { 
-        id: loadingToast,
-        description: url
-      });
+      let encodedUrl = url;
+      try {
+        encodedUrl = new URL(url).toString();
+      } catch (e) {
+        console.error('URL parse failed:', e);
+      }
+      await navigator.clipboard.writeText(encodedUrl);
+      toast.success(
+        <div className="flex items-center justify-between w-full gap-4 -my-1">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-sm text-foreground">短链已生成并复制</span>
+            <span className="text-[11px] text-zinc-500/80 truncate max-w-[200px]">{encodedUrl}</span>
+          </div>
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="h-11 w-11 rounded-2xl hover:bg-emerald-500/10 transition-all shrink-0 -mr-1"
+            onClick={(e) => { e.stopPropagation(); window.open(encodedUrl, '_blank'); }}
+          >
+            <ExternalLink className="w-6 h-6 text-emerald-500" />
+          </Button>
+        </div>,
+        { id: loadingToast }
+      );
       setShortlinkDialog({ open: false, fileId: '' });
     } catch (err) {
       console.error('生成短链失败:', err);
@@ -531,7 +542,6 @@ export function FilesClient() {
   </PageWrapper>
 
     {/* Bulk Action Toolbar - Clean & Balanced UI */}
-    <Portal>
       <AnimatePresence>
         {selectedIds.length > 0 && (
           <motion.div 
@@ -585,7 +595,6 @@ export function FilesClient() {
           </motion.div>
         )}
       </AnimatePresence>
-    </Portal>
 
     {/* Delete Dialog */}
     <ConfirmDialog

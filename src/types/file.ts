@@ -24,7 +24,7 @@ export interface UploadTask {
   file: File;
   loaded: number;
   total: number;
-  status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error';
+  status: 'pending' | 'uploading' | 'processing' | 'completed' | 'error' | 'skipped';
   xhr?: XMLHttpRequest;
   configId?: string;
 }

@@ -89,13 +89,13 @@ export function NavBar() {
           />
         )}
 
-        {/* Logo Section - Hidden on Mobile to save space */}
-        <Link href="/" className="hidden sm:flex items-center gap-2 px-1.5 py-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors duration-300 z-10 ml-2">
+        {/* Logo Section - Hidden on Mobile and Tablet to save space */}
+        <Link href="/" className="hidden lg:flex items-center gap-2 px-1.5 py-1.5 rounded-full hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors duration-300 z-10 ml-2">
           <Image src="/minpic.svg" alt="Logo" width={24} height={24} className="w-6 h-6 object-contain" />
         </Link>
 
-        {/* Vertical Divider after Logo - Hidden on Mobile */}
-        <div className="hidden sm:block w-px h-4 bg-zinc-200 dark:bg-white/10 mx-1.5 z-10" />
+        {/* Vertical Divider after Logo - Hidden on Mobile and Tablet */}
+        <div className="hidden lg:block w-px h-4 bg-zinc-200 dark:bg-white/10 mx-1.5 z-10" />
 
         {navItems.map((item, index) => {
           // A path is active only if it matches AND (is home OR user is authenticated)

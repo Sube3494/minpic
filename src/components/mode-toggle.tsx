@@ -35,8 +35,10 @@ export function ModeToggle() {
 
     // 3. Start the transition
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const transition = (document as any).startViewTransition(() => {
+    const transition = (document as any).startViewTransition(async () => {
         setTheme(nextTheme);
+        // Wait for next tick to ensure theme is applied
+        await new Promise(resolve => setTimeout(resolve, 0));
     });
 
     // 4. Animate the clipping path
@@ -57,6 +59,13 @@ export function ModeToggle() {
             }
         );
     });
+    
+    // Fallback completion
+    transition.finished.finally(() => {
+        document.documentElement.classList.remove('transitioning-theme');
+    });
+    
+    document.documentElement.classList.add('transitioning-theme');
   }
 
   // Use resolvedTheme to handle 'system' mode correctly

@@ -53,11 +53,30 @@ export function ShortlinksClient() {
   };
 
   const copyToClipboard = async (code: string) => {
-    const url = `${shortlinkBaseUrl}/${code}`;
-    await navigator.clipboard.writeText(url);
-    toast.success('短链已复制', {
-      description: url
-    });
+    const rawUrl = `${shortlinkBaseUrl}/${code}`;
+    let encodedUrl = rawUrl;
+    try {
+      encodedUrl = new URL(rawUrl).toString();
+    } catch (e) {
+      console.error('URL parse failed:', e);
+    }
+    await navigator.clipboard.writeText(encodedUrl);
+    toast.success(
+      <div className="flex items-center justify-between w-full gap-4 -my-1">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="text-sm text-foreground">短链已复制</span>
+          <span className="text-[11px] text-zinc-500/80 truncate max-w-[240px]">{encodedUrl}</span>
+        </div>
+        <Button 
+          size="icon" 
+          variant="ghost" 
+          className="h-11 w-11 rounded-2xl hover:bg-emerald-500/10 transition-all shrink-0 -mr-1"
+          onClick={(e) => { e.stopPropagation(); window.open(encodedUrl, '_blank'); }}
+        >
+          <ExternalLink className="w-6 h-6 text-emerald-500" />
+        </Button>
+      </div>
+    );
   };
 
   const formatDate = (date: string) => {

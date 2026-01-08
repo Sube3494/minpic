@@ -292,7 +292,15 @@ export function useMultipartUpload() {
           localStorage.removeItem(`upload_${uploadStateRef.current.uploadId}`);
         }
 
-        const message = error instanceof Error ? error.message : '上传失败';
+        const translateError = (err: unknown) => {
+          const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+          if (msg.includes('failed to fetch')) return '网络连接失败 (Failed to fetch)';
+          if (msg.includes('networkerror')) return '网络异常';
+          if (msg.includes('aborted')) return '上传已取消';
+          return err instanceof Error ? err.message : String(err);
+        };
+
+        const message = translateError(error);
         toast.error(message);
         throw error;
       } finally {

@@ -1,17 +1,26 @@
 import { useRef, useState, useEffect } from 'react';
-import { Upload, Loader2, ArrowRight } from 'lucide-react';
+import { Upload, Loader2, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { UploadTask } from '@/types/file';
-import { formatFileSize } from '@/lib/utils';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface UploadAreaProps {
   uploadFiles: (files: FileList, configId: string) => Promise<void>;
   uploading: boolean;
   queue: UploadTask[];
-  aggregateProgress: { loaded: number; total: number; percent: number; isProcessing: boolean };
+  aggregateProgress: { 
+    loaded: number; 
+    total: number; 
+    percent: number; 
+    isProcessing: boolean;
+    isAllDone: boolean;
+    successCount: number;
+    errorCount: number;
+    totalCount: number;
+  };
   selectedConfigId: string;
   disabled?: boolean;
   disabledMessage?: string;
@@ -24,8 +33,11 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Debounce effect for progress bar to prevent jumps on fast failures
-  const hasDisplayableTasks = queue.some(t => t.status !== 'error');
-  const isActive = uploading && hasDisplayableTasks && queue.length > 0;
+  // 极致简洁：如果这一批任务中有任何一个报错，进度条就不再显示（由 Toast 反馈）。
+  // 仅在所有任务都正常（Pending, Uploading, Processing, Completed）时显示。
+  const isActive = queue.length > 0 && 
+                   !queue.some(t => t.status === 'error') && 
+                   queue.some(t => t.status !== 'skipped');
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -38,8 +50,8 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
         }, 200);
       }
     } else {
-      // Hide immediately when done/cleared or on error
-      // Wrapped in setTimeout to avoid "synchronous setState in effect" warning
+      // Hide immediately when queue is empty
+      // Wrap in setTimeout to avoid "synchronous setState in effect" warning
       timer = setTimeout(() => {
         setShowProgress(false);
       }, 0);
@@ -141,51 +153,13 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
           onDragLeave={!disabled ? handleDragLeave : undefined}
           onDrop={!disabled ? handleDrop : undefined}
         >
-          <Upload className={`w-8 h-8 md:w-12 md:h-12 mx-auto mb-3 md:mb-4 opacity-80 transition-colors ${
-            isDragging ? 'text-primary' : 'text-primary'
-          }`} />
+          <Upload className="w-8 h-8 md:w-12 md:h-12 mx-auto mb-3 md:mb-4 text-primary opacity-80" />
           <h3 className="text-base md:text-lg font-semibold mb-1 md:mb-2 text-zinc-800 dark:text-white">
             {isDragging ? '松开鼠标上传' : '上传文件'}
           </h3>
           <p className="text-[10px] md:text-sm text-muted-foreground mb-4 md:mb-8">
             {isDragging ? '拖放文件到此处' : '支持拖拽、粘贴 (Ctrl+V) 或点击选择'}
           </p>
-
-          {showProgress && aggregateProgress.total > 0 && (
-            <div className="mb-6 space-y-3">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                   {aggregateProgress.isProcessing ? (
-                     <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                   ) : (
-                     <Upload className="w-4 h-4 text-primary animate-bounce" />
-                   )}
-                   <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                    {aggregateProgress.isProcessing ? '正在处理(优化文件中)...' : '正在上传...'}
-                  </span>
-                </div>
-                <span className="text-sm font-bold text-primary">
-                  {aggregateProgress.percent}%
-                </span>
-              </div>
-              <div className="w-full bg-zinc-200 dark:bg-zinc-700/50 rounded-full h-2.5 overflow-hidden backdrop-blur-sm">
-                <div 
-                  className={`h-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(var(--primary),0.5)] ${
-                    aggregateProgress.isProcessing ? 'bg-primary/60 animate-pulse' : 'bg-primary'
-                  }`}
-                  style={{ width: `${Math.max(2, aggregateProgress.percent)}%` }}
-                />
-              </div>
-              <div className="flex justify-between items-center">
-                <p className="text-[10px] text-muted-foreground">
-                  共 {queue.filter(t => t.status !== 'completed').length} 个文件待完成
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {formatFileSize(aggregateProgress.loaded)} / {formatFileSize(aggregateProgress.total)}
-                </p>
-              </div>
-            </div>
-          )}
 
           <input
             ref={fileInputRef}
@@ -199,19 +173,73 @@ export function UploadArea({ uploadFiles, uploading, queue, aggregateProgress, s
           />
           
           <div className="flex flex-col items-center justify-center gap-4 w-full max-w-sm mx-auto">
-            <Button asChild disabled={uploading || disabled} className="w-full rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow">
+            <Button 
+                asChild 
+                disabled={uploading || disabled} 
+                className={`w-full rounded-full shadow-lg transition-all relative overflow-hidden group h-12 border-none ${
+                    uploading 
+                        ? (aggregateProgress.isAllDone && aggregateProgress.errorCount === 0) 
+                            ? 'bg-emerald-500 shadow-emerald-500/20 text-white hover:bg-emerald-600' 
+                            : 'bg-muted text-muted-foreground'
+                        : 'bg-primary text-primary-foreground shadow-primary/20 hover:shadow-primary/30'
+                }`}
+            >
               <label htmlFor="file-upload" className={disabled ? "cursor-not-allowed" : "cursor-pointer"}>
-                {uploading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {aggregateProgress.isProcessing ? '正在后端处理...' : `总进度 ${aggregateProgress.percent}%`}
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4 mr-2" />
-                    {disabled ? (disabledMessage || '暂无可用存储配置') : '选择文件上传'}
-                  </>
-                )}
+                {/* Progress background fill - using solid Primary for contrast */}
+                <AnimatePresence>
+                    {uploading && isActive && !(aggregateProgress.isAllDone && aggregateProgress.errorCount === 0) && (
+                        <motion.div 
+                            key="progress-bg"
+                            className="absolute inset-y-0 left-0 z-0 bg-primary/60 overflow-hidden"
+                            initial={{ width: '0%' }}
+                            animate={{ width: `${Math.max(1, aggregateProgress.percent)}%` }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.4, ease: "easeOut" }}
+                        >
+                            {/* Animated glowing leading edge */}
+                            <motion.div 
+                                className="absolute top-0 bottom-0 right-0 w-[60px] bg-linear-to-r from-transparent via-white/40 to-transparent"
+                                animate={{ 
+                                    x: ['-100%', '200%'],
+                                }}
+                                transition={{ 
+                                    duration: 1.5, 
+                                    repeat: Infinity,
+                                    ease: "linear"
+                                }}
+                            />
+                            {/* Visual Progress Cap */}
+                            <div className="absolute top-0 bottom-0 right-0 w-1 bg-white/50 blur-[1px] shadow-[0_0_10px_rgba(255,255,255,0.5)]" />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+                
+                <div className="relative z-10 flex items-center justify-center w-full h-full">
+                    {uploading ? (
+                      (aggregateProgress.isAllDone && aggregateProgress.errorCount === 0) ? (
+                        <>
+                          <CheckCircle2 className="w-5 h-5 mr-2" />
+                          <span className="text-sm md:text-base tracking-wide">全部上传成功</span>
+                        </>
+                      ) : (
+                        <>
+                          <Loader2 className={`w-4 h-4 mr-2 animate-spin ${aggregateProgress.errorCount > 0 ? 'text-rose-500' : 'text-primary'}`} />
+                          <span className="text-sm">
+                            {aggregateProgress.isProcessing 
+                                ? '正在处理...' 
+                                : `正在上传 ${aggregateProgress.percent}% (${aggregateProgress.successCount + aggregateProgress.errorCount}/${aggregateProgress.totalCount})`}
+                          </span>
+                        </>
+                      )
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4 mr-2" />
+                        <span className="font-medium text-sm md:text-base">
+                            {disabled ? (disabledMessage || '暂无可用存储配置') : '选择文件上传'}
+                        </span>
+                      </>
+                    )}
+                </div>
               </label>
             </Button>
 

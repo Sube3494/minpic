@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link2, FileCode, Code2 } from 'lucide-react';
+import { Link2, FileCode, Code2, ExternalLink } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +23,14 @@ export function CopyFormatMenu({ children, fileId, filename, onGetUrl, onOpenCha
   const handleCopy = async (format: 'url' | 'markdown' | 'html' | 'bbcode') => {
     setLoading(true);
     try {
-      const url = await onGetUrl(fileId);
+      const rawUrl = await onGetUrl(fileId);
+      // Use URL constructor to safely normalize and encode the URI (handles Chinese chars, spaces, etc.)
+      let url = rawUrl;
+      try {
+        url = new URL(rawUrl).toString();
+      } catch (e) {
+        console.error('URL parse failed, using raw link:', e);
+      }
       
       let textToCopy = url;
       let toastMessage = '链接已复制';
@@ -43,13 +51,24 @@ export function CopyFormatMenu({ children, fileId, filename, onGetUrl, onOpenCha
       }
 
       await navigator.clipboard.writeText(textToCopy);
-      toast.success(toastMessage, {
-        description: (
-          <div className="block text-xs break-all text-muted-foreground mt-1">
-            {textToCopy.length > 100 ? textToCopy.substring(0, 100) + '...' : textToCopy}
+      toast.success(
+        <div className="flex items-center justify-between w-full gap-4 -my-1">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-sm text-foreground">{toastMessage}</span>
+            <span className="text-[11px] text-zinc-500/80 truncate max-w-[240px]">
+              {textToCopy.length > 50 ? textToCopy.substring(0, 50) + '...' : textToCopy}
+            </span>
           </div>
-        ),
-      });
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="h-11 w-11 rounded-2xl hover:bg-emerald-500/10 transition-all shrink-0 -mr-1"
+            onClick={(e) => { e.stopPropagation(); window.open(url, '_blank'); }}
+          >
+            <ExternalLink className="w-6 h-6 text-emerald-500" />
+          </Button>
+        </div>
+      );
     } catch (err) {
       console.error('获取链接失败:', err);
       toast.error('获取链接失败');
