@@ -5,7 +5,7 @@ import { generateThumbnail, generateVideoThumbnail, getImageDimensions, getFileT
 import { SyncEvent } from '@/types/config';
 import { auth } from '@/lib/auth';
 import { checkStorageQuota, checkFileQuota, updateStorageUsage, updateFileCount } from '@/lib/team-quota';
-import { getUserMinioConfig } from '@/lib/get-user-minio-config';
+import { getUserMinioConfig, getStorageIdentityConfigIds } from '@/lib/get-user-minio-config';
 import { serializeBigInt } from '@/lib/utils';
 
 export async function POST(request: NextRequest) {
@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
         const minioService = new MinioService();
         await minioService.connect(minioConfig);
 
+        // 获取存储身份组 - 相同存储的不同配置共享文件记录
+        const storageGroupConfigIds = await getStorageIdentityConfigIds(userId, minioConfig);
+
         // 构建用户路径前缀:baseDir/users/{userId}/
         let userPrefix = '';
         if (minioConfig.baseDir) {
@@ -88,53 +91,129 @@ export async function POST(request: NextRequest) {
               }
             });
 
-            // Check if file already exists for THIS USER
+            // Check if file already exists in THIS STORAGE GROUP
+            // 使用存储身份组，允许相同存储的不同配置共享文件记录
             const existing = await prisma.file.findFirst({
               where: { 
                 minioPath: fileObj.name,
-                userId: userId  // 只检查当前用户的文件
+                userId: userId,
+                configId: { in: storageGroupConfigIds }  // 检查整个存储组
               },
             });
 
-            const needsMetadata = existing && (!existing.thumbnailData || !existing.pinyin);
+            // 如果文件已存在，更新其 configId 并跳过
+            if (existing) {
+              // 对于已存在的文件，我们需要：
+              // 1. 更新 configId 到当前配置（确保配置切换时文件关联正确）
+              // 2. 如果缺少元数据（缩略图/拼音），补全元数据
+              const needsMetadata = !existing.thumbnailData || !existing.pinyin;
+              
+              if (needsMetadata || existing.configId !== targetConfigId) {
+                // 需要更新时，下载文件生成元数据
+                const fileBuffer = await minioService.downloadFile(fileObj.name!);
+                
+                const extension = fileObj.name?.split('.').pop()?.toLowerCase() || '';
+                const mimeTypeMap: Record<string, string> = {
+                  'jpg': 'image/jpeg',
+                  'jpeg': 'image/jpeg',
+                  'png': 'image/png',
+                  'gif': 'image/gif',
+                  'webp': 'image/webp',
+                  'svg': 'image/svg+xml',
+                  'bmp': 'image/bmp',
+                  'tiff': 'image/tiff',
+                  'ico': 'image/x-icon',
+                  'avif': 'image/avif',
+                  'mp4': 'video/mp4',
+                  'webm': 'video/webm',
+                  'mov': 'video/quicktime',
+                  'avi': 'video/x-msvideo',
+                  'mkv': 'video/x-matroska',
+                  'm4v': 'video/x-m4v',
+                  'mp3': 'audio/mpeg',
+                  'wav': 'audio/wav',
+                  'ogg': 'audio/ogg',
+                  'm4a': 'audio/mp4',
+                  'flac': 'audio/flac',
+                  'aac': 'audio/aac',
+                  'wma': 'audio/x-ms-wma',
+                };
+                
+                const mimeType = mimeTypeMap[extension] || existing.mimeType || 'application/octet-stream';
+                const fileType = getFileType(mimeType);
 
-            if (existing && !needsMetadata) {
+                let thumbnailData: Buffer | null = existing.thumbnailData;
+                let width: number | null = existing.width;
+                let height: number | null = existing.height;
+
+                if (needsMetadata && fileType === 'image') {
+                  const dimensions = await getImageDimensions(fileBuffer);
+                  if (dimensions) {
+                    width = dimensions.width;
+                    height = dimensions.height;
+                  }
+                  thumbnailData = await generateThumbnail(fileBuffer, mimeType);
+                } else if (needsMetadata && fileType === 'video') {
+                  thumbnailData = await generateVideoThumbnail(fileBuffer);
+                }
+
+                // 更新记录
+                await prisma.file.update({
+                  where: { id: existing.id },
+                  data: {
+                    thumbnailData,
+                    width,
+                    height,
+                    pinyin: pinyinValue,
+                    configId: targetConfigId,  // 更新到当前配置
+                  }
+                });
+              } else {
+                // 文件完整且 configId 已匹配，仅更新 configId（如果需要）
+                if (existing.configId !== targetConfigId) {
+                  await prisma.file.update({
+                    where: { id: existing.id },
+                    data: { configId: targetConfigId }
+                  });
+                }
+              }
+              
               skipped++;
-              continue;
+              continue;  // 跳过此文件，不再处理
             }
 
+            // 文件不存在，需要创建新记录
             // 对于不存在的文件,进行限额检查
             const fileSizeBigInt = BigInt(fileObj.size || 0);
-            if (!existing) {
-              // 检查文件数量限额
-              const fileQuotaCheck = await checkFileQuota(userId, newFilesCount, targetConfigId);
-              if (!fileQuotaCheck.allowed) {
-                sendEvent({
-                  type: 'quota_exceeded',
-                  data: {
-                    quotaType: 'file',
-                    message: '文件数量已达限额,同步已停止',
-                    progress: { total, imported, skipped, errors, current }
-                  }
-                });
-                hasError = true;
-                break; // 停止同步
-              }
+            
+            // 检查文件数量限额
+            const fileQuotaCheck = await checkFileQuota(userId, newFilesCount, targetConfigId);
+            if (!fileQuotaCheck.allowed) {
+              sendEvent({
+                type: 'quota_exceeded',
+                data: {
+                  quotaType: 'file',
+                  message: '文件数量已达限额,同步已停止',
+                  progress: { total, imported, skipped, errors, current }
+                }
+              });
+              hasError = true;
+              break; // 停止同步
+            }
 
-              // 检查存储空间限额
-              const storageQuotaCheck = await checkStorageQuota(userId, fileSizeBigInt, batchTotalSize, targetConfigId);
-              if (!storageQuotaCheck.allowed) {
-                sendEvent({
-                  type: 'quota_exceeded',
-                  data: {
-                    quotaType: 'storage',
-                    message: '存储空间已达限额,同步已停止',
-                    progress: { total, imported, skipped, errors, current }
-                  }
-                });
-                hasError = true;
-                break; // 停止同步
-              }
+            // 检查存储空间限额
+            const storageQuotaCheck = await checkStorageQuota(userId, fileSizeBigInt, batchTotalSize, targetConfigId);
+            if (!storageQuotaCheck.allowed) {
+              sendEvent({
+                type: 'quota_exceeded',
+                data: {
+                  quotaType: 'storage',
+                  message: '存储空间已达限额,同步已停止',
+                  progress: { total, imported, skipped, errors, current }
+                }
+              });
+              hasError = true;
+              break; // 停止同步
             }
 
             // Download file to process
@@ -193,44 +272,26 @@ export async function POST(request: NextRequest) {
 
             const filename = fileObj.name?.split('/').pop() || fileObj.name || 'unknown';
 
-            if (existing) {
-              // Backfill metadata for existing record
-              await prisma.file.update({
-                where: { id: existing.id },
-                data: {
-                  thumbnailData,
-                  width,
-                  height,
-                  pinyin: pinyinValue,
-                  configId: targetConfigId,
-                }
-              });
-            } else {
-              // Create new record
-              await prisma.file.create({
-                data: {
-                  userId,
-                  filename,
-                  minioPath: fileObj.name!,
-                  fileSize: fileSizeBigInt,
-                  mimeType,
-                  fileType,
-                  thumbnailData,
-                  width,
-                  height,
-                  configId: targetConfigId,
-                  pinyin: pinyinValue,
-                },
-              });
-            }
+            // Create new record
+            await prisma.file.create({
+              data: {
+                userId,
+                filename,
+                minioPath: fileObj.name!,
+                fileSize: fileSizeBigInt,
+                mimeType,
+                fileType,
+                thumbnailData,
+                width,
+                height,
+                configId: targetConfigId,
+                pinyin: pinyinValue,
+              },
+            });
             
-            if (!existing) {
-              batchTotalSize += fileSizeBigInt;
-              newFilesCount++;
-              imported++;
-            } else {
-              skipped++;
-            }
+            batchTotalSize += fileSizeBigInt;
+            newFilesCount++;
+            imported++;
           } catch (error) {
             console.error(`Error importing file ${fileObj.name}:`, error);
             errors++;

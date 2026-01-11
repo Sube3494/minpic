@@ -133,9 +133,10 @@ export async function getStorageIdentityConfigIds(
     .map(record => {
       try {
         const config = JSON.parse(record.value) as MinioConfig;
+        const decrypted = decryptMinioConfig(config as unknown as Record<string, unknown>) as MinioConfig;
         return { 
           id: config.id || record.key.replace('minio_', ''), 
-          config 
+          config: decrypted  // 使用解密后的配置进行比较
         };
       } catch {
         return null;
@@ -143,7 +144,7 @@ export async function getStorageIdentityConfigIds(
     })
     .filter((item): item is { id: string; config: MinioConfig } => 
       item !== null &&
-      item.config.accessKey === activeConfig.accessKey &&
+      item.config.accessKey === activeConfig.accessKey &&  // 比较解密后的值
       item.config.bucket === activeConfig.bucket &&
       (item.config.baseDir || '') === (activeConfig.baseDir || '')
     )
