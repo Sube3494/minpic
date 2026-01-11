@@ -8,6 +8,33 @@ import { checkStorageQuota, checkFileQuota, updateStorageUsage, updateFileCount 
 import { getUserMinioConfig, getStorageIdentityConfigIds } from '@/lib/get-user-minio-config';
 import { serializeBigInt } from '@/lib/utils';
 
+// MIME 类型映射表
+const MIME_TYPE_MAP: Record<string, string> = {
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'png': 'image/png',
+  'gif': 'image/gif',
+  'webp': 'image/webp',
+  'svg': 'image/svg+xml',
+  'bmp': 'image/bmp',
+  'tiff': 'image/tiff',
+  'ico': 'image/x-icon',
+  'avif': 'image/avif',
+  'mp4': 'video/mp4',
+  'webm': 'video/webm',
+  'mov': 'video/quicktime',
+  'avi': 'video/x-msvideo',
+  'mkv': 'video/x-matroska',
+  'm4v': 'video/x-m4v',
+  'mp3': 'audio/mpeg',
+  'wav': 'audio/wav',
+  'ogg': 'audio/ogg',
+  'm4a': 'audio/mp4',
+  'flac': 'audio/flac',
+  'aac': 'audio/aac',
+  'wma': 'audio/x-ms-wma',
+};
+
 export async function POST(request: NextRequest) {
   // Get user session
   const session = await auth();
@@ -113,33 +140,7 @@ export async function POST(request: NextRequest) {
                 const fileBuffer = await minioService.downloadFile(fileObj.name!);
                 
                 const extension = fileObj.name?.split('.').pop()?.toLowerCase() || '';
-                const mimeTypeMap: Record<string, string> = {
-                  'jpg': 'image/jpeg',
-                  'jpeg': 'image/jpeg',
-                  'png': 'image/png',
-                  'gif': 'image/gif',
-                  'webp': 'image/webp',
-                  'svg': 'image/svg+xml',
-                  'bmp': 'image/bmp',
-                  'tiff': 'image/tiff',
-                  'ico': 'image/x-icon',
-                  'avif': 'image/avif',
-                  'mp4': 'video/mp4',
-                  'webm': 'video/webm',
-                  'mov': 'video/quicktime',
-                  'avi': 'video/x-msvideo',
-                  'mkv': 'video/x-matroska',
-                  'm4v': 'video/x-m4v',
-                  'mp3': 'audio/mpeg',
-                  'wav': 'audio/wav',
-                  'ogg': 'audio/ogg',
-                  'm4a': 'audio/mp4',
-                  'flac': 'audio/flac',
-                  'aac': 'audio/aac',
-                  'wma': 'audio/x-ms-wma',
-                };
-                
-                const mimeType = mimeTypeMap[extension] || existing.mimeType || 'application/octet-stream';
+                const mimeType = MIME_TYPE_MAP[extension] || existing.mimeType || 'application/octet-stream';
                 const fileType = getFileType(mimeType);
 
                 let thumbnailData: Buffer | null = existing.thumbnailData;
@@ -216,37 +217,10 @@ export async function POST(request: NextRequest) {
               break; // 停止同步
             }
 
-            // Download file to process
             const fileBuffer = await minioService.downloadFile(fileObj.name!);
             
             const extension = fileObj.name?.split('.').pop()?.toLowerCase() || '';
-            const mimeTypeMap: Record<string, string> = {
-              'jpg': 'image/jpeg',
-              'jpeg': 'image/jpeg',
-              'png': 'image/png',
-              'gif': 'image/gif',
-              'webp': 'image/webp',
-              'svg': 'image/svg+xml',
-              'bmp': 'image/bmp',
-              'tiff': 'image/tiff',
-              'ico': 'image/x-icon',
-              'avif': 'image/avif',
-              'mp4': 'video/mp4',
-              'webm': 'video/webm',
-              'mov': 'video/quicktime',
-              'avi': 'video/x-msvideo',
-              'mkv': 'video/x-matroska',
-              'm4v': 'video/x-m4v',
-              'mp3': 'audio/mpeg',
-              'wav': 'audio/wav',
-              'ogg': 'audio/ogg',
-              'm4a': 'audio/mp4',
-              'flac': 'audio/flac',
-              'aac': 'audio/aac',
-              'wma': 'audio/x-ms-wma',
-            };
-            
-            const mimeType = mimeTypeMap[extension] || 'application/octet-stream';
+            const mimeType = MIME_TYPE_MAP[extension] || 'application/octet-stream';
             const fileType = getFileType(mimeType);
 
             if (!fileType) {
