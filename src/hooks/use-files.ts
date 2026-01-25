@@ -24,17 +24,29 @@ export function useFiles(
   const hasDataRef = useRef(false);
   const pageSize = 30;
 
-  const fetchIdRef = useRef(0);
+  const dataVersionRef = useRef(0);
+  const refreshIdRef = useRef(0);
+  const appendIdRef = useRef(0);
 
   const fetchFiles = useCallback(async (targetPage: number, isAppend: boolean) => {
-    const requestId = ++fetchIdRef.current;
-    
+    // 1. Data Integrity & State Setup
+    let currentVersion = dataVersionRef.current;
+    let requestId = 0;
+
     if (isAppend) {
       if (isLoadingMoreRef.current || !hasMoreRef.current) return;
+      
+      // Capture current append ID
+      requestId = ++appendIdRef.current;
       setLoadingMore(true);
       isLoadingMoreRef.current = true;
     } else {
-      // 切换过滤/搜索/配置时，始终允许发起新请求，不被 isInitialLoading 阻塞
+      // New Refresh: increment data version to invalidate pending appends
+      currentVersion = ++dataVersionRef.current;
+      
+      // Capture current refresh ID
+      requestId = ++refreshIdRef.current;
+      
       if (hasDataRef.current) {
         setIsRefreshing(true);
       } else {
@@ -48,18 +60,25 @@ export function useFiles(
     try {
       const data = await fileService.getFiles(filter, search, targetPage, pageSize, selectedConfigId);
       
-      // 丢弃过时的请求结果
-      if (requestId !== fetchIdRef.current) {
-        return;
+      // 2. Data consistency check
+      if (currentVersion !== dataVersionRef.current) {
+        return; // Data is stale (a new refresh happened)
       }
       
       if (isAppend) {
+        // For append, ensure we are still the active append request
+        // (Though strictly speaking, stale appends are harmless if data version matches, 
+        // but let's be strict to match loadingMore state)
+        if (requestId !== appendIdRef.current) return;
+
         setFiles(prev => {
           const newFiles = [...prev, ...data.files];
           hasDataRef.current = newFiles.length > 0;
           return newFiles;
         });
       } else {
+        if (requestId !== refreshIdRef.current) return;
+
         setFiles(data.files);
         hasDataRef.current = data.files.length > 0;
       }
@@ -69,18 +88,27 @@ export function useFiles(
       hasMoreRef.current = newHasMore;
       pageRef.current = targetPage;
     } catch {
-      if (requestId === fetchIdRef.current) {
+      // Only show error if we are the active request of our type
+      const isActive = isAppend 
+        ? (requestId === appendIdRef.current && currentVersion === dataVersionRef.current)
+        : (requestId === refreshIdRef.current);
+        
+      if (isActive) {
         toast.error('加载文件列表失败');
       }
     } finally {
-      if (requestId === fetchIdRef.current) {
-        if (!isAppend) {
+      // 3. State Cleanup (Independent for each type)
+      if (isAppend) {
+        if (requestId === appendIdRef.current) {
+          setLoadingMore(false);
+          isLoadingMoreRef.current = false;
+        }
+      } else {
+        if (requestId === refreshIdRef.current) {
           setLoading(false);
           setIsRefreshing(false);
           isInitialLoading.current = false;
         }
-        setLoadingMore(false);
-        isLoadingMoreRef.current = false;
       }
     }
   }, [filter, search, selectedConfigId]);

@@ -362,7 +362,7 @@ export function FilesClient() {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading && !isRefreshing) {
           loadMore();
         }
       },
@@ -373,7 +373,7 @@ export function FilesClient() {
     if (sentinel) observer.observe(sentinel);
 
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, loading, loadMore]);
+  }, [hasMore, loadingMore, loading, loadMore, isRefreshing]);
 
   return (
     <>

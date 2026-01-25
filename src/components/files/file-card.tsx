@@ -97,7 +97,7 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
         <div 
           className={cn(
             "absolute top-0 right-0 z-30 p-2 sm:p-2.5 cursor-pointer touch-manipulation", // Increased hit area
-            (isSelected || isMenuOpen) ? "opacity-100" : "opacity-0"
+            (isSelected || isMenuOpen) ? "opacity-100" : "opacity-0 md:group-hover:opacity-100"
           )}
           onClick={(e) => {
             e.stopPropagation();
