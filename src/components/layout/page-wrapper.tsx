@@ -1,19 +1,14 @@
 'use client';
 
-import { motion } from 'framer-motion';
+
+
+import { ScrollToTop } from '@/components/ui/scroll-to-top';
 
 export function PageWrapper({ children }: { children: React.ReactNode }) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ 
-        duration: 0.2, 
-        ease: "linear",
-      }}
-      className="w-full"
-    >
+    <div className="animate-in fade-in zoom-in-95 duration-500">
       {children}
-    </motion.div>
+      <ScrollToTop />
+    </div>
   );
 }

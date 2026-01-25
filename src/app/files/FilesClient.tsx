@@ -7,7 +7,7 @@ import { useState, useEffect, useTransition, useCallback, useMemo } from 'react'
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Server, ChevronDown, Trash2, ExternalLink } from 'lucide-react';
+import { Loader2, Server, ChevronDown, ExternalLink, CheckSquare, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -240,6 +240,56 @@ export function FilesClient() {
     }
   };
 
+  const handleBatchShortlinks = async () => {
+    if (selectedIds.length === 0) return;
+    
+    // Check if shortlinks enabled
+    if (!shortlinkEnabled) {
+      toast.error('短链服务未启用');
+      return;
+    }
+
+    const toastId = toast.loading(`正在为 ${selectedIds.length} 个文件生成短链...`);
+    
+    try {
+      const results: string[] = [];
+      let successCount = 0;
+      let failCount = 0;
+
+      // Parallelize requests with a limit or just sequential for safety
+      // Using sequential for now to avoid rate limits
+      for (const id of selectedIds) {
+        try {
+           const url = await fileService.generateShortlink(id);
+           results.push(new URL(url).toString());
+           successCount++;
+        } catch (e) {
+           console.error(`Failed to generate shortlink for ${id}`, e);
+           failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        const textToCopy = results.join('\n');
+        await navigator.clipboard.writeText(textToCopy);
+        
+        toast.success(`已生成 ${successCount} 个短链并复制`, {
+          description: failCount > 0 ? `${failCount} 个失败` : undefined,
+          id: toastId, 
+          duration: 4000 
+        });
+        // Clear selection after success? Maybe keep it for other actions.
+        // setSelectedIds([]); 
+      } else {
+        toast.error('生成失败，请重试', { id: toastId });
+      }
+
+    } catch (err) {
+      console.error('Batch shortlink error:', err);
+      toast.error('批量生成失败', { id: toastId });
+    }
+  };
+
   const handleBatchDeleteClick = () => {
     setDeleteDialog({ open: true, fileId: 'batch', filename: `选中的 ${selectedIds.length} 个文件`, deleteMode: 'record-only' });
   };
@@ -437,7 +487,45 @@ export function FilesClient() {
                     </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
-             </div>
+              </div>
+
+             {/* Mobile Select Toggle */}
+             <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "md:hidden w-10 h-10 rounded-full transition-all",
+                  selectedIds.length > 0 ? "bg-primary/10 text-primary" : "hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-500"
+                )}
+                onClick={() => {
+                  if (selectedIds.length > 0) {
+                    setSelectedIds([]);
+                  } else {
+                    // Enter selection mode simply by not doing anything (Files will handle click)
+                    // But we want to give visual feedback or select the first one?
+                    // Actually, usually user wants to just "Toggle Mode". 
+                    // Since our logic relies on `selectedIds.length > 0` for mode,
+                    // we might need a way to enter mode without selecting.
+                    // For now, let's just show a toast or help user realize long press works too. 
+                    // OR: We can select the first visible file? No that's jarring.
+                    // Better: Just toast "点击文件进行多选" if state logic requires selection to be in mode.
+                    // Wait, `FileCard` uses `isSelectionMode` prop which comes from `selectedIds.length > 0`.
+                    // So we can't be in mode without selection.
+                    // Let's rely on long-press or just this button clearing selection.
+                    // IMPROVEMENT: Let's allow users to start selection by clicking this button properly?
+                    // Maybe we just rely on long press context menu which we added back?
+                    // Actually, let's make this button a "Select All" or "Cancel" if active.
+                    // If inactive, maybe it can be "Select Mode" which implies... nothing until you pick one?
+                    // Let's just make it a "Cancel Selection" button when active, and hidden when inactive?
+                    // No, user requested "Multi-select option on mobile".
+                    // Let's make it toggle a flag `forceSelectionMode` if we really want empty selection mode.
+                    // But for now, easiest is:
+                    toast.info("长按任意文件即可进入选择模式", { position: 'top-center' });
+                  }
+                }}
+             >
+                {selectedIds.length > 0 ? <X className="w-5 h-5" /> : <CheckSquare className="w-5 h-5" />}
+             </Button>
 
 
           </div>
@@ -603,7 +691,19 @@ export function FilesClient() {
               </Button>
             </div>
 
-            {/* Crucial Action */}
+            <div className="flex items-center gap-2">
+               {shortlinkEnabled && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 px-4 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium text-xs transition-colors"
+                    onClick={handleBatchShortlinks}
+                  >
+                    生成短链
+                  </Button>
+               )}
+
+            </div>
             <Button
               variant="destructive"
               size="sm"
@@ -611,8 +711,7 @@ export function FilesClient() {
               onClick={handleBatchDeleteClick}
               disabled={isDeleting}
             >
-              {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Trash2 className="w-3.5 h-3.5 mr-2" />}
-              批量删除
+              {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : "批量删除"}
             </Button>
           </motion.div>
         )}

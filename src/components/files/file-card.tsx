@@ -1,4 +1,4 @@
-import { memo, useRef, useState } from 'react';
+import { memo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileItem } from '@/types/file';
 import { Check, Copy, Link2 } from 'lucide-react';
@@ -51,24 +51,7 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
     : 'text-zinc-200 border-white/10 bg-white/5';
 
 
-  const touchTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const startTouchTimer = () => {
-    if (touchTimer.current) clearTimeout(touchTimer.current);
-    touchTimer.current = setTimeout(() => {
-      toggleSelect(file.id);
-      // Optional: try to trigger haptic feedback if supported
-      if ('vibrate' in navigator) navigator.vibrate(50);
-      touchTimer.current = null;
-    }, 600);
-  };
-
-  const clearTouchTimer = () => {
-    if (touchTimer.current) {
-      clearTimeout(touchTimer.current);
-      touchTimer.current = null;
-    }
-  };
 
   return (
     <motion.div
@@ -90,6 +73,7 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
       )}
       onClick={(e) => {
         if (isSelectionMode) {
+          e.preventDefault(); // Prevent preview opening
           e.stopPropagation();
           toggleSelect(file.id);
         } else {
@@ -97,17 +81,12 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
         }
       }}
       onContextMenu={(e) => {
+        // Desktop Right Click -> Select
         e.preventDefault();
-        // Skip context menu on mobile if our custom timer already handled it,
-        // but keep it for desktop right-click.
-        if (!touchTimer.current) {
-            toggleSelect(file.id);
-        }
+        toggleSelect(file.id);
       }}
-      onTouchStart={startTouchTimer}
-      onTouchEnd={clearTouchTimer}
-      onTouchMove={clearTouchTimer}
-      onTouchCancel={clearTouchTimer}
+      // Removed complex touch timers as they often conflict with scroll
+      // Reliance on long-press context menu or explicit selection button in header is better
     >
       {/* Inner Content Container - Scale Effect on Selection */}
       <div className={cn(
@@ -117,8 +96,8 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
         {/* Selection Check Circle - Modern Floating Badge */}
         <div 
           className={cn(
-            "absolute top-2 right-2 z-30 transition-all duration-300 cursor-pointer w-10 h-10 flex items-center justify-center", // Increased hit area
-            (isSelected || isMenuOpen) ? "opacity-100" : "opacity-0 md:group-hover:opacity-100"
+            "absolute top-0 right-0 z-30 p-2 sm:p-2.5 cursor-pointer touch-manipulation", // Increased hit area
+            (isSelected || isMenuOpen) ? "opacity-100" : "opacity-0"
           )}
           onClick={(e) => {
             e.stopPropagation();
@@ -126,7 +105,7 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
           }}
         >
           <div className={cn(
-            "rounded-full w-6 h-6 flex items-center justify-center transition-all duration-300 shadow-lg ring-1 ring-white/20 dark:ring-white/10",
+            "rounded-full w-6 h-6 flex items-center justify-center transition-all duration-300 shadow-lg ring-1 ring-white/20 dark:ring-white/10 backdrop-blur-sm",
             isSelected 
               ? "bg-primary border border-primary text-white scale-110" 
               : "bg-black/30 hover:bg-black/40 border border-white/50 text-transparent"
@@ -138,7 +117,7 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
         {/* Thumbnail / Preview Area */}
         <div className={cn(
           "w-full transition-transform duration-700",
-          (!isSelected || isMenuOpen) && "group-hover:scale-105", // Only zoom hover when not selected to avoid conflict
+          (!isSelected || isMenuOpen) && "group-hover:scale-105", 
           isMenuOpen && "scale-105",
           (file.fileType === 'image' || file.fileType === 'video') ? "" : "aspect-square bg-muted/30"
         )}>

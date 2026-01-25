@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     try {
         // 如果是图片或视频，需要下载文件头部或文件来生成缩略图
         // 优化：限制下载大小，避免大文件阻塞
-        const MAX_PROCESS_SIZE = 20 * 1024 * 1024; // 20MB limit for full download
+        const MAX_PROCESS_SIZE = 100 * 1024 * 1024; // 100MB limit for full download
         const VIDEO_SAMPLE_SIZE = 5 * 1024 * 1024; // 5MB sample for video
 
         if (fileType === 'image') {
