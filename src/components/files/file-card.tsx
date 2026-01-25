@@ -64,9 +64,9 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
         // Selected: background becomes primary tint, border becomes clean primary
         // Unselected: standard hover lift
         isSelected 
-          ? "ring-2 ring-primary border-transparent bg-muted/30" 
+          ? "border-2 border-primary bg-primary/5 dark:bg-primary/10" 
           : cn(
-              "bg-card shadow-sm hover:shadow-xl hover:-translate-y-1.5", 
+              "bg-card shadow-sm hover:shadow-xl hover:-translate-y-1.5 border-2", 
               isMenuOpen && "shadow-xl -translate-y-1.5",
               typeBorderStyle
             )

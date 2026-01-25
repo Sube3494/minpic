@@ -662,56 +662,54 @@ export function FilesClient() {
             exit={{ opacity: 0, y: 20, x: "-50%", scale: 0.98 }}
             transition={{ type: "spring", damping: 25, stiffness: 400 }}
             style={{ willChange: "transform, opacity, backdrop-filter" }}
-            className="fixed bottom-6 left-1/2 z-9999 pointer-events-auto min-w-[320px] max-w-[90vw] p-2 pl-3 rounded-full bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)] ring-1 ring-black/5 dark:ring-white/5 flex items-center justify-between gap-4"
+            className="fixed bottom-20 sm:bottom-12 left-1/2 z-9999 pointer-events-auto w-auto max-w-[calc(100vw-32px)] p-1.5 sm:p-2 rounded-full bg-white/95 dark:bg-zinc-900/95 backdrop-blur-3xl border border-white/20 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] ring-1 ring-black/5 dark:ring-white/5 flex items-center justify-between gap-1 sm:gap-4"
           >
-            {/* Info section */}
-            <div className="flex items-center gap-3 pl-1 pr-4 border-r border-zinc-200/50 dark:border-white/10 shrink-0">
-              <span className="text-zinc-700 dark:text-zinc-200 font-semibold text-sm">
-                已选 {selectedIds.length} 个文件
+            {/* Info section - Badge Style */}
+            <div className="flex items-center gap-2 pl-1 pr-3 sm:pr-4 border-r border-zinc-200/50 dark:border-white/10 shrink-0">
+              <div className="flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-primary text-white text-[11px] font-bold shadow-sm shadow-primary/30">
+                {selectedIds.length}
+              </div>
+              <span className="text-zinc-500 dark:text-zinc-400 font-medium text-[11px] sm:text-xs hidden min-[400px]:inline">
+                已选中
               </span>
             </div>
 
             {/* Functional Buttons */}
-            <div className="flex items-center gap-1.5 flex-1 justify-center sm:justify-start">
+            <div className="flex items-center gap-1 sm:gap-1.5 flex-1 justify-center min-w-0 px-1">
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="h-8 px-3 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 font-medium text-xs transition-colors"
+                className="h-8 px-2 sm:px-3 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 font-medium text-[12px] sm:text-xs transition-colors shrink-0"
                 onClick={handleSelectAll}
-                disabled={isSelectingAll}
+                disabled={isRefreshing || isSelectingAll}
               >
-                {isSelectingAll ? (
-                  <>
-                    <Loader2 className="w-3 h-3 animate-spin mr-1.5" />
-                    加载中
-                  </>
+                {isRefreshing || isSelectingAll ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
-                  isAllSelected ? '取消全选' : '全选'
+                  isAllSelected ? '取消' : '全选'
                 )}
               </Button>
+              
+              {shortlinkEnabled && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 sm:px-4 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 font-medium text-[12px] sm:text-xs transition-colors shrink-0"
+                  onClick={handleBatchShortlinks}
+                >
+                  短链
+                </Button>
+              )}
             </div>
 
-            <div className="flex items-center gap-2">
-               {shortlinkEnabled && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 px-4 rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium text-xs transition-colors"
-                    onClick={handleBatchShortlinks}
-                  >
-                    生成短链
-                  </Button>
-               )}
-
-            </div>
             <Button
               variant="destructive"
               size="sm"
-              className="h-9 px-5 rounded-full font-bold text-xs shadow-lg shadow-red-500/20 hover:shadow-red-500/30 bg-linear-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 transition-all active:scale-95 shrink-0"
+              className="h-8 sm:h-9 px-4 sm:px-5 rounded-full font-bold text-[12px] sm:text-xs shadow-lg shadow-red-500/20 hover:shadow-red-500/30 bg-linear-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 transition-all active:scale-95 shrink-0"
               onClick={handleBatchDeleteClick}
               disabled={isDeleting}
             >
-              {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : "批量删除"}
+              {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "删除"}
             </Button>
           </motion.div>
         )}
