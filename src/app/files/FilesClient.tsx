@@ -206,66 +206,32 @@ export function FilesClient() {
   }, []);
 
   const handleConfirmGenerateShortlink = async (expiresIn: number, unit: 'minutes' | 'hours' | 'days') => {
-    const loadingToast = toast.loading('正在生成短链...');
-    try {
-      const url = await fileService.generateShortlink(shortlinkDialog.fileId, expiresIn, unit);
-      let encodedUrl = url;
-      try {
-        encodedUrl = new URL(url).toString();
-      } catch (e) {
-        console.error('URL parse failed:', e);
-      }
-      await navigator.clipboard.writeText(encodedUrl);
-      toast.success(
-        <div className="flex items-center justify-between w-full gap-4 -my-1">
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-sm text-foreground">短链已生成并复制</span>
-            <span className="text-[11px] text-zinc-500/80 truncate max-w-[200px]">{encodedUrl}</span>
-          </div>
-          <Button 
-            size="icon" 
-            variant="ghost" 
-            className="h-11 w-11 rounded-2xl hover:bg-emerald-500/10 transition-all shrink-0 -mr-1"
-            onClick={(e) => { e.stopPropagation(); window.open(encodedUrl, '_blank'); }}
-          >
-            <ExternalLink className="w-6 h-6 text-emerald-500" />
-          </Button>
-        </div>,
-        { id: loadingToast }
-      );
-      setShortlinkDialog({ open: false, fileId: '' });
-    } catch (err) {
-      console.error('生成短链失败:', err);
-      toast.error('生成短链失败，请检查短链服务配置', { id: loadingToast });
-    }
-  };
-
-  const handleBatchShortlinks = async () => {
-    if (selectedIds.length === 0) return;
+    const isBatch = shortlinkDialog.fileId === 'batch';
+    const targets = isBatch ? selectedIds : [shortlinkDialog.fileId];
+    const total = targets.length;
     
-    // Check if shortlinks enabled
-    if (!shortlinkEnabled) {
-      toast.error('短链服务未启用');
-      return;
-    }
+    if (total === 0) return;
 
-    const toastId = toast.loading(`正在为 ${selectedIds.length} 个文件生成短链...`);
+    const loadingToast = toast.loading(isBatch ? `正在生成第 1/${total} 个短链...` : '正在生成短链...');
     
     try {
       const results: string[] = [];
       let successCount = 0;
       let failCount = 0;
 
-      // Parallelize requests with a limit or just sequential for safety
-      // Using sequential for now to avoid rate limits
-      for (const id of selectedIds) {
+      for (let i = 0; i < total; i++) {
+        const id = targets[i];
+        if (isBatch) {
+          toast.loading(`正在生成第 ${i + 1}/${total} 个短链...`, { id: loadingToast });
+        }
+        
         try {
-           const url = await fileService.generateShortlink(id);
-           results.push(new URL(url).toString());
-           successCount++;
+          const url = await fileService.generateShortlink(id, expiresIn, unit);
+          results.push(new URL(url).toString());
+          successCount++;
         } catch (e) {
-           console.error(`Failed to generate shortlink for ${id}`, e);
-           failCount++;
+          console.error(`Failed to generate shortlink for ${id}`, e);
+          failCount++;
         }
       }
 
@@ -273,21 +239,73 @@ export function FilesClient() {
         const textToCopy = results.join('\n');
         await navigator.clipboard.writeText(textToCopy);
         
-        toast.success(`已生成 ${successCount} 个短链并复制`, {
-          description: failCount > 0 ? `${failCount} 个失败` : undefined,
-          id: toastId, 
-          duration: 4000 
-        });
-        // Clear selection after success? Maybe keep it for other actions.
-        // setSelectedIds([]); 
+        if (isBatch) {
+          toast.success(
+            <div className="flex flex-col gap-2 w-full -my-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-foreground">已生成 {successCount} 个短链并复制</span>
+                {failCount > 0 && <span className="text-[10px] text-red-500 font-medium">{failCount} 个失败</span>}
+              </div>
+              <div className="space-y-1.5 pr-2">
+                {results.slice(0, 2).map((url, idx) => (
+                  <div key={idx} className="flex items-center group/link">
+                    <span className="text-[12px] text-zinc-500 dark:text-zinc-400 font-medium truncate tracking-tight hover:text-primary transition-colors cursor-default pl-1">
+                      {url.replace(/^https?:\/\//, '')}
+                    </span>
+                  </div>
+                ))}
+                {results.length > 2 && (
+                  <div className="flex items-center pl-1">
+                    <span className="text-[10px] text-zinc-400/80 font-medium italic">
+                      ... 以及另外 {results.length - 2} 个链接
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>,
+            { id: loadingToast, duration: 5000 }
+          );
+        } else {
+          const encodedUrl = results[0];
+          toast.success(
+            <div className="flex items-center justify-between w-full gap-4 -my-1">
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-sm text-foreground">短链已生成并复制</span>
+                <span className="text-[11px] text-zinc-500/80 truncate max-w-[200px]">{encodedUrl}</span>
+              </div>
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                className="h-11 w-11 rounded-2xl hover:bg-emerald-500/10 transition-all shrink-0 -mr-1"
+                onClick={(e) => { e.stopPropagation(); window.open(encodedUrl, '_blank'); }}
+              >
+                <ExternalLink className="w-6 h-6 text-emerald-500" />
+              </Button>
+            </div>,
+            { id: loadingToast }
+          );
+        }
       } else {
-        toast.error('生成失败，请重试', { id: toastId });
+        toast.error('生成失败，请检查服务配置', { id: loadingToast });
       }
 
+      setShortlinkDialog({ open: false, fileId: '' });
     } catch (err) {
-      console.error('Batch shortlink error:', err);
-      toast.error('批量生成失败', { id: toastId });
+      console.error('Shortlink generation error:', err);
+      toast.error('生成过程发生错误', { id: loadingToast });
     }
+  };
+
+  const handleBatchShortlinks = async () => {
+    if (selectedIds.length === 0) return;
+    
+    if (!shortlinkEnabled) {
+      toast.error('短链服务未启用');
+      return;
+    }
+
+    // Trigger dialog for batch mode
+    setShortlinkDialog({ open: true, fileId: 'batch' });
   };
 
   const handleBatchDeleteClick = () => {
