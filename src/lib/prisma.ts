@@ -14,4 +14,5 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
-// Re-triggering IDE type re-evaluation
+// Re-triggering IDE type re-evaluation to detect new schema fields
+export const PRISMA_VERSION = '5.22.0';

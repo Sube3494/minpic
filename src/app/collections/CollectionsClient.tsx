@@ -29,6 +29,7 @@ interface Collection {
   fileCount: number;
   totalSize: number;
   shortCode?: string;
+  shortUrl?: string;
   firstThumbnail?: string;
   createdAt: string;
   expiresAt?: string;
@@ -74,11 +75,11 @@ export function CollectionsClient() {
     }
   };
 
-  const handleCopyShortlink = (e: React.MouseEvent, shortCode: string) => {
+  const handleCopyShortlink = (e: React.MouseEvent, shortCode: string, shortUrl?: string) => {
     e.stopPropagation();
-    const baseUrl = window.location.origin;
-    const shortUrl = `${baseUrl}/s/${shortCode}`;
-    navigator.clipboard.writeText(shortUrl);
+    // 优先使用后端存入的完整 shortUrl，其次作为兜底使用本地拼接的 /c/ 路径（合集专用）
+    const urlToCopy = shortUrl || `${window.location.origin}/c/${shortCode}`;
+    navigator.clipboard.writeText(urlToCopy);
     toast.success('短链已复制');
   };
 
@@ -320,7 +321,7 @@ export function CollectionsClient() {
                               variant="ghost"
                               size="sm"
                               className="flex-1 h-8 px-2 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                              onClick={(e) => handleCopyShortlink(e, collection.shortCode!)}
+                              onClick={(e) => handleCopyShortlink(e, collection.shortCode!, collection.shortUrl)}
                             >
                               <Copy className="w-3.5 h-3.5 mr-1.5" />
                               <span className="text-xs font-medium">复制</span>

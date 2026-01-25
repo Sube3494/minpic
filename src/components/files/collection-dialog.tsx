@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,14 +10,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
+
+import { ExpirationSelector, ExpirationValue } from './expiration-selector';
 
 interface CollectionDialogProps {
   open: boolean;
@@ -35,15 +30,28 @@ export function CollectionDialog({
   onConfirm,
 }: CollectionDialogProps) {
   const [name, setName] = useState('');
-  const [presetValue, setPresetValue] = useState('3-days');
+  const [expiration, setExpiration] = useState<ExpirationValue>({
+    expiresIn: 3,
+    unit: 'days',
+  });
   const [isLoading, setIsLoading] = useState(false);
+
+  // Reset name when dialog opens
+  useEffect(() => {
+    if (open) {
+      setName('');
+      setExpiration({
+        expiresIn: 3,
+        unit: 'days',
+      });
+    }
+  }, [open]);
 
   const handleConfirm = async () => {
     setIsLoading(true);
     try {
       if (shortlinkEnabled) {
-        const [val, u] = presetValue.split('-');
-        await onConfirm(name, parseInt(val), u as 'minutes' | 'hours' | 'days');
+        await onConfirm(name, expiration.expiresIn, expiration.unit);
       } else {
         await onConfirm(name);
       }
@@ -51,17 +59,6 @@ export function CollectionDialog({
       setIsLoading(false);
     }
   };
-
-  const presets = [
-    { label: '10分钟', value: '10-minutes' },
-    { label: '30分钟', value: '30-minutes' },
-    { label: '1小时', value: '1-hours' },
-    { label: '3小时', value: '3-hours' },
-    { label: '12小时', value: '12-hours' },
-    { label: '1天', value: '1-days' },
-    { label: '3天', value: '3-days' },
-    { label: '7天', value: '7-days' },
-  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,29 +86,10 @@ export function CollectionDialog({
           </div>
 
           {shortlinkEnabled && (
-            <div className="space-y-2">
-              <Label>有效期</Label>
-              <Select value={presetValue} onValueChange={setPresetValue}>
-                <SelectTrigger className="w-full border-none bg-zinc-100/50 dark:bg-white/5 shadow-none focus:ring-1 focus:ring-white/20">
-                  <SelectValue placeholder="选择有效期" />
-                </SelectTrigger>
-                <SelectContent 
-                  position="popper" 
-                  side="bottom" 
-                  className="border-none bg-zinc-900/90 backdrop-blur-xl text-white/90 shadow-2xl min-w-(--radix-select-trigger-width)"
-                >
-                  {presets.map((preset) => (
-                    <SelectItem 
-                      key={preset.value} 
-                      value={preset.value}
-                      className="focus:bg-white/10 focus:text-white cursor-pointer"
-                    >
-                      {preset.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <ExpirationSelector 
+              value={expiration}
+              onChange={setExpiration}
+            />
           )}
         </div>
 

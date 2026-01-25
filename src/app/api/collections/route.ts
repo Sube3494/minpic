@@ -95,8 +95,8 @@ export async function POST(request: NextRequest) {
         const shortlinkService = new ShortlinkService();
         shortlinkService.setConfig(sConfig);
 
-        // Get base URL from request
-        const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+        // Get base URL from environment or request fallback
+        const baseUrl = process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
         const collectionUrl = `${baseUrl}/c/${collection.id}`;
 
         const shortlink = await shortlinkService.createShortlink(
@@ -106,12 +106,13 @@ export async function POST(request: NextRequest) {
           unit
         );
 
-        // Calculate expiration time and update collection
+        // Calculate expiration time and update collection with both code and full URL
         const expiresAt = calculateExpiresAt(expiresIn, unit);
         await prisma.collection.update({
           where: { id: collection.id },
           data: {
             shortCode: shortlink.short_code,
+            shortUrl: shortlink.short_url,
             expiresAt,
           },
         });
@@ -180,6 +181,7 @@ export async function GET() {
         fileCount: c.fileCount,
         totalSize: c.totalSize.toString(),
         shortCode: c.shortCode,
+        shortUrl: c.shortUrl,
         firstThumbnail,
         createdAt: c.createdAt.toISOString(),
         expiresAt: c.expiresAt?.toISOString(),

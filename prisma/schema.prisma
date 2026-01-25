@@ -267,6 +267,7 @@ model Collection {
   fileCount Int              @default(0)
   totalSize BigInt           @default(0)
   shortCode String?          @unique
+  shortUrl  String?
   expiresAt DateTime?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
