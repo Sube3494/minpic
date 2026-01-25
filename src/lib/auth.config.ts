@@ -7,6 +7,7 @@ import bcrypt from 'bcryptjs';
 import { hashEmail } from './md5';
 import { prisma } from './prisma';
 import { getSystemSettings } from './settings';
+import { getSafeAvatarUrl } from './utils';
 
 declare module 'next-auth' {
   interface Session {
@@ -178,7 +179,7 @@ export const authConfig: NextAuthConfig = {
           where: { id: user.id! },
           data: { 
             lastLoginAt: new Date(),
-            ...(!user.avatar ? { avatar: `https://cravatar.cn/avatar/${hashEmail(user.email!)}?d=404` } : {})
+            ...(!user.avatar ? { avatar: getSafeAvatarUrl(`https://secure.gravatar.com/avatar/${hashEmail(user.email!)}?d=404`) } : { avatar: getSafeAvatarUrl(user.avatar) })
           }
         });
 
@@ -296,7 +297,9 @@ export const authConfig: NextAuthConfig = {
         // Gravatar Fallback
         if (!token.avatar && token.email) {
           const hash = hashEmail(token.email);
-          token.avatar = `https://cravatar.cn/avatar/${hash}?d=404`;
+          token.avatar = getSafeAvatarUrl(`https://secure.gravatar.com/avatar/${hash}?d=404`);
+        } else if (token.avatar) {
+          token.avatar = getSafeAvatarUrl(token.avatar as string);
         }
 
         // Double check admin status by email as a fail-safe

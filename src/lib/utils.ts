@@ -63,3 +63,13 @@ export function serializeBigInt<T>(obj: T): any {
   
   return obj;
 }
+
+/**
+ * 获取安全的头像 URL，如果是 Gravatar 则替换为国内镜像
+ */
+export function getSafeAvatarUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  
+  // Replace Gravatar with Cravatar mirror
+  return url.replace(/https?:\/\/([^\/]+\.)?gravatar\.com\/avatar\//g, 'https://cravatar.cn/avatar/');
+}

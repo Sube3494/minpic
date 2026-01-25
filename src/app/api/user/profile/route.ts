@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { getSystemSettings } from '@/lib/settings';
-import { serializeBigInt } from '@/lib/utils';
+import { serializeBigInt, getSafeAvatarUrl } from '@/lib/utils';
 import { hashEmail } from '@/lib/md5';
 
 export async function GET() {
@@ -38,9 +38,9 @@ export async function GET() {
     }
 
     // Gravatar fallback for API
-    if (!userInfo.avatar && userInfo.email) {
-      const hash = hashEmail(userInfo.email);
-      userInfo.avatar = `https://cravatar.cn/avatar/${hash}?d=404`;
+    if (userInfo.avatar || userInfo.email) {
+      const avatarUrl = userInfo.avatar || `https://secure.gravatar.com/avatar/${hashEmail(userInfo.email!)}?d=404`;
+      userInfo.avatar = getSafeAvatarUrl(avatarUrl);
     }
 
     // Get quota limits from TeamMember or Team
