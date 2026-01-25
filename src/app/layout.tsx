@@ -2,7 +2,7 @@
  * @Date: 2025-12-24 21:26:18
  * @Author: Sube
  * @FilePath: layout.tsx
- * @LastEditTime: 2026-01-06 14:35:02
+ * @LastEditTime: 2026-01-26 03:02:04
  * @Description: 
  */
 import type { Metadata } from "next";
@@ -54,7 +54,8 @@ export default async function RootLayout({
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} antialiased min-h-screen relative selection:bg-primary/30 selection:text-primary-foreground`}
+        translate="no"
+        className={`${inter.variable} ${jetbrainsMono.variable} antialiased min-h-screen relative selection:bg-primary/30 selection:text-primary-foreground notranslate`}
       >
         <ThemeProvider
             attribute="class"

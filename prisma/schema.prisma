@@ -8,49 +8,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// User Authentication & Authorization
-// ============================================
-
-// UserRole: ADMIN | USER
-// UserStatus: ACTIVE | SUSPENDED | BANNED
-
 model User {
-  id String @id @default(cuid())
-
-  // GitHub OAuth info (变为可选)
-  githubId String? @unique
-  username String  @unique
-  password String? // 账号密码加密存储
-  name     String?
-  email    String? @unique
-  avatar   String?
-
-  // Role and status
-  role   String @default("USER") // ADMIN | USER
-  status String @default("ACTIVE") // ACTIVE | SUSPENDED | BANNED
-
-  // Usage statistics (for display only)
-  storageUsed BigInt @default(0)
-  fileCount   Int    @default(0)
-
-  // Metadata
-  lastLoginAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  // Relations
-  accounts  Account[]
-  sessions  Session[]
-  configs   Config[]
-  files     File[]
-  auditLogs AuditLog[]
-
-  // Team relations
-  ownedTeam          Team?             @relation("TeamOwner")
-  teamMembership     TeamMember?
+  id                 String            @id @default(cuid())
+  githubId           String?           @unique
+  username           String            @unique
+  password           String?
+  name               String?
+  email              String?           @unique
+  avatar             String?
+  role               String            @default("USER")
+  status             String            @default("ACTIVE")
+  storageUsed        BigInt            @default(0)
+  fileCount          Int               @default(0)
+  lastLoginAt        DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  accounts           Account[]
+  auditLogs          AuditLog[]
+  collections        Collection[]
+  configs            Config[]
+  files              File[]
   createdInviteCodes InviteCode[]
   multipartUploads   MultipartUpload[]
+  sessions           Session[]
+  teamMembership     TeamMember?
+  ownedTeam          Team?             @relation("TeamOwner")
 
   @@index([githubId])
   @@index([username])
@@ -60,7 +42,6 @@ model User {
   @@map("users")
 }
 
-// NextAuth.js models
 model Account {
   id                String  @id @default(cuid())
   userId            String
@@ -74,8 +55,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -86,8 +66,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expires])
   @@index([expires])
@@ -102,10 +81,6 @@ model VerificationToken {
   @@unique([identifier, token])
   @@map("verification_tokens")
 }
-
-// ============================================
-// Registration Control
-// ============================================
 
 model RegistrationWhitelist {
   id        String    @id @default(cuid())
@@ -123,67 +98,37 @@ model RegistrationWhitelist {
   @@map("registration_whitelist")
 }
 
-// ============================================
-// System Settings
-// ============================================
-
 model SystemSettings {
-  id String @id @default(cuid())
-
-  // Registration control
-  registrationEnabled Boolean @default(false)
-  requireWhitelist    Boolean @default(true)
-
-  // Default quotas removed - now managed at team level
-
-  // Site info
-  siteName        String  @default("MinPic")
-  siteDescription String?
-
-  // Limits
-  uploadRateLimit Int @default(100)
-
-  // Auth limits
-  githubLoginEnabled Boolean @default(true)
-
-  updatedAt DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  registrationEnabled Boolean  @default(false)
+  requireWhitelist    Boolean  @default(true)
+  siteName            String   @default("MinPic")
+  siteDescription     String?
+  uploadRateLimit     Int      @default(100)
+  githubLoginEnabled  Boolean  @default(true)
+  updatedAt           DateTime @updatedAt
 
   @@map("system_settings")
 }
 
-// ============================================
-// Audit Logging
-// ============================================
-
-// AuditAction: USER_LOGIN | USER_CREATED | USER_UPDATED | USER_SUSPENDED | USER_BANNED |
-//              WHITELIST_ADDED | WHITELIST_REMOVED | QUOTA_UPDATED |
-//              FILE_UPLOADED | FILE_DELETED | CONFIG_CREATED | CONFIG_DELETED
-
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String?
-  action     String // See AuditAction values above
+  action     String
   targetType String?
   targetId   String?
   metadata   String?
   ipAddress  String?
   userAgent  String?
   createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id])
 
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  // 优化的索引策略
-  @@index([userId, action, createdAt(sort: Desc)]) // 覆盖用户+操作+时间的复合查询
-  @@index([createdAt(sort: Desc), userId, action]) // 按时间全局查询,可按用户/操作过滤
-  @@index([action]) // 单独按操作类型查询
+  @@index([userId, action, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc), userId, action])
+  @@index([action])
   @@map("audit_logs")
 }
 
-// ============================================
-// Application Data
-// ============================================
-
-// Config table
 model Config {
   id        String   @id @default(cuid())
   userId    String
@@ -191,38 +136,36 @@ model Config {
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, key])
   @@index([userId])
   @@map("configs")
 }
 
-// File table
 model File {
-  id            String    @id @default(cuid())
-  userId        String
-  filename      String
-  minioPath     String    // MinIO 存储路径
-  fileSize      BigInt
-  mimeType      String
-  fileType      String
-  thumbnailPath String?
-  thumbnailData Bytes?
-  width         Int?
-  height        Int?
-  duration      Float?
-  tags          String    @default("[]")
-  pinyin        String?
-  configId      String?
-  expiresAt     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id              String           @id @default(cuid())
+  userId          String
+  filename        String
+  minioPath       String
+  fileSize        BigInt
+  mimeType        String
+  fileType        String
+  thumbnailPath   String?
+  thumbnailData   Bytes?
+  width           Int?
+  height          Int?
+  duration        Float?
+  tags            String           @default("[]")
+  pinyin          String?
+  configId        String?
+  expiresAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  collectionItems CollectionItem[]
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, minioPath]) // 确保每个用户存储的文件路径唯一
+  @@unique([userId, minioPath])
   @@index([userId])
   @@index([fileType])
   @@index([createdAt])
@@ -234,56 +177,38 @@ model File {
   @@map("files")
 }
 
-// ============================================
-// Team Management
-// ============================================
-
 model Team {
-  id          String  @id @default(cuid())
-  name        String
-  description String?
-
-  ownerId String @unique
-  owner   User   @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-
-  // Team quotas (set by team owner)
-  storageQuota BigInt @default(5368709120) // 5GB default
-  fileQuota    Int    @default(10000) // 10000 files default
-
-  // Auto-allocation settings
-  autoAllocateQuota   Boolean @default(false)
-  defaultStorageQuota BigInt  @default(0)
-  defaultFileQuota    Int     @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  members     TeamMember[]
-  inviteCodes InviteCode[]
+  id                  String       @id @default(cuid())
+  name                String
+  description         String?
+  ownerId             String       @unique
+  storageQuota        BigInt       @default(5368709120)
+  fileQuota           Int          @default(10000)
+  autoAllocateQuota   Boolean      @default(false)
+  defaultStorageQuota BigInt       @default(0)
+  defaultFileQuota    Int          @default(0)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  inviteCodes         InviteCode[]
+  members             TeamMember[]
+  owner               User         @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([ownerId])
   @@map("teams")
 }
 
 model TeamMember {
-  id String @id @default(cuid())
-
-  teamId String
-  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
-
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  role String @default("MEMBER") // ADMIN | MEMBER
-
-  // 成员专属配额 (null 表示使用团队默认配额)
-  storageQuota BigInt? // 存储配额 (字节)
-  fileQuota    Int?    // 文件数量配额
-
+  id           String      @id @default(cuid())
+  teamId       String
+  userId       String      @unique
+  role         String      @default("MEMBER")
+  storageQuota BigInt?
+  fileQuota    Int?
   inviteCodeId String?
-  inviteCode   InviteCode? @relation(fields: [inviteCodeId], references: [id], onDelete: SetNull)
-
-  joinedAt DateTime @default(now())
+  joinedAt     DateTime    @default(now())
+  inviteCode   InviteCode? @relation(fields: [inviteCodeId], references: [id])
+  team         Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([teamId, userId])
   @@index([teamId])
@@ -294,22 +219,17 @@ model TeamMember {
 }
 
 model InviteCode {
-  id   String @id @default(cuid())
-  code String @unique // 32 字符随机邀请码
-
-  teamId String
-  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
-
+  id        String       @id @default(cuid())
+  code      String       @unique
+  teamId    String
   createdBy String
-  creator   User   @relation(fields: [createdBy], references: [id], onDelete: Cascade)
-
-  expiresAt DateTime // 过期时间
-  maxUses   Int      @default(5) // 最大使用次数
-  usedCount Int      @default(0) // 已使用次数
-
-  members TeamMember[]
-
-  createdAt DateTime @default(now())
+  expiresAt DateTime
+  maxUses   Int          @default(5)
+  usedCount Int          @default(0)
+  createdAt DateTime     @default(now())
+  creator   User         @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  team      Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  members   TeamMember[]
 
   @@index([teamId])
   @@index([code])
@@ -317,35 +237,60 @@ model InviteCode {
   @@map("invite_codes")
 }
 
-// ============================================
-// Multipart Upload (分片上传)
-// ============================================
-
 model MultipartUpload {
-  id       String @id @default(cuid())
-  uploadId String @unique // MinIO Upload ID
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  filename String
-  fileSize BigInt
-  mimeType String
-
+  id        String   @id @default(cuid())
+  uploadId  String   @unique
+  userId    String
+  filename  String
+  fileSize  BigInt
+  mimeType  String
   bucket    String
   objectKey String
-
-  // 已上传的分片信息 (JSON 字符串)
-  parts String @default("[]") // Array<{ partNumber: number, etag: string }>
-
-  status String @default("pending") // pending | completed | aborted
-
+  parts     String   @default("[]")
+  status    String   @default("pending")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  expiresAt DateTime // 24小时后过期
+  expiresAt DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([uploadId])
   @@index([status])
   @@index([expiresAt])
   @@map("multipart_uploads")
+}
+
+model Collection {
+  id        String           @id @default(cuid())
+  userId    String
+  name      String?
+  fileCount Int              @default(0)
+  totalSize BigInt           @default(0)
+  shortCode String?          @unique
+  expiresAt DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  items     CollectionItem[]
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([shortCode])
+  @@index([expiresAt])
+  @@index([createdAt])
+  @@map("collections")
+}
+
+model CollectionItem {
+  id           String     @id @default(cuid())
+  collectionId String
+  fileId       String
+  order        Int
+  createdAt    DateTime   @default(now())
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  file         File       @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, fileId])
+  @@index([collectionId, order])
+  @@index([fileId])
+  @@map("collection_items")
 }

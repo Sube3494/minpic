@@ -27,6 +27,7 @@ import { UploadArea } from '@/components/files/upload-area';
 import { FilterBar } from '@/components/files/filter-bar';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ShortlinkDialog } from '@/components/files/shortlink-dialog';
+import { CollectionDialog } from '@/components/files/collection-dialog';
 import { fileService } from '@/services/file.service';
 import { PageWrapper } from '@/components/layout/page-wrapper';
 import { toast } from 'sonner';
@@ -88,6 +89,8 @@ export function FilesClient() {
     open: boolean;
     fileId: string;
   }>({ open: false, fileId: '' });
+
+  const [collectionDialog, setCollectionDialog] = useState(false);
 
   const [previewFile, setPreviewFile] = useState<typeof files[0] | null>(null);
 
@@ -329,6 +332,49 @@ export function FilesClient() {
       }
     }
     setIsDeleting(false);
+  };
+
+  const handleCreateCollection = async (name: string, expiresIn?: number, unit?: 'minutes' | 'hours' | 'days') => {
+    if (selectedIds.length === 0) return;
+
+    const loadingToast = toast.loading('正在创建合集...');
+
+    try {
+      const body: { fileIds: string[]; name?: string; expiresIn?: number; unit?: string } = {
+        fileIds: selectedIds,
+        name,
+      };
+
+      if (expiresIn && unit) {
+        body.expiresIn = expiresIn;
+        body.unit = unit;
+      }
+
+      const res = await fetch('/api/collections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to create collection');
+      }
+
+      const data = await res.json();
+
+      if (data.shortUrl) {
+        await navigator.clipboard.writeText(data.shortUrl);
+        toast.success('合集已创建，短链已复制', { id: loadingToast });
+      } else {
+        toast.success('合集已创建', { id: loadingToast });
+      }
+
+      setCollectionDialog(false);
+      setSelectedIds([]);
+    } catch (error) {
+      console.error('Failed to create collection:', error);
+      toast.error('创建合集失败', { id: loadingToast });
+    }
   };
 
   // Global Paste Handler
@@ -718,6 +764,15 @@ export function FilesClient() {
                   短链
                 </Button>
               )}
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 sm:px-4 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 font-medium text-[12px] sm:text-xs transition-colors shrink-0"
+                onClick={() => setCollectionDialog(true)}
+              >
+                合集
+              </Button>
             </div>
 
             <Button
@@ -728,6 +783,17 @@ export function FilesClient() {
               disabled={isDeleting}
             >
               {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "删除"}
+            </Button>
+
+            <div className="w-px h-5 bg-zinc-200 dark:bg-zinc-700/50 mx-0.5" />
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors shrink-0 mr-1"
+              onClick={() => setSelectedIds([])}
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           </motion.div>
         )}
@@ -758,6 +824,15 @@ export function FilesClient() {
       open={shortlinkDialog.open}
       onOpenChange={(open) => setShortlinkDialog(prev => ({ ...prev, open }))}
       onConfirm={handleConfirmGenerateShortlink}
+    />
+
+    {/* Collection Dialog */}
+    <CollectionDialog
+      open={collectionDialog}
+      onOpenChange={setCollectionDialog}
+      selectedCount={selectedIds.length}
+      shortlinkEnabled={shortlinkEnabled}
+      onConfirm={handleCreateCollection}
     />
   </>
   );
