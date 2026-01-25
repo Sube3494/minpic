@@ -2,7 +2,7 @@
  * @Date: 2026-01-06 19:19:14
  * @Author: Sube
  * @FilePath: ProfileClient.tsx
- * @LastEditTime: 2026-01-07 03:06:50
+ * @LastEditTime: 2026-01-25 23:41:46
  * @Description: 
  */
 'use client';
@@ -20,7 +20,7 @@ import { TeamResourceCard } from '@/components/settings/team-resource-card';
 import { PersonalStorageCard } from '@/components/settings/personal-storage-card';
 import { Badge } from '@/components/ui/badge';
 import { motion, Variants } from 'framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -66,7 +66,37 @@ export function ProfileClient() {
   // Password Change State
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '' });
+  const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '', code: '' });
+  const [resetMode, setResetMode] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [isSendingCode, setIsSendingCode] = useState(false);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [countdown]);
+
+  const handleSendCode = async () => {
+    if (!profile?.email || countdown > 0) return;
+    setIsSendingCode(true);
+    try {
+      const res = await fetch('/api/auth/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: profile.email, type: 'reset' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '验证码发送失败');
+      toast.success('验证码已发送至您的邮箱');
+      setCountdown(60);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '发送失败');
+    } finally {
+      setIsSendingCode(false);
+    }
+  };
 
   // Unbind GitHub State
   const [unbindDialogOpen, setUnbindDialogOpen] = useState(false);
@@ -127,20 +157,32 @@ export function ProfileClient() {
        return;
     }
 
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error('两次输入的密码不一致');
+      setPasswordLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch('/api/user/password', {
+      const apiUrl = resetMode ? '/api/auth/reset-password' : '/api/user/password';
+      const body = resetMode 
+        ? { email: profile?.email, code: passwordForm.code, newPassword: passwordForm.newPassword }
+        : { oldPassword: passwordForm.oldPassword, newPassword: passwordForm.newPassword };
+
+      const res = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(passwordForm),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || '修改失败');
+        toast.error(data.error || '操作失败');
       } else {
-        toast.success('密码修改成功，请重新登录');
+        toast.success(resetMode ? '密码重置成功，请重新登录' : '密码修改成功，请重新登录');
         setPasswordDialogOpen(false);
-        setPasswordForm({ oldPassword: '', newPassword: '' });
+        setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '', code: '' });
+        setResetMode(false);
         // Force logout
         signOut({ callbackUrl: '/auth/signin' });
       }
@@ -498,56 +540,107 @@ export function ProfileClient() {
               </Card>
             </div>
 
-            {/* Password Change Dialog */}
-            <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
-               <DialogContent className="sm:max-w-[480px]">
-                  <DialogHeader className="space-y-3">
-                    <DialogTitle>修改密码</DialogTitle>
-                    <DialogDescription className="space-y-2.5" asChild>
-                      <div>
-                        <span className="block text-zinc-500 dark:text-zinc-400">
-                          为了您的账号安全，请定期修改密码并确保新密码足够复杂。
-                        </span>
-                        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10 text-[11px] text-amber-700 dark:text-amber-400/90 leading-relaxed">
-                          <Activity className="w-3.5 h-3.5 mt-0.5 shrink-0 opacity-70" />
-                          <div>
-                            <p className="font-semibold mb-0.5">安全要求：</p>
-                            <p>密码必须包含<span className="font-bold underline decoration-amber-500/30 underline-offset-2">字母和数字</span>，长度不少于 <span className="font-bold">8</span> 位。</p>
+            <Dialog open={passwordDialogOpen} onOpenChange={(open) => {
+              setPasswordDialogOpen(open);
+              if (!open) {
+                setResetMode(false);
+                setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '', code: '' });
+              }
+            }}>
+               <DialogContent className="sm:max-w-[440px] p-0 overflow-hidden border border-zinc-200/50 dark:border-white/10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-3xl shadow-2xl">
+                  <DialogHeader className="p-6 pb-2 space-y-4 text-left">
+                    <DialogTitle className="text-xl font-bold text-zinc-900 dark:text-white">{resetMode ? '重置密码' : '修改密码'}</DialogTitle>
+                    <div className="space-y-4">
+                      <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed font-medium">
+                        {resetMode ? '验证您的邮箱身份并重置新密码：' : '为保障账户安全，新密码需满足：'}
+                      </p>
+                      
+                      <div className="p-4 rounded-2xl bg-zinc-500/3 dark:bg-white/2 border border-zinc-200/50 dark:border-white/5 grid grid-cols-2 gap-x-4 gap-y-3">
+                        {[
+                          { label: '大小写字母', met: /[A-Za-z]/.test(passwordForm.newPassword) },
+                          { label: '包含数字', met: /\d/.test(passwordForm.newPassword) },
+                          { label: '长度 ≥ 8 位', met: passwordForm.newPassword.length >= 8 },
+                          { label: '不包含空格', met: passwordForm.newPassword.length > 0 && !/\s/.test(passwordForm.newPassword) },
+                        ].map((item, i) => (
+                          <div key={i} className="flex items-center gap-2.5 transition-all duration-300">
+                            <div className={cn(
+                              "shrink-0 w-4 h-4 rounded-full flex items-center justify-center transition-all duration-300",
+                              item.met ? "bg-emerald-500/20" : "bg-zinc-200/50 dark:bg-white/10"
+                            )}>
+                              <div className={cn(
+                                "w-1.5 h-1.5 rounded-full transition-all duration-300",
+                                item.met ? "bg-emerald-500 scale-125" : "bg-zinc-400 dark:bg-zinc-500"
+                              )} />
+                            </div>
+                            <span className={cn(
+                              "text-[11px] sm:text-[12px] font-medium transition-colors duration-300",
+                              item.met ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-500 dark:text-zinc-400"
+                            )}>
+                              {item.label}
+                            </span>
                           </div>
-                        </div>
+                        ))}
                       </div>
-                    </DialogDescription>
+                    </div>
                   </DialogHeader>
-                 <form onSubmit={handleChangePassword} className="grid gap-4 py-4">
-                   <div className="grid gap-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="oldPassword">旧密码</Label>
+                  
+                 <form onSubmit={handleChangePassword} className="p-6 pt-2 space-y-5">
+                   <div className="space-y-2">
+                      <div className="flex items-center justify-between px-1">
+                        <Label htmlFor={resetMode ? "code" : "oldPassword"} className="text-zinc-600 dark:text-zinc-300 text-xs font-semibold uppercase tracking-wider">
+                          {resetMode ? "邮箱验证码" : "旧密码"}
+                        </Label>
                         <button 
                           type="button"
-                          onClick={() => {
-                            setPasswordDialogOpen(false);
-                            signOut({ callbackUrl: '/auth/signin?mode=forgot' });
-                          }}
-                          className="text-[10px] text-zinc-400 hover:text-primary transition-colors"
+                          onClick={() => setResetMode(!resetMode)}
+                          className="text-[10px] text-zinc-400 hover:text-primary transition-colors font-medium underline underline-offset-2"
                         >
-                          忘记旧密码？
+                          {resetMode ? "记起旧密码了？" : "忘记旧密码？"}
                         </button>
                       </div>
-                     <Input
-                       id="oldPassword"
-                       type="password"
-                       value={passwordForm.oldPassword}
-                       onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
-                       required
-                     />
+                      
+                      {resetMode ? (
+                        <div className="flex gap-2">
+                          <Input
+                            id="code"
+                            placeholder="6 位验证码"
+                            className="bg-zinc-50/50 dark:bg-white/3 border-zinc-200 dark:border-white/10 h-11 rounded-xl focus-visible:ring-primary/20 transition-all text-zinc-900 dark:text-white font-mono"
+                            value={passwordForm.code}
+                            onChange={(e) => setPasswordForm({ ...passwordForm, code: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                            required
+                          />
+                          <Button 
+                            type="button"
+                            variant="secondary"
+                            className="h-11 px-4 rounded-xl text-xs font-bold whitespace-nowrap bg-zinc-200/50 dark:bg-white/10 hover:bg-primary/20 hover:text-primary transition-all disabled:opacity-50"
+                            onClick={handleSendCode}
+                            disabled={countdown > 0 || isSendingCode}
+                          >
+                            {isSendingCode ? <Loader2 className="w-4 h-4 animate-spin" /> : (countdown > 0 ? `${countdown}s` : '发送验证码')}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Input
+                          id="oldPassword"
+                          type="password"
+                          placeholder="输入当前使用的密码"
+                          className="bg-zinc-50/50 dark:bg-white/3 border-zinc-200 dark:border-white/10 h-11 rounded-xl focus-visible:ring-primary/20 transition-all text-zinc-900 dark:text-white"
+                          value={passwordForm.oldPassword}
+                          onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
+                          required
+                        />
+                      )}
                    </div>
-                   <div className="grid gap-2">
-                     <Label htmlFor="newPassword">新密码</Label>
+                   
+                   <div className="space-y-2">
+                     <Label htmlFor="newPassword" className="text-zinc-600 dark:text-zinc-300 text-xs font-semibold uppercase tracking-wider px-1">新密码</Label>
                       <Input
                         id="newPassword"
                         type="password"
+                        placeholder="输入至少 8 位的强密码"
                         className={cn(
-                          passwordForm.newPassword && !/^(?=.*[A-Za-z])(?=.*\d)[^\s]{8,}$/.test(passwordForm.newPassword) && "border-red-500/50 dark:border-red-500/50 focus-visible:ring-red-500/20"
+                          "bg-zinc-50/50 dark:bg-white/3 border-zinc-200 dark:border-white/10 h-11 rounded-xl focus-visible:ring-primary/20 transition-all text-zinc-900 dark:text-white",
+                          passwordForm.newPassword && !/^(?=.*[A-Za-z])(?=.*\d)[^\s]{8,}$/.test(passwordForm.newPassword) && "border-red-500/50 bg-red-500/2 focus-visible:ring-red-500/20"
                         )}
                         value={passwordForm.newPassword}
                         onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
@@ -555,17 +648,43 @@ export function ProfileClient() {
                         minLength={6}
                       />
                       {passwordForm.newPassword && !/^(?=.*[A-Za-z])(?=.*\d)[^\s]{8,}$/.test(passwordForm.newPassword) && (
-                        <span className="text-[10px] text-red-500 font-medium animate-in fade-in block mt-1 ml-1">
+                        <p className="text-[11px] text-red-500 dark:text-red-400 font-medium animate-in fade-in slide-in-from-top-1 px-1">
                           密码需包含字母和数字，且不少于 8 位
-                        </span>
+                        </p>
                       )}
                    </div>
-                   <DialogFooter>
-                     <Button type="submit" disabled={passwordLoading}>
-                       {passwordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                   
+                   <div className="space-y-2">
+                     <Label htmlFor="confirmPassword" className="text-zinc-600 dark:text-zinc-300 text-xs font-semibold uppercase tracking-wider px-1">确认新密码</Label>
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        placeholder="重复输入新密码"
+                        className={cn(
+                          "bg-zinc-50/50 dark:bg-white/3 border-zinc-200 dark:border-white/10 h-11 rounded-xl focus-visible:ring-primary/20 transition-all text-zinc-900 dark:text-white",
+                          passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword && "border-red-500/50 bg-red-500/2 focus-visible:ring-red-500/20"
+                        )}
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                        required
+                      />
+                      {passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword && (
+                        <p className="text-[11px] text-red-500 dark:text-red-400 font-medium animate-in fade-in slide-in-from-top-1 px-1">
+                          两次输入的密码不一致
+                        </p>
+                      )}
+                   </div>
+                   
+                   <div className="pt-2">
+                     <Button 
+                       type="submit" 
+                       disabled={passwordLoading}
+                       className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold transition-all active:scale-[0.98] shadow-lg shadow-primary/20"
+                     >
+                       {passwordLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />}
                        确认修改
                      </Button>
-                   </DialogFooter>
+                   </div>
                  </form>
                </DialogContent>
             </Dialog>
@@ -672,32 +791,38 @@ export function ProfileClient() {
         />
         
         <Dialog open={editProfileOpen} onOpenChange={setEditProfileOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>编辑个人资料</DialogTitle>
-              <DialogDescription>
+          <DialogContent className="sm:max-w-[420px] p-0 overflow-hidden border border-zinc-200/50 dark:border-white/10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-2xl shadow-2xl">
+            <DialogHeader className="p-6 pb-2 space-y-3 text-left">
+              <DialogTitle className="text-xl font-bold text-zinc-900 dark:text-white text-left">编辑个人资料</DialogTitle>
+              <DialogDescription className="text-sm text-zinc-500 dark:text-zinc-400 text-left">
                 设置一个独特的昵称，让他人更容易记住您。
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleUpdateProfile} className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="nickname">昵称</Label>
+            <form onSubmit={handleUpdateProfile} className="p-6 pt-2 space-y-6">
+              <div className="space-y-2.5">
+                <Label htmlFor="nickname" className="text-zinc-600 dark:text-zinc-300 text-xs font-semibold uppercase tracking-wider px-1">昵称</Label>
                 <Input
                   id="nickname"
+                  placeholder="输入您的新昵称"
+                  className="bg-zinc-50/50 dark:bg-white/3 border-zinc-200 dark:border-white/10 h-11 rounded-xl focus-visible:ring-primary/20 transition-all text-zinc-900 dark:text-white"
                   value={editForm.name}
                   onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
                   maxLength={32}
                 />
-                <p className="text-[10px] text-zinc-500">
-                  留空则默认显示您的用户名 @{profile?.username}
+                <p className="text-[11px] text-zinc-500 px-1">
+                   留空则默认显示您的用户名 <span className="text-zinc-400 font-medium">@{profile?.username}</span>
                 </p>
               </div>
-              <DialogFooter>
-                <Button type="submit" disabled={editLoading}>
-                  {editLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <div className="pt-2">
+                <Button 
+                  type="submit" 
+                  disabled={editLoading}
+                  className="w-full h-11 rounded-xl bg-primary hover:bg-primary/90 text-white font-bold transition-all active:scale-[0.98] shadow-lg shadow-primary/20"
+                >
+                  {editLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />}
                   保存更改
                 </Button>
-              </DialogFooter>
+              </div>
             </form>
           </DialogContent>
         </Dialog>
