@@ -38,7 +38,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [direction, setDirection] = useState(0); // 1 for next, -1 for prev
   const [showPlaylist, setShowPlaylist] = useState(false); // Enabled via swipe/button
   const [isDesktop, setIsDesktop] = useState(false);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
@@ -56,7 +55,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const [showIndicator, setShowIndicator] = useState<'brightness' | 'volume' | false>(false);
   const indicatorTimer = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const isAdjustingVolumeRef = useRef(false);
 
   // Custom Player States
   const [isPlaying, setIsPlaying] = useState(false);
@@ -65,6 +63,9 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const [showControls, setShowControls] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [swipeY, setSwipeY] = useState(0); // TikTok-style gesture offset
+  const [edgeNotice, setEdgeNotice] = useState<string | null>(null);
+  const edgeNoticeTimer = useRef<NodeJS.Timeout | null>(null);
   const controlsTimer = useRef<NodeJS.Timeout | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -87,26 +88,8 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     return (videos[0] as HTMLVideoElement) || videoRef.current;
   };
 
-  // Animation variants
-  const slideVariants = {
-    enter: (direction: number) => ({
-      y: direction > 0 ? '100%' : '-100%',
-      opacity: 0,
-      scale: 1, // Remove scale effect for pure slide
-    }),
-    center: {
-      zIndex: 1,
-      y: 0,
-      opacity: 1,
-      scale: 1,
-    },
-    exit: (direction: number) => ({
-      zIndex: 0,
-      y: direction < 0 ? '100%' : '-100%',
-      opacity: 0,
-      scale: 1, // Remove scale effect for pure slide
-    })
-  };
+  // Carousel Animation Config
+  const carouselY = `calc(-${currentIndex * 100}% + ${swipeY}px)`;
 
   // Keyboard navigation
   useEffect(() => {
@@ -118,7 +101,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
         case 'ArrowUp':
           e.preventDefault();
           if (currentIndex > 0) {
-            setDirection(-1);
             setCurrentIndex(prev => prev - 1);
           } else {
             toast.info('已经到顶了');
@@ -128,10 +110,9 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
         case 'ArrowDown':
           e.preventDefault();
           if (currentIndex < items.length - 1) {
-            setDirection(1);
             setCurrentIndex(prev => prev + 1);
           } else {
-            toast.info('已经到底了');
+            triggerEdgeNotice('已经到底了');
           }
           break;
       }
@@ -141,29 +122,33 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [loading, items.length, currentIndex]);
 
+  const triggerEdgeNotice = (msg: string) => {
+    setEdgeNotice(msg);
+    if (edgeNoticeTimer.current) clearTimeout(edgeNoticeTimer.current);
+    edgeNoticeTimer.current = setTimeout(() => setEdgeNotice(null), 2000);
+  };
+
   const handleWheel = (e: React.WheelEvent) => {
     if (isSwitchingRef.current) return;
     if (Math.abs(e.deltaY) < 30) return;
 
     if (e.deltaY > 0) {
       if (currentIndex < items.length - 1) {
-        setDirection(1);
         setCurrentIndex(prev => prev + 1);
         isSwitchingRef.current = true;
         setTimeout(() => isSwitchingRef.current = false, 500);
       } else {
-        toast.info('已经到底了');
+        triggerEdgeNotice('已经到底了');
         isSwitchingRef.current = true;
         setTimeout(() => isSwitchingRef.current = false, 1000);
       }
     } else {
       if (currentIndex > 0) {
-        setDirection(-1);
         setCurrentIndex(prev => prev - 1);
         isSwitchingRef.current = true;
         setTimeout(() => isSwitchingRef.current = false, 500);
       } else {
-        toast.info('已经到顶了');
+        triggerEdgeNotice('已经到顶了');
         isSwitchingRef.current = true;
         setTimeout(() => isSwitchingRef.current = false, 1000);
       }
@@ -171,7 +156,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   };
 
   const jumpToIndex = (index: number) => {
-    setDirection(index > currentIndex ? 1 : -1);
     setCurrentIndex(index);
   };
 
@@ -215,7 +199,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     // If starting on right 25% of screen, adjust volume
     else if (touchStartX.current > window.innerWidth * 0.75) {
         setIsAdjusting('volume');
-        isAdjustingVolumeRef.current = true;
         setShowIndicator('volume');
         if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
 
@@ -224,12 +207,21 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
         setVolume(newVolume);
         
         // Apply volume to video immediately if exists
-        if (videoRef.current) {
-            // Note: On iOS, this property is read-only
-            videoRef.current.volume = newVolume;
-            // Force unmuting if increasing volume
-            if (newVolume > 0) videoRef.current.muted = false;
-            else videoRef.current.muted = true;
+        const video = getActiveVideo();
+        if (video) {
+            video.volume = newVolume;
+            if (newVolume > 0) video.muted = false;
+            else video.muted = true;
+        }
+    }
+    // TikTok Gesture: Vertical swipe follow-finger
+    else if (isAdjusting === 'none' && !isDesktop) {
+        // We multiply by a factor if we want resistance at ends, but for now linear
+        setSwipeY(-deltaY);
+        // Hide UI during swipe for "visual silence"
+        if (Math.abs(deltaY) > 20) {
+            setShowControls(false);
+            if (controlsTimer.current) clearTimeout(controlsTimer.current);
         }
     }
   };
@@ -246,34 +238,32 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     // Only switch if not adjusting
     if (isAdjusting === 'none') {
         // Vertical swipe for video switching
-        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 50) {
+        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 80) {
             if (deltaY < 0) {
                 // Swipe Up -> Next Video
                 if (currentIndex < items.length - 1) {
-                setDirection(1);
-                setCurrentIndex(prev => prev + 1);
+                  setCurrentIndex(prev => prev + 1);
                 } else {
-                toast.info('已经到底了');
+                  triggerEdgeNotice('已经到底了');
                 }
             } else {
                 // Swipe Down -> Prev Video
                 if (currentIndex > 0) {
-                setDirection(-1);
-                setCurrentIndex(prev => prev - 1);
+                  setCurrentIndex(prev => prev - 1);
                 } else {
-                toast.info('已经到顶了');
+                  triggerEdgeNotice('已经到顶了');
                 }
             }
         }
     }
     
+    // Always reset swipe offset
+    setSwipeY(0);
+    
     if (isAdjusting !== 'none') {
         indicatorTimer.current = setTimeout(() => {
             setShowIndicator(false);
-            isAdjustingVolumeRef.current = false;
         }, 800);
-    } else {
-        isAdjustingVolumeRef.current = false;
     }
     
     touchStartX.current = null;
@@ -495,7 +485,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
           className="flex-1 relative w-full h-full overflow-hidden bg-black"
           onMouseMove={handleMouseMove}
           onClick={() => {
-             // Premium Click Logic: If hidden, show. If shown, toggle.
              if (!showControls) {
                 handleMouseMove();
              } else {
@@ -503,7 +492,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
              }
           }}
         >
-          {/* Persistent HUD Indicators - Always in DOM for fullscreen ref stability */}
+          {/* Persistent HUD Indicators */}
           <div className="absolute inset-0 pointer-events-none z-50">
             <AnimatePresence>
                 {showIndicator === 'brightness' && (
@@ -531,87 +520,96 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
             </AnimatePresence>
           </div>
 
-          <AnimatePresence initial={false} custom={direction} mode="popLayout">
-            <motion.div
-              key={currentIndex}
-              custom={direction}
-              variants={slideVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{
-                y: { type: "tween", ease: "easeInOut", duration: 0.4 },
-                opacity: { duration: 0.3 },
-                scale: { duration: 0.4 }
-              }}
-              className="absolute inset-0 flex items-center justify-center p-0 md:p-8 w-full h-full select-none"
+          <div className="absolute inset-0 w-full h-full overflow-hidden bg-black">
+            <motion.div 
+               className="w-full h-full flex flex-col"
+               animate={{ y: carouselY }}
+               transition={{ type: "spring", damping: 35, stiffness: 350, mass: 1 }}
             >
-                {currentItem.fileType === 'video' ? (
-                  <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
-                    {/* Brightness Overlay */}
-                    <div 
-                        className="absolute inset-0 bg-black pointer-events-none z-20 transition-opacity duration-150"
-                        style={{ opacity: (1 - brightness) * 0.8 }} 
-                    />
-                    <video
-                       ref={(el) => {
-                         if (el) {
-                            videoRef.current = el;
-                         } else if (videoRef.current === el) {
-                            // Only clear if the ref still points to the element being unmounted
-                            videoRef.current = null;
-                         }
-                       }}
-                       key={currentItem.id}
-                       src={currentItem.fileUrl}
-                       data-active="true"
-                       playsInline 
-                       muted={volume === 0}
-                       className="max-w-full max-h-full w-auto h-auto object-contain"
-                       onEnded={() => {
-                         if (currentIndex < items.length - 1) {
-                           jumpToIndex(currentIndex + 1);
-                         }
-                       }}
-                       onPlay={() => setIsPlaying(true)}
-                       onPause={() => setIsPlaying(false)}
-                       onTimeUpdate={handleTimeUpdate}
-                       onLoadedMetadata={handleLoadedMetadata}
-                       onLoadedData={(e) => {
-                         const video = e.currentTarget;
-                         video.volume = volume;
-                         video.muted = volume === 0;
-                         video.playbackRate = playbackRate;
-                         video.play().catch((err) => {
-                             console.log('Autoplay blocked:', err);
-                             if (volume > 0) {
-                                 video.muted = true;
-                                 video.play().catch(e => console.error('Fallback play failed:', e));
-                             }
-                         });
-                       }}
-                    />
-                  </div>
-                ) : currentItem.fileType === 'image' ? (
-                  <div className="relative w-full h-full flex items-center justify-center">
+              {items.map((item, index) => {
+                const isActive = index === currentIndex;
+                const isNearby = Math.abs(index - currentIndex) <= 1; // Only render nearby items for performance
+                
+                if (!isNearby) return <div key={item.id} className="w-full h-full shrink-0" />;
+
+                return (
+                  <div key={item.id} className="w-full h-full shrink-0 relative flex items-center justify-center select-none overflow-hidden bg-black">
+                    {/* Premium Ambient Glow Background */}
+                    {(item.thumbnailUrl || item.fileUrl) && (
                       <div 
-                        className="absolute inset-0 opacity-20 blur-3xl pointer-events-none"
-                        style={{ backgroundImage: `url(${currentItem.thumbnailUrl || currentItem.fileUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                        className="absolute inset-0 bg-cover bg-center z-0 opacity-20 blur-3xl scale-110 pointer-events-none"
+                        style={{ backgroundImage: `url(${item.thumbnailUrl || item.fileUrl})` }}
                       />
-                      <img key={currentItem.id} src={currentItem.fileUrl} alt="" className="relative max-w-full max-h-full object-contain shadow-2xl z-10" onContextMenu={(e) => e.preventDefault()} />
+                    )}
+
+                    {item.fileType === 'video' ? (
+                      <div className="relative w-full h-full flex items-center justify-center bg-transparent overflow-hidden">
+                        {/* High-res Placeholder Thumbnail */}
+                        {item.thumbnailUrl && !isActive && (
+                          <img src={item.thumbnailUrl} className="absolute inset-0 w-full h-full object-contain z-10 opacity-70" alt="" />
+                        )}
+                        
+                        {/* Video Layer - Only instantiated for active or very nearby items if needed, but active is safest */}
+                        {isActive && (
+                          <>
+                            <div 
+                                className="absolute inset-0 bg-black pointer-events-none z-20 transition-opacity duration-150"
+                                style={{ opacity: (1 - brightness) * 0.8 }} 
+                            />
+                            <video
+                               ref={(el) => {
+                                 if (el) {
+                                    videoRef.current = el;
+                                 } else if (videoRef.current === el) {
+                                    videoRef.current = null;
+                                 }
+                               }}
+                               key={item.id}
+                               src={item.fileUrl}
+                               data-active="true"
+                               playsInline 
+                               autoPlay
+                               muted={volume === 0}
+                               className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain"
+                               onEnded={() => {
+                                 if (currentIndex < items.length - 1) {
+                                   jumpToIndex(currentIndex + 1);
+                                 }
+                               }}
+                               onPlay={() => setIsPlaying(true)}
+                               onPause={() => setIsPlaying(false)}
+                               onTimeUpdate={handleTimeUpdate}
+                               onLoadedMetadata={handleLoadedMetadata}
+                               onLoadedData={(e) => {
+                                 const video = e.currentTarget;
+                                 video.volume = volume;
+                                 video.muted = volume === 0;
+                                 video.playbackRate = playbackRate;
+                                 video.play().catch(console.error);
+                               }}
+                            />
+                          </>
+                        )}
+                      </div>
+                    ) : item.fileType === 'image' ? (
+                      <div className="relative w-full h-full flex items-center justify-center bg-transparent max-w-full max-h-full">
+                          <img src={item.fileUrl} alt="" className="relative max-w-full max-h-full object-contain shadow-[0_0_50px_rgba(0,0,0,0.5)] z-10" />
+                      </div>
+                    ) : (
+                      <div className="text-center text-zinc-500"><p>Unsupported</p></div>
+                    )}
                   </div>
-                ) : (
-                  <div className="text-center text-zinc-500"><p>Unsupported media type</p></div>
-                )}
+                );
+              })}
             </motion.div>
-          </AnimatePresence>
+          </div>
 
           {/* Persistent UI Overlays - Outside AnimatePresence to avoid Ref/Event issues */}
           {currentItem.fileType === 'video' && (
             <>
               {/* Mute Hint */}
               <AnimatePresence>
-                {volume === 0 && (
+                {volume === 0 && Math.abs(swipeY) < 10 && (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -627,7 +625,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                         video.play().catch(console.error);
                       }
                     }}
-                    className="absolute bottom-32 left-1/2 -translate-x-1/2 z-30 pointer-events-auto bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-2xl flex items-center gap-2 cursor-pointer active:scale-95 transition-transform"
+                    className="absolute bottom-40 left-1/2 -translate-x-1/2 z-30 pointer-events-auto bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-2xl flex items-center gap-2 cursor-pointer active:scale-95 transition-transform"
                   >
                     <VolumeX className="w-4 h-4 text-white/70" />
                     <span className="text-sm font-medium text-white/90">点击恢复声音</span>
@@ -635,9 +633,25 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                 )}
               </AnimatePresence>
 
+              {/* Edge Notice (Center-Bottom) */}
+              <AnimatePresence>
+                {edgeNotice && (
+                   <motion.div 
+                     initial={{ opacity: 0, y: 20 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     exit={{ opacity: 0, y: 20 }}
+                     className="absolute bottom-28 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+                   >
+                      <div className="bg-black/60 backdrop-blur-xl border border-white/10 px-6 py-2 rounded-full shadow-2xl">
+                         <span className="text-sm font-medium text-white/90 tracking-widest">{edgeNotice}</span>
+                      </div>
+                   </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Center Play/Pause Feedback */}
               <AnimatePresence>
-                 {!isPlaying && (
+                 {!isPlaying && Math.abs(swipeY) < 10 && (
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
