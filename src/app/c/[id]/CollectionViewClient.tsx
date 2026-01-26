@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, Play, ListVideo, ChevronUp, Sun, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Play, ListVideo, ChevronUp, Sun, Volume2, VolumeX, Maximize, Minimize, Repeat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -61,7 +61,11 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [swipeY, setSwipeY] = useState(0); // TikTok-style gesture offset
   const [edgeNotice, setEdgeNotice] = useState<string | null>(null);
+  const [showPageIndicator, setShowPageIndicator] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
+  const [videoDimensions, setVideoDimensions] = useState<{width: number, height: number} | null>(null);
   const edgeNoticeTimer = useRef<NodeJS.Timeout | null>(null);
+  const pageIndicatorTimer = useRef<NodeJS.Timeout | null>(null);
   const controlsTimer = useRef<NodeJS.Timeout | null>(null);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const isLongPressingRef = useRef(false);
@@ -99,7 +103,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
         case 'ArrowUp':
           e.preventDefault();
           if (currentIndex > 0) {
-            setCurrentIndex(prev => prev - 1);
+            setCurrentIndex((prev: number) => prev - 1);
           } else {
             toast.info('已经到顶了');
           }
@@ -108,7 +112,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
         case 'ArrowDown':
           e.preventDefault();
           if (currentIndex < items.length - 1) {
-            setCurrentIndex(prev => prev + 1);
+            setCurrentIndex((prev: number) => prev + 1);
           } else {
             triggerEdgeNotice('已经到底了');
           }
@@ -256,14 +260,14 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
             if (deltaY < 0) {
                 // Swipe Up -> Next Video
                 if (currentIndex < items.length - 1) {
-                  setCurrentIndex(prev => prev + 1);
+                  setCurrentIndex((prev: number) => prev + 1);
                 } else {
                   triggerEdgeNotice('已经到底了');
                 }
             } else {
                 // Swipe Down -> Prev Video
                 if (currentIndex > 0) {
-                  setCurrentIndex(prev => prev - 1);
+                  setCurrentIndex((prev: number) => prev - 1);
                 } else {
                   triggerEdgeNotice('已经到顶了');
                 }
@@ -302,11 +306,17 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const togglePlay = () => {
     const video = getActiveVideo();
     if (!video) return;
-    if (isPlaying) {
+    
+    if (!video.paused) {
       video.pause();
+      setIsPlaying(false);
     } else {
+      video.playbackRate = playbackRate;
+      video.loop = isLooping;
       video.play().catch(console.error);
+      setIsPlaying(true);
     }
+    resetControlsTimer();
   };
 
   const handleTimeUpdate = () => {
@@ -320,6 +330,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     const video = getActiveVideo();
     if (video) {
       setDuration(video.duration);
+      setVideoDimensions({ width: video.videoWidth, height: video.videoHeight });
     }
   };
 
@@ -351,15 +362,32 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
 
   const toggleFullScreen = () => {
     if (!playerContainerRef.current) return;
+    
     if (!document.fullscreenElement) {
-      playerContainerRef.current.requestFullscreen().catch(console.error);
+      playerContainerRef.current.requestFullscreen().then(() => {
+        // Smart Orientation: If video is landscape, try to lock orientation
+        if (videoDimensions && videoDimensions.width > videoDimensions.height) {
+            const orientation = window.screen.orientation as unknown as { lock: (o: string) => Promise<void> };
+            if (orientation && typeof orientation.lock === 'function') {
+                orientation.lock('landscape').catch(() => {
+                    console.log('Orientation lock not supported');
+                });
+            }
+        }
+      }).catch(console.error);
     } else {
       document.exitFullscreen();
     }
   };
 
   useEffect(() => {
-    const handleFsChange = () => setIsFullScreen(!!document.fullscreenElement);
+    const handleFsChange = () => {
+        const isFS = !!document.fullscreenElement;
+        setIsFullScreen(isFS);
+        if (!isFS && window.screen.orientation && window.screen.orientation.unlock) {
+            window.screen.orientation.unlock();
+        }
+    };
     document.addEventListener('fullscreenchange', handleFsChange);
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
@@ -377,6 +405,8 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     // Sync metadata from the new active video if it's already preloaded
     const video = getActiveVideo();
     if (video) {
+        video.playbackRate = playbackRate;
+        video.loop = isLooping;
         if (video.readyState >= 1) { // HAVE_METADATA or more
             setDuration(video.duration);
             setCurrentTime(video.currentTime);
@@ -386,7 +416,24 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
             setIsTransitioning(false);
         });
     }
-  }, [currentIndex]);
+
+    // Trigger Top Page Indicator
+    setShowPageIndicator(true);
+    if (pageIndicatorTimer.current) clearTimeout(pageIndicatorTimer.current);
+    pageIndicatorTimer.current = setTimeout(() => {
+        setShowPageIndicator(false);
+    }, 2000);
+  }, [currentIndex, isLooping, playbackRate]);
+  useEffect(() => {
+    const video = getActiveVideo();
+    if (video) {
+        video.playbackRate = playbackRate;
+        video.loop = isLooping;
+        video.volume = volume;
+        video.muted = volume === 0;
+    }
+  }, [playbackRate, isLooping, volume, currentIndex]);
+
   useEffect(() => {
     loadCollection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -496,11 +543,8 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
           className="flex-1 relative w-full h-full overflow-hidden bg-black"
           onMouseMove={handleMouseMove}
           onClick={() => {
-             if (!showControls) {
-                handleMouseMove();
-             } else {
-                togglePlay();
-             }
+             togglePlay();
+             handleMouseMove();
           }}
         >
           {/* Persistent HUD Indicators */}
@@ -532,7 +576,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
           </div>
 
           {/* Persistent Shared Ambient Glow Background */}
-          {items.map((item, index) => (
+          {items.map((item: CollectionItem, index: number) => (
              <motion.div
                key={`glow-${item.id}`}
                initial={{ opacity: 0 }}
@@ -549,7 +593,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                animate={{ y: carouselY }}
                transition={{ type: "spring", damping: 50, stiffness: 800, mass: 0.5 }}
             >
-              {items.map((item, index) => {
+              {items.map((item: CollectionItem, index: number) => {
                 const isActive = index === currentIndex;
                 const isNearby = Math.abs(index - currentIndex) <= 1; // Only render nearby items for performance
                 
@@ -592,10 +636,10 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                                playsInline 
                                autoPlay={isActive}
                                muted={!isActive || volume === 0}
-                               loop
+                               loop={isLooping}
                                className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain"
                                onEnded={() => {
-                                 if (isActive && currentIndex < items.length - 1) {
+                                 if (isActive && !isLooping && currentIndex < items.length - 1) {
                                    jumpToIndex(currentIndex + 1);
                                  }
                                }}
@@ -657,7 +701,23 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                 )}
               </AnimatePresence>
 
-              {/* Center Play/Pause Feedback */}
+               {/* TikTok Style: Center-Top Page Indicator */}
+               <AnimatePresence>
+                 {showPageIndicator && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute top-10 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+                    >
+                       <div className="bg-black/20 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/5 flex items-center gap-1.5 shadow-xl">
+                          <span className="text-sm font-medium text-white/90 tracking-widest drop-shadow-sm">{currentIndex + 1} / {items.length}</span>
+                       </div>
+                    </motion.div>
+                 )}
+               </AnimatePresence>
+
+               {/* Center Play/Pause Feedback */}
               <AnimatePresence>
                  {!isPlaying && !isTransitioning && Math.abs(swipeY) < 10 && (
                     <motion.div 
@@ -678,59 +738,94 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
               {/* TikTok Style: Right Sidebar Actions */}
               <div 
                 className={cn(
-                  "absolute right-4 bottom-32 flex flex-col gap-4 z-50 transition-opacity duration-500",
-                  showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+                   "absolute flex transition-all duration-500 z-50",
+                   // Conditional placement for landscape/fullscreen
+                   isFullScreen && videoDimensions && videoDimensions.width > videoDimensions.height
+                     ? "right-8 top-1/2 -translate-y-1/2 flex-col gap-3 scale-90" // Landscape Center-Right
+                     : "right-4 bottom-32 flex-col gap-4", // Vertical Bottom-Right
+                   showControls ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
-                 <div className="flex flex-col items-center gap-0.5">
+                  <div className="flex flex-col items-center gap-0.5 group">
                     <Button 
                       variant="ghost" size="icon" 
-                      onClick={() => setShowPlaylist(!showPlaylist)}
-                      className="w-12 h-12 bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-xl border border-white/10 rounded-full text-white/90 active:scale-90 transition-all shadow-xl"
+                      onClick={(e) => {
+                         e.stopPropagation();
+                         e.preventDefault();
+                         setShowPlaylist(!showPlaylist);
+                      }}
+                      className="w-12 h-12 bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-lg border border-white/10 rounded-full text-white/90 active:scale-90 transition-[background-color,transform,opacity] duration-200 shadow-lg"
                     >
                       <ListVideo className="w-6 h-6" />
                     </Button>
-                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm">列表</span>
+                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">列表</span>
                  </div>
 
-                 <div className="flex flex-col items-center gap-0.5">
+                  <div className="flex flex-col items-center gap-0.5 group">
                     <Button 
                       variant="ghost" size="icon"
-                      onClick={() => {
+                      onClick={(e) => {
+                         e.stopPropagation();
                          const rates = [1, 1.5, 2];
                          const nextRate = rates[(rates.indexOf(playbackRate) + 1) % rates.length];
                          setPlaybackRate(nextRate);
                          const video = getActiveVideo();
                          if (video) video.playbackRate = nextRate;
                       }}
-                      className="w-12 h-12 bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-xl border border-white/10 rounded-full text-white/90 active:scale-90 transition-all shadow-xl"
+                      className="w-12 h-12 bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-lg border border-white/10 rounded-full text-white/90 active:scale-90 transition-[background-color,transform,opacity] duration-200 shadow-lg"
                     >
                        <span className="text-xs font-bold leading-none">{playbackRate}x</span>
                     </Button>
-                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm">倍速</span>
+                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">倍速</span>
                  </div>
 
-                 <div className="flex flex-col items-center gap-0.5">
+                  <div className="flex flex-col items-center gap-0.5 group">
                     <Button 
                       variant="ghost" size="icon" 
-                      onClick={toggleFullScreen}
+                      onClick={(e) => {
+                         e.stopPropagation();
+                         e.preventDefault();
+                         setIsLooping(!isLooping);
+                      }}
                       className={cn(
-                        "w-12 h-12 backdrop-blur-xl border rounded-full transition-all active:scale-90 shadow-xl",
-                        isFullScreen 
-                          ? "bg-white/30 border-white/40 text-white" 
+                        "w-12 h-12 backdrop-blur-lg border rounded-full transition-[background-color,transform,opacity] duration-200 active:scale-90 shadow-lg",
+                        isLooping 
+                          ? "bg-white/40 border-white/40 text-white" 
                           : "bg-white/10 border-white/10 text-white/90 hover:bg-white/20"
                       )}
                     >
-                      {isFullScreen ? <Minimize className="w-6 h-6" /> : <Maximize className="w-6 h-6" />}
+                      <Repeat className={cn("w-6 h-6 transition-transform duration-200", isLooping ? "scale-110" : "scale-100 opacity-80")} />
                     </Button>
-                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm">{isFullScreen ? '取消' : '全屏'}</span>
+                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{isLooping ? '循环' : '顺序'}</span>
                  </div>
 
-                 <div className="flex flex-col items-center gap-0.5">
+                  <div className="flex flex-col items-center gap-0.5 group">
                     <Button 
                       variant="ghost" size="icon" 
-                      onClick={() => {
+                      onClick={(e) => {
+                         e.stopPropagation();
+                         e.preventDefault();
+                         toggleFullScreen();
+                      }}
+                      className={cn(
+                        "w-12 h-12 backdrop-blur-lg border rounded-full transition-[background-color,transform,opacity] duration-200 active:scale-90 shadow-lg",
+                        isFullScreen 
+                          ? "bg-white/40 border-white/40 text-white" 
+                          : "bg-white/10 border-white/10 text-white/90 hover:bg-white/20"
+                      )}
+                    >
+                      {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+                    </Button>
+                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{isFullScreen ? '取消' : '全屏'}</span>
+                 </div>
+
+                  <div className="flex flex-col items-center gap-0.5 group">
+                    <Button 
+                      variant="ghost" size="icon" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
                         const newVol = volume === 0 ? 0.5 : 0;
                         setVolume(newVol);
                         const video = getActiveVideo();
@@ -740,29 +835,19 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                         }
                       }}
                       className={cn(
-                        "w-12 h-12 backdrop-blur-xl border rounded-full transition-all active:scale-90 shadow-xl",
+                        "w-12 h-12 backdrop-blur-lg border rounded-full transition-[background-color,transform,opacity,color] duration-200 active:scale-90 shadow-lg",
                         volume === 0 
-                          ? "bg-white/5 border-white/5 text-white/30 hover:text-white/50" 
-                          : "bg-white/20 border-white/30 text-white"
+                          ? "bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white/60" 
+                          : "bg-white/25 border-white/30 text-white"
                       )}
                     >
-                      {volume === 0 ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                      {volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                     </Button>
-                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm">{volume === 0 ? '开音' : '静音'}</span>
+                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{volume === 0 ? '开音' : '静音'}</span>
                  </div>
               </div>
 
-              {/* TikTok Style: Bottom-Left Info Area */}
-              <div 
-                className={cn(
-                  "absolute left-4 bottom-10 z-50 pointer-events-none transition-opacity duration-500 space-y-2 max-w-[70%]",
-                  showControls ? "opacity-100" : "opacity-0"
-                )}
-              >
-                  <div className="flex items-center gap-2">
-                     <span className="text-sm font-medium text-white/90 drop-shadow-md">#{currentIndex + 1} / {items.length}</span>
-                  </div>
-              </div>
+
 
               {/* TikTok Style: Minimalist Bottom Progress Bar */}
               <div 
@@ -856,9 +941,9 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setShowPlaylist(false)} className="hidden md:flex text-zinc-400 hover:text-white hover:bg-white/10 rounded-full w-8 h-8"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></Button>
               </div>
-              <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+               <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
                 <div className="space-y-2">
-                  {items.map((item, index) => {
+                  {items.map((item: CollectionItem, index: number) => {
                     const isActive = index === currentIndex;
                     const thumbUrl = item.thumbnailUrl || (item.fileType === 'image' ? item.fileUrl : null);
                     
