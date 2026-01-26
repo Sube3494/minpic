@@ -78,7 +78,7 @@ export async function GET(
         if (item.file.thumbnailPath) {
           if (item.file.thumbnailPath === 'database') {
             // Thumbnail stored in database, use API route
-            thumbnailUrl = `/api/files/${item.fileId}/thumbnail?v=${item.file.updatedAt.getTime()}`;
+            thumbnailUrl = `/api/files/${item.fileId}/thumbnail?v=${item.file.updatedAt.getTime()}&collectionId=${collection.id}`;
           } else {
             // Thumbnail stored in MinIO
             thumbnailUrl = await minioService.getFileUrl(item.file.thumbnailPath);

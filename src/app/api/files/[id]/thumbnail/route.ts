@@ -7,11 +7,41 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { user, error } = await requireAuth();
-  if (error) return error;
-
   try {
+    const url = new URL(request.url);
+    const collectionId = url.searchParams.get('collectionId');
     const { id } = await params;
+    
+    let user = null;
+    let bypassAuth = false;
+
+    if (collectionId) {
+       // Validate collection access
+       const collection = await prisma.collection.findUnique({
+          where: { id: collectionId },
+          include: { 
+             items: {
+                where: { fileId: id },
+                select: { id: true }
+             }
+          }
+       });
+
+       if (collection && collection.items.length > 0) {
+           // Check expiration
+           if (!collection.expiresAt || new Date(collection.expiresAt) > new Date()) {
+               bypassAuth = true;
+               // We don't have the user object here, but we can get userId from the file later.
+           }
+       }
+    }
+
+    if (!bypassAuth) {
+        const authResult = await requireAuth();
+        if (authResult.error) return authResult.error;
+        user = authResult.user;
+    }
+
     
     const file = await prisma.file.findUnique({
       where: { id },
@@ -30,10 +60,14 @@ export async function GET(
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    // 验证所有权
-    if (file.userId !== user.id) {
+    // Verify ownership ONLY if not bypassed
+    if (!bypassAuth && user && file.userId !== user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
+
+    // If bypassed, we need a "user" object structure for getUserMinioConfig or just pass userId directly.
+    // getUserMinioConfig takes userId string.
+    const userIdToUse = bypassAuth ? file.userId : user!.id;
 
     if (file.thumbnailData) {
       // Serve from DB
@@ -49,7 +83,7 @@ export async function GET(
     if (file.fileType === 'video' && !file.thumbnailData) {
       try {
         // 获取 MinIO 配置
-        const config = await getUserMinioConfig(user.id, file.configId);
+        const config = await getUserMinioConfig(userIdToUse, file.configId);
 
         if (config) {
           const { MinioService } = await import('@/lib/minio');
@@ -86,7 +120,7 @@ export async function GET(
     // Legacy support: if we have a path but no data, migrate from MinIO
     if (file.thumbnailPath && file.thumbnailPath !== 'database') {
       try {
-        const config = await getUserMinioConfig(user.id, file.configId);
+        const config = await getUserMinioConfig(userIdToUse, file.configId);
 
         if (config) {
           const { MinioService } = await import('@/lib/minio');
