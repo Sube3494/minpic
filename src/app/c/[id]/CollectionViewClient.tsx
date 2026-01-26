@@ -2,17 +2,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, Play, Pause, ListVideo, ChevronUp, Sun, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Play, ListVideo, ChevronUp, Sun, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+
 
 interface CollectionItem {
   id: string;
@@ -58,6 +53,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
 
   // Custom Player States
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
@@ -67,6 +63,8 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const [edgeNotice, setEdgeNotice] = useState<string | null>(null);
   const edgeNoticeTimer = useRef<NodeJS.Timeout | null>(null);
   const controlsTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressingRef = useRef(false);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
@@ -168,6 +166,14 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     startBrightness.current = brightness;
     startVolume.current = volume;
     setIsAdjusting('none');
+    isLongPressingRef.current = false;
+    
+    // Start long press timer
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => {
+        isLongPressingRef.current = true;
+        // Optionally provide haptic/visual feedback here
+    }, 400); // 400ms for long press
     
     // Just clear timer, don't show controls yet (wait to see if it's a tap or swipe)
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
@@ -179,42 +185,50 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     const touchY = e.touches[0].clientY;
     const deltaY = touchStartY.current - touchY; // Swipe up is positive
 
+    // If moved significantly before timer, it's a swipe, not a long-press
+    if (!isLongPressingRef.current && (Math.abs(deltaY) > 10 || Math.abs(touchStartX.current - e.touches[0].clientX) > 10)) {
+        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    }
+
     if (Math.abs(deltaY) < 10 && isAdjusting === 'none') return;
     
-    // Hide controls if we start adjusting brightness/volume to focus on the indicator
-    if (isAdjusting !== 'none') {
-        setShowControls(false);
-    }
+    // If long pressing, allowed to adjust HUD
+    if (isLongPressingRef.current || isAdjusting !== 'none') {
+        // Hide controls if we start adjusting brightness/volume to focus on the indicator
+        if (isAdjusting !== 'none' || Math.abs(deltaY) > 20) {
+            setShowControls(false);
+        }
 
-    // If starting on left 25% of screen, adjust brightness
-    if (touchStartX.current < window.innerWidth * 0.25) {
-        setIsAdjusting('brightness');
-        setShowIndicator('brightness');
-        if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
+        // If starting on left 50% of screen, adjust brightness
+        if (touchStartX.current < window.innerWidth * 0.5) {
+            setIsAdjusting('brightness');
+            setShowIndicator('brightness');
+            if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
 
-        const change = deltaY / 200;
-        const newBrightness = Math.max(0.1, Math.min(1, startBrightness.current + change));
-        setBrightness(newBrightness);
-    } 
-    // If starting on right 25% of screen, adjust volume
-    else if (touchStartX.current > window.innerWidth * 0.75) {
-        setIsAdjusting('volume');
-        setShowIndicator('volume');
-        if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
+            const change = deltaY / 200;
+            const newBrightness = Math.max(0.1, Math.min(1, startBrightness.current + change));
+            setBrightness(newBrightness);
+        } 
+        // If starting on right 50% of screen, adjust volume
+        else {
+            setIsAdjusting('volume');
+            setShowIndicator('volume');
+            if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
 
-        const change = deltaY / 200;
-        const newVolume = Math.max(0, Math.min(1, startVolume.current + change));
-        setVolume(newVolume);
-        
-        // Apply volume to video immediately if exists
-        const video = getActiveVideo();
-        if (video) {
-            video.volume = newVolume;
-            if (newVolume > 0) video.muted = false;
-            else video.muted = true;
+            const change = deltaY / 200;
+            const newVolume = Math.max(0, Math.min(1, startVolume.current + change));
+            setVolume(newVolume);
+            
+            // Apply volume to video immediately if exists
+            const video = getActiveVideo();
+            if (video) {
+                video.volume = newVolume;
+                if (newVolume > 0) video.muted = false;
+                else video.muted = true;
+            }
         }
     }
-    // TikTok Gesture: Vertical swipe follow-finger
+    // TikTok Gesture: Vertical swipe follow-finger (Only if NOT long-pressing)
     else if (isAdjusting === 'none' && !isDesktop) {
         // We multiply by a factor if we want resistance at ends, but for now linear
         setSwipeY(-deltaY);
@@ -238,7 +252,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     // Only switch if not adjusting
     if (isAdjusting === 'none') {
         // Vertical swipe for video switching
-        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 80) {
+        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 40) {
             if (deltaY < 0) {
                 // Swipe Up -> Next Video
                 if (currentIndex < items.length - 1) {
@@ -265,6 +279,9 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
             setShowIndicator(false);
         }, 800);
     }
+    
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    isLongPressingRef.current = false;
     
     touchStartX.current = null;
     touchStartY.current = null;
@@ -315,11 +332,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     }
   };
 
-  const formatTime = (time: number) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
+
 
   const resetControlsTimer = (skipShow = false) => {
     if (!skipShow) setShowControls(true);
@@ -356,6 +369,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
 
   useEffect(() => {
     // Reset player state on item change
+    setIsTransitioning(true);
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
@@ -461,23 +475,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
       {/* MAIN STAGE */}
       <div className="flex-1 relative flex flex-col bg-zinc-950 overflow-hidden" onWheel={handleWheel}>
         {/* Mobile Position Indicator */}
-        <div className="absolute top-4 right-4 z-40 md:hidden pointer-events-none">
-          <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-xs font-medium text-white/90">
-             {currentIndex + 1} / {items.length}
-          </div>
-        </div>
-
-        {/* Toggle Button (Desktop Only) & Mobile Playlist Toggle */}
-        <div className="absolute top-4 left-4 z-50 md:right-4 md:left-auto">
-           <Button 
-             variant="ghost" 
-             size="icon" 
-             onClick={() => setShowPlaylist(!showPlaylist)}
-             className="text-white/50 hover:text-white bg-black/20 hover:bg-black/40 backdrop-blur-sm rounded-full"
-           >
-             <ListVideo className="w-6 h-6" />
-           </Button>
-        </div>
+        {/* Note: Top labels removed for cleaner TikTok look */}
 
         {/* Content Area */}
         <div 
@@ -524,7 +522,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
             <motion.div 
                className="w-full h-full flex flex-col"
                animate={{ y: carouselY }}
-               transition={{ type: "spring", damping: 35, stiffness: 350, mass: 1 }}
+               transition={{ type: "spring", damping: 50, stiffness: 800, mass: 0.5 }}
             >
               {items.map((item, index) => {
                 const isActive = index === currentIndex;
@@ -576,7 +574,10 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                                    jumpToIndex(currentIndex + 1);
                                  }
                                }}
-                               onPlay={() => setIsPlaying(true)}
+                               onPlay={() => {
+                                 setIsPlaying(true);
+                                 setIsTransitioning(false);
+                               }}
                                onPause={() => setIsPlaying(false)}
                                onTimeUpdate={handleTimeUpdate}
                                onLoadedMetadata={handleLoadedMetadata}
@@ -585,7 +586,11 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                                  video.volume = volume;
                                  video.muted = volume === 0;
                                  video.playbackRate = playbackRate;
-                                 video.play().catch(console.error);
+                                 video.play().catch((err) => {
+                                    console.error('Play failed:', err);
+                                    // Even if blocked, we clear transitioning to allow manual play button to show
+                                    setIsTransitioning(false);
+                                 });
                                }}
                             />
                           </>
@@ -607,32 +612,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
           {/* Persistent UI Overlays - Outside AnimatePresence to avoid Ref/Event issues */}
           {currentItem.fileType === 'video' && (
             <>
-              {/* Mute Hint */}
-              <AnimatePresence>
-                {volume === 0 && Math.abs(swipeY) < 10 && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const newVol = 0.5;
-                      setVolume(newVol);
-                      const video = getActiveVideo();
-                      if (video) {
-                        video.volume = newVol;
-                        video.muted = false;
-                        video.play().catch(console.error);
-                      }
-                    }}
-                    className="absolute bottom-40 left-1/2 -translate-x-1/2 z-30 pointer-events-auto bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-2xl flex items-center gap-2 cursor-pointer active:scale-95 transition-transform"
-                  >
-                    <VolumeX className="w-4 h-4 text-white/70" />
-                    <span className="text-sm font-medium text-white/90">点击恢复声音</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
               {/* Edge Notice (Center-Bottom) */}
               <AnimatePresence>
                 {edgeNotice && (
@@ -642,139 +621,157 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                      exit={{ opacity: 0, y: 20 }}
                      className="absolute bottom-28 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
                    >
-                      <div className="bg-black/60 backdrop-blur-xl border border-white/10 px-6 py-2 rounded-full shadow-2xl">
-                         <span className="text-sm font-medium text-white/90 tracking-widest">{edgeNotice}</span>
-                      </div>
+                      <span className="text-sm font-normal text-white/90 tracking-widest drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] uppercase">{edgeNotice}</span>
                    </motion.div>
                 )}
               </AnimatePresence>
 
               {/* Center Play/Pause Feedback */}
               <AnimatePresence>
-                 {!isPlaying && Math.abs(swipeY) < 10 && (
+                 {!isPlaying && !isTransitioning && Math.abs(swipeY) < 10 && (
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
+                      animate={{ opacity: 0.6, scale: 1 }}
                       exit={{ opacity: 0, scale: 1.2 }}
                       onClick={(e) => {
                         e.stopPropagation();
                         togglePlay();
                       }}
-                      className="absolute inset-0 flex items-center justify-center bg-black/5 z-10 pointer-events-auto cursor-pointer"
+                      className="absolute inset-0 flex items-center justify-center z-10 pointer-events-auto cursor-pointer"
                     >
-                       <div className="w-20 h-20 bg-white/5 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 shadow-2xl">
-                          <Play className="w-10 h-10 text-white fill-white ml-1 opacity-80" />
-                       </div>
+                       <Play className="w-24 h-24 text-white fill-white drop-shadow-[0_0_20px_rgba(0,0,0,0.5)]" />
                     </motion.div>
                  )}
               </AnimatePresence>
 
-              {/* Controls Bar */}
+              {/* TikTok Style: Right Sidebar Actions */}
               <div 
-                onClick={(e) => e.stopPropagation()}
                 className={cn(
-                  "absolute bottom-0 left-0 right-0 p-6 pt-12 bg-linear-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-500 z-50",
+                  "absolute right-4 bottom-32 flex flex-col gap-4 z-50 transition-opacity duration-500",
                   showControls ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
+                onClick={(e) => e.stopPropagation()}
               >
-                 {/* Progress Bar */}
-                 <div className="relative w-full h-1 group/progress mb-4 cursor-pointer flex items-center">
-                    <input 
-                      type="range"
-                      min={0}
-                      max={duration || 100}
-                      step={0.1}
-                      value={currentTime}
-                      onChange={handleSeek}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onTouchStart={(e) => e.stopPropagation()}
-                      className="absolute inset-x-0 -top-3 bottom-0 w-full opacity-0 z-10 cursor-pointer"
-                    />
-                    <div className="absolute inset-0 bg-white/10 rounded-full" />
-                    <div 
-                      className="absolute inset-y-0 left-0 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"
-                      style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
-                    />
-                    <div 
-                      className="absolute top-1/2 -translate-y-1/2 h-4 w-4 bg-white rounded-full shadow-xl scale-0 group-hover/progress:scale-110 transition-transform border-2 border-blue-500 z-5"
-                      style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 8px)` }}
-                    />
+                 <div className="flex flex-col items-center gap-0.5">
+                    <Button 
+                      variant="ghost" size="icon" 
+                      onClick={() => setShowPlaylist(!showPlaylist)}
+                      className="w-12 h-12 bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-xl border border-white/10 rounded-full text-white/90 active:scale-90 transition-all shadow-xl"
+                    >
+                      <ListVideo className="w-6 h-6" />
+                    </Button>
+                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm">列表</span>
                  </div>
 
-                 <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                       <button onClick={togglePlay} className="text-white hover:text-blue-400 transition-colors">
-                          {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
-                       </button>
-
-                       <div className="flex items-center gap-3">
-                          <button 
-                            onClick={() => {
-                                const newVol = volume === 0 ? 0.5 : 0;
-                                setVolume(newVol);
-                                const video = getActiveVideo();
-                                if (video) {
-                                    video.volume = newVol;
-                                    video.muted = newVol === 0;
-                                }
-                            }}
-                            className="text-white/80 hover:text-white"
-                          >
-                             {volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                          </button>
-                          <div className="text-xs font-mono text-white/70">
-                             <span className="text-white">{formatTime(currentTime)}</span>
-                             <span className="mx-1">/</span>
-                             <span>{formatTime(duration)}</span>
-                          </div>
-                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                       <DropdownMenu>
-                         <DropdownMenuTrigger asChild>
-                           <button className="flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-xs font-bold text-white/70 hover:text-white transition-colors">
-                             {playbackRate.toFixed(1)}x
-                             <ChevronUp className="w-3 h-3 rotate-180" />
-                           </button>
-                         </DropdownMenuTrigger>
-                         <DropdownMenuContent align="end" className="bg-zinc-900 border-white/10 text-zinc-300 min-w-[80px]">
-                           {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((rate) => (
-                             <DropdownMenuItem 
-                               key={rate}
-                               onClick={() => {
-                                 setPlaybackRate(rate);
-                                 const video = getActiveVideo();
-                                 if (video) video.playbackRate = rate;
-                               }}
-                               className={cn(
-                                 "text-xs justify-center focus:bg-white/10 focus:text-white cursor-pointer",
-                                 playbackRate === rate && "bg-white/10 text-white font-bold"
-                               )}
-                             >
-                               {rate.toFixed(1)}x
-                             </DropdownMenuItem>
-                           ))}
-                         </DropdownMenuContent>
-                       </DropdownMenu>
-
-                       <button onClick={toggleFullScreen} className="text-white/80 hover:text-white transition-colors">
-                          {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-6 h-6" />}
-                       </button>
-                    </div>
+                 <div className="flex flex-col items-center gap-0.5">
+                    <Button 
+                      variant="ghost" size="icon"
+                      onClick={() => {
+                         const rates = [1, 1.5, 2];
+                         const nextRate = rates[(rates.indexOf(playbackRate) + 1) % rates.length];
+                         setPlaybackRate(nextRate);
+                         const video = getActiveVideo();
+                         if (video) video.playbackRate = nextRate;
+                      }}
+                      className="w-12 h-12 bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-xl border border-white/10 rounded-full text-white/90 active:scale-90 transition-all shadow-xl"
+                    >
+                       <span className="text-xs font-bold leading-none">{playbackRate}x</span>
+                    </Button>
+                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm">倍速</span>
                  </div>
+
+                 <div className="flex flex-col items-center gap-0.5">
+                    <Button 
+                      variant="ghost" size="icon" 
+                      onClick={toggleFullScreen}
+                      className={cn(
+                        "w-12 h-12 backdrop-blur-xl border rounded-full transition-all active:scale-90 shadow-xl",
+                        isFullScreen 
+                          ? "bg-white/30 border-white/40 text-white" 
+                          : "bg-white/10 border-white/10 text-white/90 hover:bg-white/20"
+                      )}
+                    >
+                      {isFullScreen ? <Minimize className="w-6 h-6" /> : <Maximize className="w-6 h-6" />}
+                    </Button>
+                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm">{isFullScreen ? '取消' : '全屏'}</span>
+                 </div>
+
+                 <div className="flex flex-col items-center gap-0.5">
+                    <Button 
+                      variant="ghost" size="icon" 
+                      onClick={() => {
+                        const newVol = volume === 0 ? 0.5 : 0;
+                        setVolume(newVol);
+                        const video = getActiveVideo();
+                        if (video) {
+                            video.volume = newVol;
+                            video.muted = newVol === 0;
+                        }
+                      }}
+                      className={cn(
+                        "w-12 h-12 backdrop-blur-xl border rounded-full transition-all active:scale-90 shadow-xl",
+                        volume === 0 
+                          ? "bg-white/5 border-white/5 text-white/30 hover:text-white/50" 
+                          : "bg-white/20 border-white/30 text-white"
+                      )}
+                    >
+                      {volume === 0 ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                    </Button>
+                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm">{volume === 0 ? '开音' : '静音'}</span>
+                 </div>
+              </div>
+
+              {/* TikTok Style: Bottom-Left Info Area */}
+              <div 
+                className={cn(
+                  "absolute left-4 bottom-10 z-50 pointer-events-none transition-opacity duration-500 space-y-2 max-w-[70%]",
+                  showControls ? "opacity-100" : "opacity-0"
+                )}
+              >
+                  <div className="flex items-center gap-2">
+                     <span className="text-sm font-medium text-white/90 drop-shadow-md">#{currentIndex + 1} / {items.length}</span>
+                  </div>
+              </div>
+
+              {/* TikTok Style: Minimalist Bottom Progress Bar */}
+              <div 
+                className={cn(
+                  "absolute bottom-0 left-0 right-0 z-50 h-1.5 transition-all duration-300 group/progress overflow-visible",
+                  showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+                )}
+                onClick={(e) => e.stopPropagation()}
+              >
+                  <input 
+                    type="range"
+                    min={0}
+                    max={duration || 100}
+                    step={0.1}
+                    value={currentTime}
+                    onChange={handleSeek}
+                    className="absolute inset-x-0 -top-4 -bottom-2 w-full opacity-0 z-20 cursor-pointer"
+                  />
+                  <div className="absolute inset-0 bg-white/10" />
+                  <div 
+                    className="absolute inset-y-0 left-0 bg-white shadow-[0_0_15px_rgba(255,255,255,0.6)] rounded-r-full transition-[width] duration-100"
+                    style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                  />
+                  <div 
+                    className="absolute top-1/2 -translate-y-1/2 h-3 w-3 bg-white rounded-full shadow-2xl scale-0 group-hover/progress:scale-100 transition-transform z-10"
+                    style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 6px)` }}
+                  />
               </div>
             </>
           )}
+        </div>
+      </div>
 
-          {/* Desktop Navigation */}
+      {/* Desktop Navigation */}
           {currentIndex > 0 && (
             <button onClick={(e) => { e.stopPropagation(); jumpToIndex(currentIndex - 1); }} className="absolute left-6 top-1/2 -translate-y-1/2 p-4 rounded-full bg-black/40 text-white/50 hover:bg-black/60 hover:text-white transition-all opacity-0 group-hover:opacity-100 hidden md:flex items-center justify-center border border-white/5 z-20"><ChevronLeft className="w-8 h-8" /></button>
           )}
           {currentIndex < items.length - 1 && (
             <button onClick={(e) => { e.stopPropagation(); jumpToIndex(currentIndex + 1); }} className="absolute right-6 top-1/2 -translate-y-1/2 p-4 rounded-full bg-black/40 text-white/50 hover:bg-black/60 hover:text-white transition-all opacity-0 group-hover:opacity-100 hidden md:flex items-center justify-center border border-white/5 z-20"><ChevronRight className="w-8 h-8" /></button>
           )}
-        </div>
           
         {/* Swipe Hint Overlay */}
         <AnimatePresence>
@@ -792,8 +789,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
-
+        
       {/* SIDEBAR */}
       <AnimatePresence>
         {showPlaylist && (
