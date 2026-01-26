@@ -10,9 +10,11 @@ interface ShortlinkDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (expiresIn: number, unit: 'minutes' | 'hours' | 'days') => Promise<void>;
+  title?: string;
+  description?: React.ReactNode;
 }
 
-export function ShortlinkDialog({ open, onOpenChange, onConfirm }: ShortlinkDialogProps) {
+export function ShortlinkDialog({ open, onOpenChange, onConfirm, title, description }: ShortlinkDialogProps) {
   const [expiration, setExpiration] = useState<ExpirationValue>({
     expiresIn: 1,
     unit: 'hours',
@@ -43,9 +45,9 @@ export function ShortlinkDialog({ open, onOpenChange, onConfirm }: ShortlinkDial
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md dark:bg-white/5 backdrop-blur-md border-none">
         <DialogHeader>
-          <DialogTitle>生成短链</DialogTitle>
+          <DialogTitle>{title || '生成短链'}</DialogTitle>
           <DialogDescription>
-            选择短链有效期,过期后将自动删除
+            {description || '选择短链有效期,过期后将自动删除'}
           </DialogDescription>
         </DialogHeader>
         

@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, Play, ListVideo } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Play, ListVideo, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -35,6 +35,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const [direction, setDirection] = useState(0); // 1 for next, -1 for prev
   const [showPlaylist, setShowPlaylist] = useState(false); // Enabled via swipe/button
   const [isDesktop, setIsDesktop] = useState(false);
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
   
   // Ref to scroll active item into view
   const activeItemRef = useRef<HTMLDivElement>(null);
@@ -50,9 +51,9 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   // Animation variants
   const slideVariants = {
     enter: (direction: number) => ({
-      y: direction > 0 ? 200 : -200,
+      y: direction > 0 ? '100%' : '-100%',
       opacity: 0,
-      scale: 0.98,
+      scale: 1, // Remove scale effect for pure slide
     }),
     center: {
       zIndex: 1,
@@ -62,9 +63,9 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     },
     exit: (direction: number) => ({
       zIndex: 0,
-      y: direction < 0 ? 200 : -200,
+      y: direction < 0 ? '100%' : '-100%',
       opacity: 0,
-      scale: 1.02,
+      scale: 1, // Remove scale effect for pure slide
     })
   };
 
@@ -152,13 +153,28 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     const deltaX = touchEndX - touchStartX.current;
     const deltaY = touchEndY - touchStartY.current;
     
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
-      if (deltaX > 0) {
-        if (!showPlaylist) setShowPlaylist(true);
+    // Vertical swipe for video switching
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 50) {
+      if (deltaY < 0) {
+        // Swipe Up -> Next Video
+        if (currentIndex < items.length - 1) {
+          setDirection(1);
+          setCurrentIndex(prev => prev + 1);
+        } else {
+          toast.info('已经到底了');
+        }
       } else {
-        if (showPlaylist) setShowPlaylist(false);
+        // Swipe Down -> Prev Video
+        if (currentIndex > 0) {
+          setDirection(-1);
+          setCurrentIndex(prev => prev - 1);
+        } else {
+          toast.info('已经到顶了');
+        }
       }
     }
+    
+    // Horizontal swipe logic removed to avoid back gesture conflict
     
     touchStartX.current = null;
     touchStartY.current = null;
@@ -177,6 +193,21 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
       });
     }
   }, [currentIndex]);
+
+  // Show swipe hint on mobile after loading
+  useEffect(() => {
+    if (!loading && !isDesktop && items.length > 1) {
+      const hasSeenHint = localStorage.getItem('hasSeenSwipeHint');
+      if (!hasSeenHint) {
+        setShowSwipeHint(true);
+        const timer = setTimeout(() => {
+          setShowSwipeHint(false);
+          localStorage.setItem('hasSeenSwipeHint', 'true');
+        }, 4000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [loading, isDesktop, items.length]);
 
   const loadCollection = async () => {
     try {
@@ -240,15 +271,24 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
 
   return (
     <div 
-      className="flex flex-col md:flex-row h-screen bg-black text-white notranslate overflow-hidden overscroll-none touch-pan-y select-none" 
+      className="flex flex-col md:flex-row h-dvh bg-black text-white notranslate overflow-hidden overscroll-none touch-none select-none" 
       translate="no"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onClick={() => setShowSwipeHint(false)}
     >
+
       {/* MAIN STAGE */}
       <div className="flex-1 relative flex flex-col bg-zinc-950 overflow-hidden" onWheel={handleWheel}>
-        {/* Toggle Button (Desktop Only) */}
-        <div className="absolute top-4 right-4 z-50 hidden md:block">
+        {/* Mobile Position Indicator */}
+        <div className="absolute top-4 right-4 z-40 md:hidden pointer-events-none">
+          <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-xs font-medium text-white/90">
+             {currentIndex + 1} / {items.length}
+          </div>
+        </div>
+
+        {/* Toggle Button (Desktop Only) & Mobile Playlist Toggle */}
+        <div className="absolute top-4 left-4 z-50 md:right-4 md:left-auto">
            <Button 
              variant="ghost" 
              size="icon" 
@@ -314,6 +354,23 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
             <button onClick={() => jumpToIndex(currentIndex + 1)} className="absolute right-6 top-1/2 -translate-y-1/2 p-4 rounded-full bg-black/40 text-white/50 hover:bg-black/60 hover:text-white transition-all opacity-0 group-hover:opacity-100 hidden md:flex items-center justify-center border border-white/5 z-20"><ChevronRight className="w-8 h-8" /></button>
           )}
         </div>
+          
+        {/* Swipe Hint Overlay */}
+        <AnimatePresence>
+          {showSwipeHint && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 pointer-events-none z-30 flex flex-col items-center justify-end pb-24 bg-linear-to-t from-black/60 to-transparent"
+            >
+              <div className="flex flex-col items-center gap-2 animate-bounce">
+                <ChevronUp className="w-8 h-8 text-white/80" />
+                <span className="text-white/80 text-sm font-medium tracking-widest uppercase">Swipe Up</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* SIDEBAR */}

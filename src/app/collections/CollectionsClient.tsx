@@ -5,13 +5,13 @@ import { useState, useEffect } from 'react';
 import { PageWrapper } from '@/components/layout/page-wrapper';
 import { Button } from '@/components/ui/button';
 import {
-
   Loader2,
   Copy,
   Trash2,
   ExternalLink,
   FolderOpen,
   Calendar,
+  MoreVertical,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from '@/lib/utils';
@@ -21,6 +21,12 @@ import Link from 'next/link';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ShortlinkDialog } from '@/components/files/shortlink-dialog';
 import { RotateCcw } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 
 interface Collection {
@@ -153,7 +159,10 @@ export function CollectionsClient() {
       console.error(e);
       toast.error('重新分享失败');
     }
+
   };
+
+
 
   const handleView = (id: string) => {
     window.open(`/c/${id}`, '_blank');
@@ -303,20 +312,23 @@ export function CollectionsClient() {
                              <span className="text-xs font-medium">重新分享</span>
                            </Button>
                            
-                           <Button
-                              variant="ghost"
-                              size="sm"
-                              className="flex-1 h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              onClick={(e) => handleDelete(e, collection.id)}
-                           >
-                             <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                             <span className="text-xs font-medium">删除</span>
-                           </Button>
+                           <DropdownMenu>
+                             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                               <Button variant="ghost" size="sm" className="h-8 w-8 px-0 text-muted-foreground hover:text-foreground">
+                                 <MoreVertical className="w-4 h-4" />
+                               </Button>
+                             </DropdownMenuTrigger>
+                             <DropdownMenuContent align="end">
+                               <DropdownMenuItem onClick={(e) => handleDelete(e, collection.id)} className="text-destructive focus:text-destructive">
+                                 <Trash2 className="w-4 h-4 mr-2" />
+                                 删除
+                               </DropdownMenuItem>
+                             </DropdownMenuContent>
+                           </DropdownMenu>
                          </>
                        ) : (
-                         // Active: Copy + Open + Delete
+                         // Active: Copy + Open + More (Reset, Delete)
                          <>
-                           {collection.shortCode && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -326,32 +338,39 @@ export function CollectionsClient() {
                               <Copy className="w-3.5 h-3.5 mr-1.5" />
                               <span className="text-xs font-medium">复制</span>
                             </Button>
-                          )}
 
-                           <Button
-                             variant="ghost"
-                             size="sm"
-                             className="flex-1 h-8 px-2 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
-                             onClick={(e) => {
-                               e.stopPropagation();
-                               handleView(collection.id);
-                             }}
-                           >
-                             <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
-                             <span className="text-xs font-medium">打开</span>
-                           </Button>
-
-                           <Button
+                            <Button
                               variant="ghost"
                               size="sm"
-                              className="flex-1 h-8 px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                              onClick={(e) => handleDelete(e, collection.id)}
-                           >
-                             <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                             <span className="text-xs font-medium">删除</span>
-                           </Button>
-                         </>
-                       )}
+                              className="flex-1 h-8 px-2 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleView(collection.id);
+                              }}
+                            >
+                              <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+                              <span className="text-xs font-medium">打开</span>
+                            </Button>
+
+                            <DropdownMenu>
+                             <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                               <Button variant="ghost" size="sm" className="h-8 w-8 px-0 text-muted-foreground hover:text-foreground">
+                                 <MoreVertical className="w-4 h-4" />
+                               </Button>
+                             </DropdownMenuTrigger>
+                             <DropdownMenuContent align="end">
+                               <DropdownMenuItem onClick={(e) => handleRenew(e, collection.id)} className="text-orange-500 focus:text-orange-500">
+                                 <RotateCcw className="w-4 h-4 mr-2" />
+                                 重置链接
+                               </DropdownMenuItem>
+                               <DropdownMenuItem onClick={(e) => handleDelete(e, collection.id)} className="text-destructive focus:text-destructive">
+                                 <Trash2 className="w-4 h-4 mr-2" />
+                                 删除
+                               </DropdownMenuItem>
+                             </DropdownMenuContent>
+                           </DropdownMenu>
+                          </>
+                        )}
                     </div>
                   </div>
                 </div>
@@ -377,6 +396,12 @@ export function CollectionsClient() {
         open={!!renewId}
         onOpenChange={(open) => !open && setRenewId(null)}
         onConfirm={confirmRenew}
+        title={collections.find(c => c.id === renewId)?.expiresAt && new Date(collections.find(c => c.id === renewId)!.expiresAt!) < new Date() ? '重新分享' : '重置链接'}
+        description={
+            collections.find(c => c.id === renewId)?.expiresAt && new Date(collections.find(c => c.id === renewId)!.expiresAt!) < new Date() 
+            ? '选择新的有效期，将生成新的分享链接' 
+            : <span className="text-yellow-500 font-medium">注意：重置后原链接将立即失效，无法访问！</span>
+        }
       />
     </PageWrapper>
   );
