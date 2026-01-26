@@ -2,11 +2,17 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, Play, ListVideo, ChevronUp, Sun, Volume2, VolumeX } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Play, Pause, ListVideo, ChevronUp, Sun, Volume2, VolumeX, Maximize, Minimize } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface CollectionItem {
   id: string;
@@ -50,13 +56,36 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const [showIndicator, setShowIndicator] = useState<'brightness' | 'volume' | false>(false);
   const indicatorTimer = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const isAdjustingVolumeRef = useRef(false);
 
+  // Custom Player States
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showControls, setShowControls] = useState(true);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const controlsTimer = useRef<NodeJS.Timeout | null>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Helper to get the currently active video element accurately
+  const getActiveVideo = () => {
+    if (!playerContainerRef.current) return videoRef.current;
+    // We look for the video that is not in an exiting state (Framer Motion adds attributes or we can use DOM order)
+    const videos = playerContainerRef.current.querySelectorAll('video[data-active="true"]');
+    if (videos.length > 1) {
+        // Find the one that's actually playing or preferred. 
+        // Typically the one that was most recently added is at the end.
+        return (videos[videos.length - 1] as HTMLVideoElement);
+    }
+    return (videos[0] as HTMLVideoElement) || videoRef.current;
+  };
 
   // Animation variants
   const slideVariants = {
@@ -155,6 +184,9 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     startBrightness.current = brightness;
     startVolume.current = volume;
     setIsAdjusting('none');
+    
+    // Just clear timer, don't show controls yet (wait to see if it's a tap or swipe)
+    if (controlsTimer.current) clearTimeout(controlsTimer.current);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -164,9 +196,14 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     const deltaY = touchStartY.current - touchY; // Swipe up is positive
 
     if (Math.abs(deltaY) < 10 && isAdjusting === 'none') return;
+    
+    // Hide controls if we start adjusting brightness/volume to focus on the indicator
+    if (isAdjusting !== 'none') {
+        setShowControls(false);
+    }
 
-    // If starting on left 40% of screen, adjust brightness
-    if (touchStartX.current < window.innerWidth * 0.4) {
+    // If starting on left 25% of screen, adjust brightness
+    if (touchStartX.current < window.innerWidth * 0.25) {
         setIsAdjusting('brightness');
         setShowIndicator('brightness');
         if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
@@ -175,9 +212,10 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
         const newBrightness = Math.max(0.1, Math.min(1, startBrightness.current + change));
         setBrightness(newBrightness);
     } 
-    // If starting on right 40% of screen, adjust volume
-    else if (touchStartX.current > window.innerWidth * 0.6) {
+    // If starting on right 25% of screen, adjust volume
+    else if (touchStartX.current > window.innerWidth * 0.75) {
         setIsAdjusting('volume');
+        isAdjustingVolumeRef.current = true;
         setShowIndicator('volume');
         if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
 
@@ -187,7 +225,9 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
         
         // Apply volume to video immediately if exists
         if (videoRef.current) {
+            // Note: On iOS, this property is read-only
             videoRef.current.volume = newVolume;
+            // Force unmuting if increasing volume
             if (newVolume > 0) videoRef.current.muted = false;
             else videoRef.current.muted = true;
         }
@@ -228,14 +268,108 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     }
     
     if (isAdjusting !== 'none') {
-        indicatorTimer.current = setTimeout(() => setShowIndicator(false), 800);
+        indicatorTimer.current = setTimeout(() => {
+            setShowIndicator(false);
+            isAdjustingVolumeRef.current = false;
+        }, 800);
+    } else {
+        isAdjustingVolumeRef.current = false;
     }
     
     touchStartX.current = null;
     touchStartY.current = null;
     setIsAdjusting('none');
+    
+    // Handle timer based on interaction type
+    const isSwipe = Math.abs(deltaY) > 50 || Math.abs(deltaX) > 20;
+    if (!isSwipe && deltaY === 0 && deltaX === 0) {
+      // Very likely a tap
+      resetControlsTimer();
+    } else if (showControls) {
+      // Swiped but controls were visible, restart the hide timer
+      resetControlsTimer(true); // true means skip setShowControls(true)
+    }
   };
 
+  // Player Helpers
+  const togglePlay = () => {
+    const video = getActiveVideo();
+    if (!video) return;
+    if (isPlaying) {
+      video.pause();
+    } else {
+      video.play().catch(console.error);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    const video = getActiveVideo();
+    if (video) {
+      setCurrentTime(video.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    const video = getActiveVideo();
+    if (video) {
+      setDuration(video.duration);
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = Number(e.target.value);
+    const video = getActiveVideo();
+    setCurrentTime(time);
+    if (video) {
+      video.currentTime = time;
+    }
+  };
+
+  const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const resetControlsTimer = (skipShow = false) => {
+    if (!skipShow) setShowControls(true);
+    if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    controlsTimer.current = setTimeout(() => {
+      const video = getActiveVideo();
+      if (video && !video.paused) {
+        setShowControls(false);
+      }
+    }, 2000);
+  };
+
+  const handleMouseMove = () => {
+    resetControlsTimer();
+  };
+
+  const toggleFullScreen = () => {
+    if (!playerContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      playerContainerRef.current.requestFullscreen().catch(console.error);
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => setIsFullScreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handleFsChange);
+    return () => document.removeEventListener('fullscreenchange', handleFsChange);
+  }, []);
+
+  // Removed forced controls visibility effect to allow "Silent Switching"
+  // User interaction (click, move, touch) is now the only trigger for controls visibility.
+
+  useEffect(() => {
+    // Reset player state on item change
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+  }, [currentIndex]);
   useEffect(() => {
     loadCollection();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -334,51 +468,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
       onTouchEnd={handleTouchEnd}
       onClick={() => setShowSwipeHint(false)}
     >
-      {/* Brightness Simulating Overlay */}
-      <div 
-        className="fixed inset-0 bg-black pointer-events-none z-45 transition-opacity duration-150"
-        style={{ opacity: (1 - brightness) * 0.8 }} 
-      />
-
-      {/* Brightness Indicator HUD */}
-      <AnimatePresence>
-        {showIndicator === 'brightness' && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 10 }}
-            className="fixed left-12 top-1/2 -translate-y-1/2 z-100 bg-black/60 backdrop-blur-xl border border-white/10 p-4 rounded-2xl flex flex-col items-center gap-3 min-w-[64px]"
-          >
-            <div className="relative w-1 h-32 bg-white/20 rounded-full overflow-hidden">
-               <motion.div 
-                  className="absolute bottom-0 left-0 right-0 bg-white"
-                  style={{ height: `${brightness * 100}%` }}
-               />
-            </div>
-            <Sun className="w-5 h-5 text-white" />
-            <span className="text-[10px] font-bold font-mono tracking-tighter">{Math.round(brightness * 100)}%</span>
-          </motion.div>
-        )}
-
-        {showIndicator === 'volume' && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 10 }}
-            className="fixed right-12 top-1/2 -translate-y-1/2 z-100 bg-black/60 backdrop-blur-xl border border-white/10 p-4 rounded-2xl flex flex-col items-center gap-3 min-w-[64px]"
-          >
-            <div className="relative w-1 h-32 bg-white/20 rounded-full overflow-hidden">
-               <motion.div 
-                  className="absolute bottom-0 left-0 right-0 bg-white"
-                  style={{ height: `${volume * 100}%` }}
-               />
-            </div>
-            {volume > 0 ? <Volume2 className="w-5 h-5 text-white" /> : <VolumeX className="w-5 h-5 text-zinc-500" />}
-            <span className="text-[10px] font-bold font-mono tracking-tighter">{Math.round(volume * 100)}%</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* MAIN STAGE */}
       <div className="flex-1 relative flex flex-col bg-zinc-950 overflow-hidden" onWheel={handleWheel}>
         {/* Mobile Position Indicator */}
@@ -401,7 +490,47 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 relative w-full h-full overflow-hidden">
+        <div 
+          ref={playerContainerRef}
+          className="flex-1 relative w-full h-full overflow-hidden bg-black"
+          onMouseMove={handleMouseMove}
+          onClick={() => {
+             // Premium Click Logic: If hidden, show. If shown, toggle.
+             if (!showControls) {
+                handleMouseMove();
+             } else {
+                togglePlay();
+             }
+          }}
+        >
+          {/* Persistent HUD Indicators - Always in DOM for fullscreen ref stability */}
+          <div className="absolute inset-0 pointer-events-none z-50">
+            <AnimatePresence>
+                {showIndicator === 'brightness' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                    className="absolute left-6 top-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-xl border border-white/10 p-3 rounded-2xl flex flex-col items-center gap-2"
+                  >
+                    <div className="relative w-1 h-24 bg-white/20 rounded-full overflow-hidden">
+                       <div className="absolute bottom-0 left-0 right-0 bg-white" style={{ height: `${brightness * 100}%` }} />
+                    </div>
+                    <Sun className="w-4 h-4 text-white" />
+                  </motion.div>
+                )}
+                {showIndicator === 'volume' && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
+                    className="absolute right-6 top-1/2 -translate-y-1/2 bg-black/40 backdrop-blur-xl border border-white/10 p-3 rounded-2xl flex flex-col items-center gap-2"
+                  >
+                    <div className="relative w-1 h-24 bg-white/20 rounded-full overflow-hidden">
+                       <div className="absolute bottom-0 left-0 right-0 bg-white" style={{ height: `${volume * 100}%` }} />
+                    </div>
+                    {volume > 0 ? <Volume2 className="w-4 h-4 text-white" /> : <VolumeX className="w-4 h-4 text-zinc-500" />}
+                  </motion.div>
+                )}
+            </AnimatePresence>
+          </div>
+
           <AnimatePresence initial={false} custom={direction} mode="popLayout">
             <motion.div
               key={currentIndex}
@@ -417,87 +546,219 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
               }}
               className="absolute inset-0 flex items-center justify-center p-0 md:p-8 w-full h-full select-none"
             >
-               {currentIndex < items.length && items[currentIndex].fileType === 'video' && volume === 0 && (
-                  <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 shadow-2xl flex items-center gap-2"
-                    >
-                      <VolumeX className="w-4 h-4 text-white/70" />
-                      <span className="text-sm font-medium text-white/90">视频已静音</span>
-                    </motion.div>
-                  </div>
-               )}
                 {currentItem.fileType === 'video' ? (
-                  <video
-                     ref={videoRef}
-                     key={currentItem.id}
-                     src={currentItem.fileUrl}
-                     controls
-                     autoPlay
-                     muted={volume === 0}
-                     playsInline 
-                     controlsList="nodownload"
-                     onContextMenu={(e) => e.preventDefault()}
-                     onClick={(e) => {
-                       if (e.currentTarget.muted || e.currentTarget.volume === 0) {
-                          const newVol = 0.5;
-                          e.currentTarget.muted = false;
-                          e.currentTarget.volume = newVol;
-                          setVolume(newVol);
-                       }
-                     }}
-                     onVolumeChange={(e) => {
-                        const v = e.currentTarget.muted ? 0 : e.currentTarget.volume;
-                        if (v !== volume) setVolume(v);
-                     }}
-                     className="max-w-full max-h-full w-auto h-auto object-contain shadow-2xl focus:outline-none"
-                     style={{ maxHeight: '100%' }}
-                     onEnded={() => {
-                       if (currentIndex < items.length - 1) {
-                         jumpToIndex(currentIndex + 1);
-                       }
-                     }}
-                     onLoadedData={(e) => {
-                       const video = e.currentTarget;
-                       // Explicitly sync properties on load because React's muted prop 
-                       // primarily affects the defaultMuted attribute
-                       video.volume = volume;
-                       video.muted = volume === 0;
-                       
-                       // Try to play
-                       video.play().catch((err) => {
-                           console.log('Autoplay blocked:', err);
-                           // If unmuted autoplay is blocked even after interaction, 
-                           // we fallback to muted autoplay so the user at least sees motion
-                           if (volume > 0) {
-                               video.muted = true;
-                               video.play().catch(e => console.error('Fallback play failed:', e));
-                           }
-                       });
-                     }}
-                  />
-               ) : currentItem.fileType === 'image' ? (
-                 <div className="relative w-full h-full flex items-center justify-center">
-                     <div 
-                       className="absolute inset-0 opacity-20 blur-3xl pointer-events-none"
-                       style={{ backgroundImage: `url(${currentItem.thumbnailUrl || currentItem.fileUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-                     />
-                     <img key={currentItem.id} src={currentItem.fileUrl} alt="" className="relative max-w-full max-h-full object-contain shadow-2xl z-10" onContextMenu={(e) => e.preventDefault()} />
-                 </div>
-               ) : (
-                 <div className="text-center text-zinc-500"><p>Unsupported media type</p></div>
-               )}
+                  <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
+                    {/* Brightness Overlay */}
+                    <div 
+                        className="absolute inset-0 bg-black pointer-events-none z-20 transition-opacity duration-150"
+                        style={{ opacity: (1 - brightness) * 0.8 }} 
+                    />
+                    <video
+                       ref={(el) => {
+                         if (el) {
+                            videoRef.current = el;
+                         } else if (videoRef.current === el) {
+                            // Only clear if the ref still points to the element being unmounted
+                            videoRef.current = null;
+                         }
+                       }}
+                       key={currentItem.id}
+                       src={currentItem.fileUrl}
+                       data-active="true"
+                       playsInline 
+                       muted={volume === 0}
+                       className="max-w-full max-h-full w-auto h-auto object-contain"
+                       onEnded={() => {
+                         if (currentIndex < items.length - 1) {
+                           jumpToIndex(currentIndex + 1);
+                         }
+                       }}
+                       onPlay={() => setIsPlaying(true)}
+                       onPause={() => setIsPlaying(false)}
+                       onTimeUpdate={handleTimeUpdate}
+                       onLoadedMetadata={handleLoadedMetadata}
+                       onLoadedData={(e) => {
+                         const video = e.currentTarget;
+                         video.volume = volume;
+                         video.muted = volume === 0;
+                         video.playbackRate = playbackRate;
+                         video.play().catch((err) => {
+                             console.log('Autoplay blocked:', err);
+                             if (volume > 0) {
+                                 video.muted = true;
+                                 video.play().catch(e => console.error('Fallback play failed:', e));
+                             }
+                         });
+                       }}
+                    />
+                  </div>
+                ) : currentItem.fileType === 'image' ? (
+                  <div className="relative w-full h-full flex items-center justify-center">
+                      <div 
+                        className="absolute inset-0 opacity-20 blur-3xl pointer-events-none"
+                        style={{ backgroundImage: `url(${currentItem.thumbnailUrl || currentItem.fileUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                      />
+                      <img key={currentItem.id} src={currentItem.fileUrl} alt="" className="relative max-w-full max-h-full object-contain shadow-2xl z-10" onContextMenu={(e) => e.preventDefault()} />
+                  </div>
+                ) : (
+                  <div className="text-center text-zinc-500"><p>Unsupported media type</p></div>
+                )}
             </motion.div>
           </AnimatePresence>
 
+          {/* Persistent UI Overlays - Outside AnimatePresence to avoid Ref/Event issues */}
+          {currentItem.fileType === 'video' && (
+            <>
+              {/* Mute Hint */}
+              <AnimatePresence>
+                {volume === 0 && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newVol = 0.5;
+                      setVolume(newVol);
+                      const video = getActiveVideo();
+                      if (video) {
+                        video.volume = newVol;
+                        video.muted = false;
+                        video.play().catch(console.error);
+                      }
+                    }}
+                    className="absolute bottom-32 left-1/2 -translate-x-1/2 z-30 pointer-events-auto bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-2xl flex items-center gap-2 cursor-pointer active:scale-95 transition-transform"
+                  >
+                    <VolumeX className="w-4 h-4 text-white/70" />
+                    <span className="text-sm font-medium text-white/90">点击恢复声音</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Center Play/Pause Feedback */}
+              <AnimatePresence>
+                 {!isPlaying && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 1.2 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePlay();
+                      }}
+                      className="absolute inset-0 flex items-center justify-center bg-black/5 z-10 pointer-events-auto cursor-pointer"
+                    >
+                       <div className="w-20 h-20 bg-white/5 backdrop-blur-md rounded-full flex items-center justify-center border border-white/10 shadow-2xl">
+                          <Play className="w-10 h-10 text-white fill-white ml-1 opacity-80" />
+                       </div>
+                    </motion.div>
+                 )}
+              </AnimatePresence>
+
+              {/* Controls Bar */}
+              <div 
+                onClick={(e) => e.stopPropagation()}
+                className={cn(
+                  "absolute bottom-0 left-0 right-0 p-6 pt-12 bg-linear-to-t from-black/90 via-black/40 to-transparent transition-opacity duration-500 z-50",
+                  showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+                )}
+              >
+                 {/* Progress Bar */}
+                 <div className="relative w-full h-1 group/progress mb-4 cursor-pointer flex items-center">
+                    <input 
+                      type="range"
+                      min={0}
+                      max={duration || 100}
+                      step={0.1}
+                      value={currentTime}
+                      onChange={handleSeek}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      className="absolute inset-x-0 -top-3 bottom-0 w-full opacity-0 z-10 cursor-pointer"
+                    />
+                    <div className="absolute inset-0 bg-white/10 rounded-full" />
+                    <div 
+                      className="absolute inset-y-0 left-0 bg-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"
+                      style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
+                    />
+                    <div 
+                      className="absolute top-1/2 -translate-y-1/2 h-4 w-4 bg-white rounded-full shadow-xl scale-0 group-hover/progress:scale-110 transition-transform border-2 border-blue-500 z-5"
+                      style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 8px)` }}
+                    />
+                 </div>
+
+                 <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                       <button onClick={togglePlay} className="text-white hover:text-blue-400 transition-colors">
+                          {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
+                       </button>
+
+                       <div className="flex items-center gap-3">
+                          <button 
+                            onClick={() => {
+                                const newVol = volume === 0 ? 0.5 : 0;
+                                setVolume(newVol);
+                                const video = getActiveVideo();
+                                if (video) {
+                                    video.volume = newVol;
+                                    video.muted = newVol === 0;
+                                }
+                            }}
+                            className="text-white/80 hover:text-white"
+                          >
+                             {volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                          </button>
+                          <div className="text-xs font-mono text-white/70">
+                             <span className="text-white">{formatTime(currentTime)}</span>
+                             <span className="mx-1">/</span>
+                             <span>{formatTime(duration)}</span>
+                          </div>
+                       </div>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                       <DropdownMenu>
+                         <DropdownMenuTrigger asChild>
+                           <button className="flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2 py-1 rounded text-xs font-bold text-white/70 hover:text-white transition-colors">
+                             {playbackRate.toFixed(1)}x
+                             <ChevronUp className="w-3 h-3 rotate-180" />
+                           </button>
+                         </DropdownMenuTrigger>
+                         <DropdownMenuContent align="end" className="bg-zinc-900 border-white/10 text-zinc-300 min-w-[80px]">
+                           {[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map((rate) => (
+                             <DropdownMenuItem 
+                               key={rate}
+                               onClick={() => {
+                                 setPlaybackRate(rate);
+                                 const video = getActiveVideo();
+                                 if (video) video.playbackRate = rate;
+                               }}
+                               className={cn(
+                                 "text-xs justify-center focus:bg-white/10 focus:text-white cursor-pointer",
+                                 playbackRate === rate && "bg-white/10 text-white font-bold"
+                               )}
+                             >
+                               {rate.toFixed(1)}x
+                             </DropdownMenuItem>
+                           ))}
+                         </DropdownMenuContent>
+                       </DropdownMenu>
+
+                       <button onClick={toggleFullScreen} className="text-white/80 hover:text-white transition-colors">
+                          {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-6 h-6" />}
+                       </button>
+                    </div>
+                 </div>
+              </div>
+            </>
+          )}
+
           {/* Desktop Navigation */}
           {currentIndex > 0 && (
-            <button onClick={() => jumpToIndex(currentIndex - 1)} className="absolute left-6 top-1/2 -translate-y-1/2 p-4 rounded-full bg-black/40 text-white/50 hover:bg-black/60 hover:text-white transition-all opacity-0 group-hover:opacity-100 hidden md:flex items-center justify-center border border-white/5 z-20"><ChevronLeft className="w-8 h-8" /></button>
+            <button onClick={(e) => { e.stopPropagation(); jumpToIndex(currentIndex - 1); }} className="absolute left-6 top-1/2 -translate-y-1/2 p-4 rounded-full bg-black/40 text-white/50 hover:bg-black/60 hover:text-white transition-all opacity-0 group-hover:opacity-100 hidden md:flex items-center justify-center border border-white/5 z-20"><ChevronLeft className="w-8 h-8" /></button>
           )}
           {currentIndex < items.length - 1 && (
-            <button onClick={() => jumpToIndex(currentIndex + 1)} className="absolute right-6 top-1/2 -translate-y-1/2 p-4 rounded-full bg-black/40 text-white/50 hover:bg-black/60 hover:text-white transition-all opacity-0 group-hover:opacity-100 hidden md:flex items-center justify-center border border-white/5 z-20"><ChevronRight className="w-8 h-8" /></button>
+            <button onClick={(e) => { e.stopPropagation(); jumpToIndex(currentIndex + 1); }} className="absolute right-6 top-1/2 -translate-y-1/2 p-4 rounded-full bg-black/40 text-white/50 hover:bg-black/60 hover:text-white transition-all opacity-0 group-hover:opacity-100 hidden md:flex items-center justify-center border border-white/5 z-20"><ChevronRight className="w-8 h-8" /></button>
           )}
         </div>
           
