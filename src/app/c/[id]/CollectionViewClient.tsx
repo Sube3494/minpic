@@ -58,6 +58,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [swipeY, setSwipeY] = useState(0); // TikTok-style gesture offset
   const [edgeNotice, setEdgeNotice] = useState<string | null>(null);
@@ -71,7 +72,10 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const isLongPressingRef = useRef(false);
   const playerContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const handleResize = () => setIsDesktop(window.innerWidth >= 768);
+    const handleResize = () => {
+        setIsDesktop(window.innerWidth >= 768);
+        setIsLandscape(window.innerWidth > window.innerHeight);
+    };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -365,13 +369,17 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     
     if (!document.fullscreenElement) {
       playerContainerRef.current.requestFullscreen().then(() => {
-        // Smart Orientation: If video is landscape, try to lock orientation
-        if (videoDimensions && videoDimensions.width > videoDimensions.height) {
+        // Smart Orientation: 
+        if (videoDimensions) {
             const orientation = window.screen.orientation as unknown as { lock: (o: string) => Promise<void> };
             if (orientation && typeof orientation.lock === 'function') {
-                orientation.lock('landscape').catch(() => {
-                    console.log('Orientation lock not supported');
-                });
+                if (videoDimensions.width > videoDimensions.height) {
+                    // Landscape video -> Rotate to landscape
+                    orientation.lock('landscape').catch(() => console.log('Landscape lock failed'));
+                } else {
+                    // Portrait video -> Keep portrait
+                    orientation.lock('portrait').catch(() => console.log('Portrait lock failed'));
+                }
             }
         }
       }).catch(console.error);
@@ -410,6 +418,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
         if (video.readyState >= 1) { // HAVE_METADATA or more
             setDuration(video.duration);
             setCurrentTime(video.currentTime);
+            setVideoDimensions({ width: video.videoWidth, height: video.videoHeight });
         }
         // Force play if it was pre-mounted but paused
         video.play().catch(() => {
@@ -739,9 +748,9 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
               <div 
                 className={cn(
                    "absolute flex transition-all duration-500 z-50",
-                   // Conditional placement for landscape/fullscreen
-                   isFullScreen && videoDimensions && videoDimensions.width > videoDimensions.height
-                     ? "right-8 top-1/2 -translate-y-1/2 flex-col gap-3 scale-90" // Landscape Center-Right
+                   // Avoid layout break in landscape regardless of video orientation
+                   isLandscape
+                     ? "right-6 top-1/2 -translate-y-1/2 flex-col gap-2 scale-[0.85] origin-right" // Compact Landscape
                      : "right-4 bottom-32 flex-col gap-4", // Vertical Bottom-Right
                    showControls ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
@@ -927,7 +936,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                 width: isDesktop ? 0 : '45vw',
                 opacity: 0 
               }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              transition={{ type: 'tween', duration: 0.25, ease: [0.21, 0.47, 0.32, 0.98] }}
               className={cn(
                 "fixed inset-y-0 left-0 min-w-[160px] bg-black/10 backdrop-blur-3xl border-r border-white/5",
                 "md:right-0 md:left-auto md:min-w-0 md:bg-zinc-900/95 md:backdrop-blur-xl md:border-l md:border-r-0 md:border-white/10 md:relative md:flex",
