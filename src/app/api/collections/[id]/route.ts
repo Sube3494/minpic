@@ -149,8 +149,8 @@ export async function PATCH(
       unit: 'minutes' | 'hours' | 'days';
     };
 
-    if (!expiresIn || !unit) {
-      return NextResponse.json({ error: 'Missing expiration parameters' }, { status: 400 });
+    if ((!expiresIn || !unit) && !body.addFileIds && !body.removeFileIds) {
+      return NextResponse.json({ error: 'Missing update parameters' }, { status: 400 });
     }
 
     // Verify ownership
@@ -199,15 +199,81 @@ export async function PATCH(
     }
 
     // Update collection
-    const expiresAt = calculateExpiresAt(expiresIn, unit);
+    const expiresAt = expiresIn && unit ? calculateExpiresAt(expiresIn, unit) : undefined;
+    
+    // Handle File Modifications
+    if (body.removeFileIds && Array.isArray(body.removeFileIds)) {
+       const removeIds = body.removeFileIds as string[];
+       if (removeIds.length > 0) {
+          await prisma.collectionItem.deleteMany({
+            where: {
+              collectionId: id,
+              fileId: { in: removeIds }
+            }
+          });
+       }
+    }
+
+    if (body.addFileIds && Array.isArray(body.addFileIds)) {
+       const addIds = body.addFileIds as string[];
+       if (addIds.length > 0) {
+          // Get current max order
+          const maxOrderAgg = await prisma.collectionItem.aggregate({
+            where: { collectionId: id },
+            _max: { order: true }
+          });
+          const currentOrder = (maxOrderAgg._max.order ?? -1) + 1;
+
+          // Filter out files that are already in the collection to avoid unique constraint errors
+          const existingItems = await prisma.collectionItem.findMany({
+             where: { collectionId: id, fileId: { in: addIds } },
+             select: { fileId: true }
+          });
+          const existingFileIds = new Set(existingItems.map(item => item.fileId));
+          const newFileIds = addIds.filter(fid => !existingFileIds.has(fid));
+
+          if (newFileIds.length > 0) {
+             const data = newFileIds.map((fileId, index) => ({
+                collectionId: id,
+                fileId,
+                order: currentOrder + index
+             }));
+             
+             await prisma.collectionItem.createMany({
+               data
+             });
+          }
+       }
+    }
+
+    // Recalculate stats
+    const allItems = await prisma.collectionItem.findMany({
+      where: { collectionId: id },
+      include: { file: { select: { fileSize: true } } }
+    });
+
+    const fileCount = allItems.length;
+    const totalSize = allItems.reduce((acc, item) => acc + Number(item.file.fileSize), 0);
+
+    const updateData: {
+      fileCount: number;
+      totalSize: bigint;
+      expiresAt?: Date | null;
+      shortCode?: string | null;
+    } = {
+      fileCount,
+      totalSize: BigInt(totalSize),
+    };
+
+    // Only update expiration/shortlink if provided
+    if (expiresAt) {
+       updateData.expiresAt = expiresAt;
+       updateData.shortCode = shortCode;
+    }
+
     const updated = await prisma.collection.update({
       where: { id },
-      data: {
-        shortCode,
-        expiresAt,
-        createdAt: new Date(), // Optional: reset created time? Maybe better not to confuse user.
-        // Let's just update expiresAt.
-      },
+      data: updateData,
     });
 
     return NextResponse.json({

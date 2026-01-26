@@ -27,6 +27,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { CollectionManageDialog } from '@/components/files/collection-manage-dialog';
+import { Settings2 } from 'lucide-react';
 
 
 interface Collection {
@@ -62,6 +64,7 @@ export function CollectionsClient() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [renewId, setRenewId] = useState<string | null>(null);
+  const [manageId, setManageId] = useState<string | null>(null);
 
   useEffect(() => {
     loadCollections();
@@ -163,6 +166,13 @@ export function CollectionsClient() {
   };
 
 
+
+
+
+  const handleManage = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setManageId(id);
+  };
 
   const handleView = (id: string) => {
     window.open(`/c/${id}`, '_blank');
@@ -363,6 +373,10 @@ export function CollectionsClient() {
                                  <RotateCcw className="w-4 h-4 mr-2" />
                                  重置链接
                                </DropdownMenuItem>
+                               <DropdownMenuItem onClick={(e) => handleManage(e, collection.id)}>
+                                 <Settings2 className="w-4 h-4 mr-2" />
+                                 管理内容
+                               </DropdownMenuItem>
                                <DropdownMenuItem onClick={(e) => handleDelete(e, collection.id)} className="text-destructive focus:text-destructive">
                                  <Trash2 className="w-4 h-4 mr-2" />
                                  删除
@@ -403,6 +417,14 @@ export function CollectionsClient() {
             : <span className="text-yellow-500 font-medium">注意：重置后原链接将立即失效，无法访问！</span>
         }
       />
+
+      <CollectionManageDialog 
+        open={!!manageId}
+        onOpenChange={(open) => !open && setManageId(null)}
+        collectionId={manageId || ''}
+        onUpdate={loadCollections}
+      />
     </PageWrapper>
+
   );
 }
