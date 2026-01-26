@@ -182,8 +182,8 @@ export async function PATCH(
       const shortlinkService = new ShortlinkService();
       shortlinkService.setConfig(sConfig);
 
-      // Get base URL from request
-      const baseUrl = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+      // Get base URL from environment or request
+      const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
       const collectionUrl = `${baseUrl}/c/${collection.id}`;
 
       // Create NEW shortlink (this effectively rotates the link)

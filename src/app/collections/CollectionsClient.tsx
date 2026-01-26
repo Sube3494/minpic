@@ -144,7 +144,7 @@ export function CollectionsClient() {
       // Update local state
       setCollections(prev => prev.map(c => 
         c.id === id 
-        ? { ...c, expiresAt: data.expiresAt, shortCode: data.shortCode } 
+        ? { ...c, expiresAt: data.expiresAt, shortCode: data.shortCode, shortUrl: data.shortUrl } 
         : c
       ));
       
