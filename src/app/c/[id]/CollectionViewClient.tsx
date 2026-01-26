@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, Play, ListVideo, ChevronUp } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Play, ListVideo, ChevronUp, Sun, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -40,6 +40,16 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   // Ref to scroll active item into view
   const activeItemRef = useRef<HTMLDivElement>(null);
   const isSwitchingRef = useRef(false);
+
+  // Brightness Control
+  const [brightness, setBrightness] = useState(1);
+  const [volume, setVolume] = useState(0); // Start at 0 to ensure first video autoplays muted
+  const [isAdjusting, setIsAdjusting] = useState<'brightness' | 'volume' | 'none'>('none');
+  const startBrightness = useRef(1);
+  const startVolume = useRef(1);
+  const [showIndicator, setShowIndicator] = useState<'brightness' | 'volume' | false>(false);
+  const indicatorTimer = useRef<NodeJS.Timeout | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
@@ -142,6 +152,46 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
+    startBrightness.current = brightness;
+    startVolume.current = volume;
+    setIsAdjusting('none');
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    
+    const touchY = e.touches[0].clientY;
+    const deltaY = touchStartY.current - touchY; // Swipe up is positive
+
+    if (Math.abs(deltaY) < 10 && isAdjusting === 'none') return;
+
+    // If starting on left 40% of screen, adjust brightness
+    if (touchStartX.current < window.innerWidth * 0.4) {
+        setIsAdjusting('brightness');
+        setShowIndicator('brightness');
+        if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
+
+        const change = deltaY / 200;
+        const newBrightness = Math.max(0.1, Math.min(1, startBrightness.current + change));
+        setBrightness(newBrightness);
+    } 
+    // If starting on right 40% of screen, adjust volume
+    else if (touchStartX.current > window.innerWidth * 0.6) {
+        setIsAdjusting('volume');
+        setShowIndicator('volume');
+        if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
+
+        const change = deltaY / 200;
+        const newVolume = Math.max(0, Math.min(1, startVolume.current + change));
+        setVolume(newVolume);
+        
+        // Apply volume to video immediately if exists
+        if (videoRef.current) {
+            videoRef.current.volume = newVolume;
+            if (newVolume > 0) videoRef.current.muted = false;
+            else videoRef.current.muted = true;
+        }
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -153,31 +203,37 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     const deltaX = touchEndX - touchStartX.current;
     const deltaY = touchEndY - touchStartY.current;
     
-    // Vertical swipe for video switching
-    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 50) {
-      if (deltaY < 0) {
-        // Swipe Up -> Next Video
-        if (currentIndex < items.length - 1) {
-          setDirection(1);
-          setCurrentIndex(prev => prev + 1);
-        } else {
-          toast.info('已经到底了');
+    // Only switch if not adjusting
+    if (isAdjusting === 'none') {
+        // Vertical swipe for video switching
+        if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 50) {
+            if (deltaY < 0) {
+                // Swipe Up -> Next Video
+                if (currentIndex < items.length - 1) {
+                setDirection(1);
+                setCurrentIndex(prev => prev + 1);
+                } else {
+                toast.info('已经到底了');
+                }
+            } else {
+                // Swipe Down -> Prev Video
+                if (currentIndex > 0) {
+                setDirection(-1);
+                setCurrentIndex(prev => prev - 1);
+                } else {
+                toast.info('已经到顶了');
+                }
+            }
         }
-      } else {
-        // Swipe Down -> Prev Video
-        if (currentIndex > 0) {
-          setDirection(-1);
-          setCurrentIndex(prev => prev - 1);
-        } else {
-          toast.info('已经到顶了');
-        }
-      }
     }
     
-    // Horizontal swipe logic removed to avoid back gesture conflict
+    if (isAdjusting !== 'none') {
+        indicatorTimer.current = setTimeout(() => setShowIndicator(false), 800);
+    }
     
     touchStartX.current = null;
     touchStartY.current = null;
+    setIsAdjusting('none');
   };
 
   useEffect(() => {
@@ -274,9 +330,54 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
       className="flex flex-col md:flex-row h-dvh bg-black text-white notranslate overflow-hidden overscroll-none touch-none select-none" 
       translate="no"
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       onClick={() => setShowSwipeHint(false)}
     >
+      {/* Brightness Simulating Overlay */}
+      <div 
+        className="fixed inset-0 bg-black pointer-events-none z-45 transition-opacity duration-150"
+        style={{ opacity: (1 - brightness) * 0.8 }} 
+      />
+
+      {/* Brightness Indicator HUD */}
+      <AnimatePresence>
+        {showIndicator === 'brightness' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+            className="fixed left-12 top-1/2 -translate-y-1/2 z-100 bg-black/60 backdrop-blur-xl border border-white/10 p-4 rounded-2xl flex flex-col items-center gap-3 min-w-[64px]"
+          >
+            <div className="relative w-1 h-32 bg-white/20 rounded-full overflow-hidden">
+               <motion.div 
+                  className="absolute bottom-0 left-0 right-0 bg-white"
+                  style={{ height: `${brightness * 100}%` }}
+               />
+            </div>
+            <Sun className="w-5 h-5 text-white" />
+            <span className="text-[10px] font-bold font-mono tracking-tighter">{Math.round(brightness * 100)}%</span>
+          </motion.div>
+        )}
+
+        {showIndicator === 'volume' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+            className="fixed right-12 top-1/2 -translate-y-1/2 z-100 bg-black/60 backdrop-blur-xl border border-white/10 p-4 rounded-2xl flex flex-col items-center gap-3 min-w-[64px]"
+          >
+            <div className="relative w-1 h-32 bg-white/20 rounded-full overflow-hidden">
+               <motion.div 
+                  className="absolute bottom-0 left-0 right-0 bg-white"
+                  style={{ height: `${volume * 100}%` }}
+               />
+            </div>
+            {volume > 0 ? <Volume2 className="w-5 h-5 text-white" /> : <VolumeX className="w-5 h-5 text-zinc-500" />}
+            <span className="text-[10px] font-bold font-mono tracking-tighter">{Math.round(volume * 100)}%</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* MAIN STAGE */}
       <div className="flex-1 relative flex flex-col bg-zinc-950 overflow-hidden" onWheel={handleWheel}>
@@ -310,28 +411,73 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
               animate="center"
               exit="exit"
               transition={{
-                y: { type: "spring", stiffness: 300, damping: 30 },
-                opacity: { duration: 0.2 },
+                y: { type: "tween", ease: "easeInOut", duration: 0.4 },
+                opacity: { duration: 0.3 },
                 scale: { duration: 0.4 }
               }}
               className="absolute inset-0 flex items-center justify-center p-0 md:p-8 w-full h-full select-none"
             >
-               {currentItem.fileType === 'video' ? (
-                 <video
-                    key={currentItem.id}
-                    src={currentItem.fileUrl}
-                    controls
-                    autoPlay
-                    controlsList="nodownload"
-                    onContextMenu={(e) => e.preventDefault()}
-                    className="max-w-full max-h-full w-auto h-auto object-contain shadow-2xl focus:outline-none"
-                    style={{ maxHeight: '100%' }}
-                    onEnded={() => {
-                      if (currentIndex < items.length - 1) {
-                        jumpToIndex(currentIndex + 1);
-                      }
-                    }}
-                 />
+               {currentIndex < items.length && items[currentIndex].fileType === 'video' && volume === 0 && (
+                  <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-black/80 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 shadow-2xl flex items-center gap-2"
+                    >
+                      <VolumeX className="w-4 h-4 text-white/70" />
+                      <span className="text-sm font-medium text-white/90">视频已静音</span>
+                    </motion.div>
+                  </div>
+               )}
+                {currentItem.fileType === 'video' ? (
+                  <video
+                     ref={videoRef}
+                     key={currentItem.id}
+                     src={currentItem.fileUrl}
+                     controls
+                     autoPlay
+                     muted={volume === 0}
+                     playsInline 
+                     controlsList="nodownload"
+                     onContextMenu={(e) => e.preventDefault()}
+                     onClick={(e) => {
+                       if (e.currentTarget.muted || e.currentTarget.volume === 0) {
+                          const newVol = 0.5;
+                          e.currentTarget.muted = false;
+                          e.currentTarget.volume = newVol;
+                          setVolume(newVol);
+                       }
+                     }}
+                     onVolumeChange={(e) => {
+                        const v = e.currentTarget.muted ? 0 : e.currentTarget.volume;
+                        if (v !== volume) setVolume(v);
+                     }}
+                     className="max-w-full max-h-full w-auto h-auto object-contain shadow-2xl focus:outline-none"
+                     style={{ maxHeight: '100%' }}
+                     onEnded={() => {
+                       if (currentIndex < items.length - 1) {
+                         jumpToIndex(currentIndex + 1);
+                       }
+                     }}
+                     onLoadedData={(e) => {
+                       const video = e.currentTarget;
+                       // Explicitly sync properties on load because React's muted prop 
+                       // primarily affects the defaultMuted attribute
+                       video.volume = volume;
+                       video.muted = volume === 0;
+                       
+                       // Try to play
+                       video.play().catch((err) => {
+                           console.log('Autoplay blocked:', err);
+                           // If unmuted autoplay is blocked even after interaction, 
+                           // we fallback to muted autoplay so the user at least sees motion
+                           if (volume > 0) {
+                               video.muted = true;
+                               video.play().catch(e => console.error('Fallback play failed:', e));
+                           }
+                       });
+                     }}
+                  />
                ) : currentItem.fileType === 'image' ? (
                  <div className="relative w-full h-full flex items-center justify-center">
                      <div 
@@ -412,10 +558,18 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                 <div className="space-y-2">
                   {items.map((item, index) => {
                     const isActive = index === currentIndex;
+                    const thumbUrl = item.thumbnailUrl || (item.fileType === 'image' ? item.fileUrl : null);
+                    
                     return (
                       <div key={item.id} ref={isActive ? activeItemRef : null} onClick={() => jumpToIndex(index)} className={cn("flex gap-3 p-2 rounded-xl cursor-pointer transition-all duration-300 group", isActive ? "bg-white/10 ring-1 ring-white/20" : "hover:bg-white/5")}>
                         <div className="relative w-16 md:w-24 aspect-video bg-zinc-800 rounded-md overflow-hidden shrink-0 shadow-sm">
-                          {(item.thumbnailUrl || item.fileUrl) ? <img src={item.thumbnailUrl || item.fileUrl} alt="" className={cn("w-full h-full object-cover transition-opacity", isActive ? "opacity-100" : "opacity-70 group-hover:opacity-100")} /> : <div className="w-full h-full flex items-center justify-center text-zinc-600"><span className="text-xs">No img</span></div>}
+                          {thumbUrl ? (
+                            <img src={thumbUrl} alt="" className={cn("w-full h-full object-cover transition-opacity", isActive ? "opacity-100" : "opacity-70 group-hover:opacity-100")} />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                                {item.fileType === 'video' ? <ListVideo className="w-5 h-5 opacity-20" /> : <span className="text-xs">No img</span>}
+                            </div>
+                          )}
                           {isActive && item.fileType === 'video' && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><Play className="w-6 h-6 text-white fill-white" /></div>}
                           {item.fileType === 'video' && !isActive && <div className="absolute bottom-1 right-1 bg-black/60 px-1 py-0.5 rounded text-[10px] text-white font-mono">{item.duration ? new Date(item.duration * 1000).toISOString().substr(14, 5) : 'Video'}</div>}
                         </div>
