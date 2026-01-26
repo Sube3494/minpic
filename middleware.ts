@@ -5,10 +5,12 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const isAuthPage = req.nextUrl.pathname.startsWith('/auth');
   const isPublicPage = req.nextUrl.pathname === '/';
+  const isCollectionPage = req.nextUrl.pathname.startsWith('/c/');
   const isApiAuth = req.nextUrl.pathname.startsWith('/api/auth');
-  
+  const isPublicApi = req.nextUrl.pathname.startsWith('/api/collections/') || req.nextUrl.pathname.includes('/thumbnail');
+
   // Allow auth API routes
-  if (isApiAuth) {
+  if (isApiAuth || isPublicApi) {
     return NextResponse.next();
   }
   
@@ -23,7 +25,7 @@ export default auth((req) => {
   }
   
   // If on public page, allow
-  if (isPublicPage) {
+  if (isPublicPage || isCollectionPage) {
     return NextResponse.next();
   }
   
