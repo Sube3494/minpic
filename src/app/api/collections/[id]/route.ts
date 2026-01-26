@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { MinioService } from '@/lib/minio';
 import { getUserMinioConfig } from '@/lib/get-user-minio-config';
@@ -166,42 +167,55 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // Generate NEW shortlink
-    let shortCode = collection.shortCode;
-    let shortUrl: string | undefined;
+    // Expiration and rotation logic
+    let finalId = id;
+    let finalShortCode = collection.shortCode;
+    let finalShortUrl = collection.shortUrl;
+    let rotate = false;
 
-    const shortlinkConfig = await prisma.config.findUnique({
-      where: {
-        userId_key: { userId: user.id, key: 'shortlink_default' },
-      },
-    });
+    const expiresAt = expiresIn && unit ? calculateExpiresAt(expiresIn, unit) : undefined;
 
-    if (shortlinkConfig) {
-      const { ShortlinkService } = await import('@/lib/shortlink');
-      const sConfig = JSON.parse(shortlinkConfig.value);
-      const shortlinkService = new ShortlinkService();
-      shortlinkService.setConfig(sConfig);
+    if (expiresIn && unit) {
+      // Rotation: Generate a new ID for the collection
+      finalId = randomUUID();
+      rotate = true;
 
-      // Get base URL from environment or request
-      const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
-      const collectionUrl = `${baseUrl}/c/${collection.id}`;
+      const shortlinkConfig = await prisma.config.findUnique({
+        where: {
+          userId_key: { userId: user.id, key: 'shortlink_default' },
+        },
+      });
 
-      // Create NEW shortlink (this effectively rotates the link)
-      const shortlink = await shortlinkService.createShortlink(
-        collectionUrl,
-        undefined,
-        expiresIn,
-        unit
-      );
+      if (shortlinkConfig) {
+        const { ShortlinkService } = await import('@/lib/shortlink');
+        const sConfig = JSON.parse(shortlinkConfig.value);
+        const shortlinkService = new ShortlinkService();
+        shortlinkService.setConfig(sConfig);
 
-      shortCode = shortlink.short_code;
-      shortUrl = shortlink.short_url;
+        const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+        const collectionUrl = `${baseUrl}/c/${finalId}`;
+
+        if (collection.shortCode) {
+          try {
+            await shortlinkService.deleteShortlink(collection.shortCode);
+          } catch (e) {
+            console.warn('Failed to delete old shortlink during rotation:', e);
+          }
+        }
+
+        const shortlink = await shortlinkService.createShortlink(
+          collectionUrl,
+          undefined,
+          expiresIn,
+          unit
+        );
+
+        finalShortCode = shortlink.short_code;
+        finalShortUrl = shortlink.short_url;
+      }
     }
 
-    // Update collection
-    const expiresAt = expiresIn && unit ? calculateExpiresAt(expiresIn, unit) : undefined;
-    
-    // Handle File Modifications
+    // Handle File Modifications on OLD ID
     if (body.removeFileIds && Array.isArray(body.removeFileIds)) {
        const removeIds = body.removeFileIds as string[];
        if (removeIds.length > 0) {
@@ -217,14 +231,12 @@ export async function PATCH(
     if (body.addFileIds && Array.isArray(body.addFileIds)) {
        const addIds = body.addFileIds as string[];
        if (addIds.length > 0) {
-          // Get current max order
           const maxOrderAgg = await prisma.collectionItem.aggregate({
             where: { collectionId: id },
             _max: { order: true }
           });
           const currentOrder = (maxOrderAgg._max.order ?? -1) + 1;
 
-          // Filter out files that are already in the collection to avoid unique constraint errors
           const existingItems = await prisma.collectionItem.findMany({
              where: { collectionId: id, fileId: { in: addIds } },
              select: { fileId: true }
@@ -255,31 +267,43 @@ export async function PATCH(
     const fileCount = allItems.length;
     const totalSize = allItems.reduce((acc, item) => acc + Number(item.file.fileSize), 0);
 
-    const updateData: {
-      fileCount: number;
-      totalSize: bigint;
-      expiresAt?: Date | null;
-      shortCode?: string | null;
-    } = {
-      fileCount,
-      totalSize: BigInt(totalSize),
-    };
-
-    // Only update expiration/shortlink if provided
-    if (expiresAt) {
-       updateData.expiresAt = expiresAt;
-       updateData.shortCode = shortCode;
+    let updated;
+    if (rotate) {
+        updated = await prisma.$transaction(async (tx) => {
+            const created = await tx.collection.create({
+                data: {
+                    id: finalId,
+                    userId: collection.userId,
+                    name: collection.name,
+                    fileCount,
+                    totalSize: BigInt(totalSize),
+                    shortCode: finalShortCode,
+                    shortUrl: finalShortUrl,
+                    expiresAt: expiresAt,
+                    createdAt: collection.createdAt,
+                }
+            });
+            await tx.collectionItem.updateMany({
+                where: { collectionId: id },
+                data: { collectionId: finalId }
+            });
+            await tx.collection.delete({ where: { id } });
+            return created;
+        });
+    } else {
+        updated = await prisma.collection.update({
+            where: { id },
+            data: {
+                fileCount,
+                totalSize: BigInt(totalSize),
+            },
+        });
     }
-
-    const updated = await prisma.collection.update({
-      where: { id },
-      data: updateData,
-    });
 
     return NextResponse.json({
       id: updated.id,
       shortCode: updated.shortCode,
-      shortUrl,
+      shortUrl: finalShortUrl,
       expiresAt: updated.expiresAt?.toISOString(),
     });
   } catch (error) {
