@@ -373,6 +373,19 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+
+    // Sync metadata from the new active video if it's already preloaded
+    const video = getActiveVideo();
+    if (video) {
+        if (video.readyState >= 1) { // HAVE_METADATA or more
+            setDuration(video.duration);
+            setCurrentTime(video.currentTime);
+        }
+        // Force play if it was pre-mounted but paused
+        video.play().catch(() => {
+            setIsTransitioning(false);
+        });
+    }
   }, [currentIndex]);
   useEffect(() => {
     loadCollection();
@@ -380,13 +393,13 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   }, [id]);
 
   useEffect(() => {
-    if (activeItemRef.current) {
+    if (showPlaylist && activeItemRef.current) {
       activeItemRef.current.scrollIntoView({
         behavior: 'smooth',
         block: 'nearest',
       });
     }
-  }, [currentIndex]);
+  }, [currentIndex, showPlaylist]);
 
   // Show swipe hint on mobile after loading
   useEffect(() => {
@@ -518,7 +531,19 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
             </AnimatePresence>
           </div>
 
-          <div className="absolute inset-0 w-full h-full overflow-hidden bg-black">
+          {/* Persistent Shared Ambient Glow Background */}
+          {items.map((item, index) => (
+             <motion.div
+               key={`glow-${item.id}`}
+               initial={{ opacity: 0 }}
+               animate={{ opacity: index === currentIndex ? 0.25 : 0 }}
+               transition={{ duration: 0.8 }}
+               className="absolute inset-0 bg-cover bg-center z-0 blur-3xl scale-125 pointer-events-none"
+               style={{ backgroundImage: `url(${item.thumbnailUrl || (item.fileType === 'image' ? item.fileUrl : '')})` }}
+             />
+          ))}
+
+          <div className="absolute inset-0 w-full h-full overflow-hidden">
             <motion.div 
                className="w-full h-full flex flex-col"
                animate={{ y: carouselY }}
@@ -531,66 +556,72 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                 if (!isNearby) return <div key={item.id} className="w-full h-full shrink-0" />;
 
                 return (
-                  <div key={item.id} className="w-full h-full shrink-0 relative flex items-center justify-center select-none overflow-hidden bg-black">
-                    {/* Premium Ambient Glow Background */}
-                    {(item.thumbnailUrl || item.fileUrl) && (
-                      <div 
-                        className="absolute inset-0 bg-cover bg-center z-0 opacity-20 blur-3xl scale-110 pointer-events-none"
-                        style={{ backgroundImage: `url(${item.thumbnailUrl || item.fileUrl})` }}
-                      />
-                    )}
+                  <div key={item.id} className="w-full h-full shrink-0 relative flex items-center justify-center select-none overflow-hidden">
+                    {/* Background removed here, moved to persistent shared layer above */}
 
                     {item.fileType === 'video' ? (
                       <div className="relative w-full h-full flex items-center justify-center bg-transparent overflow-hidden">
-                        {/* High-res Placeholder Thumbnail */}
-                        {item.thumbnailUrl && !isActive && (
-                          <img src={item.thumbnailUrl} className="absolute inset-0 w-full h-full object-contain z-10 opacity-70" alt="" />
+                        {/* High-res Placeholder Thumbnail - Show when not playing or loading */}
+                        {item.thumbnailUrl && (
+                          <img 
+                            src={item.thumbnailUrl} 
+                            className={cn(
+                                "absolute inset-0 w-full h-full object-contain z-10 transition-opacity duration-300",
+                                (isActive && !isTransitioning) ? "opacity-0 pointer-events-none" : "opacity-100"
+                            )} 
+                            alt="" 
+                          />
                         )}
                         
-                        {/* Video Layer - Only instantiated for active or very nearby items if needed, but active is safest */}
-                        {isActive && (
+                        {/* Video Layer - Keep nearby videos mounted for seamless slide */}
+                        {isNearby && (
                           <>
                             <div 
                                 className="absolute inset-0 bg-black pointer-events-none z-20 transition-opacity duration-150"
-                                style={{ opacity: (1 - brightness) * 0.8 }} 
+                                style={{ opacity: isActive ? (1 - brightness) * 0.8 : 0 }} 
                             />
                             <video
                                ref={(el) => {
-                                 if (el) {
+                                 if (el && isActive) {
                                     videoRef.current = el;
-                                 } else if (videoRef.current === el) {
-                                    videoRef.current = null;
                                  }
                                }}
                                key={item.id}
                                src={item.fileUrl}
-                               data-active="true"
+                               data-active={isActive ? "true" : "false"}
                                playsInline 
-                               autoPlay
-                               muted={volume === 0}
+                               autoPlay={isActive}
+                               muted={!isActive || volume === 0}
+                               loop
                                className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain"
                                onEnded={() => {
-                                 if (currentIndex < items.length - 1) {
+                                 if (isActive && currentIndex < items.length - 1) {
                                    jumpToIndex(currentIndex + 1);
                                  }
                                }}
                                onPlay={() => {
-                                 setIsPlaying(true);
-                                 setIsTransitioning(false);
+                                 if (isActive) {
+                                     setIsPlaying(true);
+                                     setIsTransitioning(false);
+                                 }
                                }}
-                               onPause={() => setIsPlaying(false)}
-                               onTimeUpdate={handleTimeUpdate}
-                               onLoadedMetadata={handleLoadedMetadata}
+                               onPause={() => {
+                                 if (isActive) setIsPlaying(false);
+                               }}
+                               onTimeUpdate={isActive ? handleTimeUpdate : undefined}
+                               onLoadedMetadata={isActive ? handleLoadedMetadata : undefined}
                                onLoadedData={(e) => {
                                  const video = e.currentTarget;
-                                 video.volume = volume;
-                                 video.muted = volume === 0;
-                                 video.playbackRate = playbackRate;
-                                 video.play().catch((err) => {
-                                    console.error('Play failed:', err);
-                                    // Even if blocked, we clear transitioning to allow manual play button to show
-                                    setIsTransitioning(false);
-                                 });
+                                 if (isActive) {
+                                     video.volume = volume;
+                                     video.muted = volume === 0;
+                                     video.playbackRate = playbackRate;
+                                     video.play().catch(() => {
+                                        setIsTransitioning(false);
+                                     });
+                                 } else {
+                                     video.pause();
+                                 }
                                }}
                             />
                           </>
