@@ -669,6 +669,10 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                                onPlay={() => {
                                  if (isActive) {
                                      setIsPlaying(true);
+                                 }
+                               }}
+                               onPlaying={() => {
+                                 if (isActive) {
                                      setIsTransitioning(false);
                                  }
                                }}

@@ -151,9 +151,28 @@ export function CollectionsClient() {
       setRenewId(null);
       
       // Copy new link
-      if (data.shortUrl) {
-         navigator.clipboard.writeText(data.shortUrl);
-         toast.success('已重新分享，新链接已复制');
+      const newUrl = data.shortUrl || `${window.location.origin}/c/${data.shortCode}`;
+      
+      if (newUrl) {
+         navigator.clipboard.writeText(newUrl);
+         toast.success(
+          <div className="flex items-center justify-between w-full gap-4 -my-1">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <span className="text-sm text-foreground">
+                已重新生成链接并复制
+              </span>
+              <span className="text-[11px] text-zinc-500/80 truncate max-w-[200px]">{newUrl}</span>
+            </div>
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="h-11 w-11 rounded-2xl hover:bg-emerald-500/10 transition-all shrink-0 -mr-1"
+              onClick={(e) => { e.stopPropagation(); window.open(newUrl, '_blank'); }}
+            >
+              <ExternalLink className="w-6 h-6 text-emerald-500" />
+            </Button>
+          </div>
+         );
       } else {
          toast.success('已延长有效期');
       }
