@@ -392,7 +392,7 @@ export function FileViewClient({ id }: FileViewClientProps) {
                    isLandscape
                      ? "right-6 top-1/2 -translate-y-1/2 flex-col gap-1 scale-[0.85] origin-right"
                      : "right-4 bottom-28 flex-col gap-2",
-                   showControls ? "opacity-100" : "opacity-0 px-12 pointer-events-none"
+                   showControls ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -404,13 +404,13 @@ export function FileViewClient({ id }: FileViewClientProps) {
                          setIsLooping(!isLooping);
                       }}
                       className={cn(
-                        "w-12 h-12 bg-zinc-900/95 border rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
-                        isLooping ? "border-white/40 text-white" : "border-white/10 text-white/90"
+                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
+                        isLooping ? "text-white bg-zinc-800" : "text-white"
                       )}
                     >
                       {isLooping ? <Repeat1 className="w-6 h-6" /> : <Repeat className="w-6 h-6 opacity-80" />}
                     </Button>
-                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{isLooping ? '循环' : '单次'}</span>
+                    <span className="text-[10px] font-bold text-white/90 drop-shadow-md group-active:text-white transition-colors">{isLooping ? '循环' : '单次'}</span>
                   </div>
 
                   <div className="flex flex-col items-center gap-0.5 group">
@@ -421,13 +421,13 @@ export function FileViewClient({ id }: FileViewClientProps) {
                          toggleFullScreen();
                       }}
                       className={cn(
-                        "w-12 h-12 bg-zinc-900/95 border rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
-                        isFullScreen ? "border-white/40 text-white" : "border-white/10 text-white/90"
+                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
+                        isFullScreen ? "text-white bg-zinc-800" : "text-white"
                       )}
                     >
                       {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
                     </Button>
-                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{isFullScreen ? '取消' : '全屏'}</span>
+                    <span className="text-[10px] font-bold text-white/90 drop-shadow-md group-active:text-white transition-colors">{isFullScreen ? '取消' : '全屏'}</span>
                   </div>
 
                   <div className="flex flex-col items-center gap-0.5 group">
@@ -443,13 +443,13 @@ export function FileViewClient({ id }: FileViewClientProps) {
                         }
                       }}
                       className={cn(
-                        "w-12 h-12 bg-zinc-900/95 border rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
-                        volume === 0 ? "border-white/5 text-white/60" : "border-white/20 text-white"
+                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
+                        volume === 0 ? "text-white/90" : "text-white"
                       )}
                     >
                       {volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                     </Button>
-                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{volume === 0 ? '开音' : '静音'}</span>
+                    <span className="text-[10px] font-bold text-white/90 drop-shadow-md group-active:text-white transition-colors">{volume === 0 ? '开音' : '静音'}</span>
                   </div>
               </div>
 

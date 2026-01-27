@@ -782,11 +782,11 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                          e.preventDefault();
                          setShowPlaylist(!showPlaylist);
                       }}
-                      className="w-12 h-12 bg-zinc-900/95 hover:bg-zinc-800 active:bg-zinc-700 border border-white/10 rounded-full text-white/90 active:scale-95 transition-all duration-200 shadow-xl"
+                      className="w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full text-white active:scale-95 transition-all duration-200 shadow-xl hover:bg-zinc-800 active:bg-zinc-700"
                     >
                       <ListVideo className="w-6 h-6" />
                     </Button>
-                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">列表</span>
+                    <span className="text-[10px] font-bold text-white/90 drop-shadow-md group-active:text-white transition-colors">列表</span>
                  </div>
 
 
