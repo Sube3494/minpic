@@ -10,6 +10,7 @@ export function useShortlinkConfig(): UseShortlinkConfigReturn {
     enabled: true,
   });
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
@@ -17,11 +18,14 @@ export function useShortlinkConfig(): UseShortlinkConfigReturn {
   }, []);
 
   const loadConfig = async () => {
+    setLoading(true);
     try {
       const data = await configService.getShortlinkConfig();
       if (data) setShortlinkConfig(data);
     } catch (error) {
        console.error('Error loading shortlink config:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,7 +40,7 @@ export function useShortlinkConfig(): UseShortlinkConfigReturn {
         setShortlinkConfig(newConfig);
     }
 
-    setLoading(true);
+    setSaving(true);
     try {
       await configService.saveShortlinkConfig(newConfig);
       if (!silent) {
@@ -50,7 +54,7 @@ export function useShortlinkConfig(): UseShortlinkConfigReturn {
         description: '请检查网络连接后重试'
       });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -102,6 +106,7 @@ export function useShortlinkConfig(): UseShortlinkConfigReturn {
     saveShortlinkConfig,
     testShortlinkConnection,
     loading,
+    saving,
     testing
   };
 }

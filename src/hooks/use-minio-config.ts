@@ -10,6 +10,7 @@ export function useMinioConfig(): UseMinioConfigReturn {
   const [originalActiveId, setOriginalActiveId] = useState<string>('');
   const [selectedId, setSelectedId] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
   const loadConfigs = useCallback(async () => {
@@ -81,7 +82,7 @@ export function useMinioConfig(): UseMinioConfigReturn {
     setConfigs(newConfigs);
     
     // Auto save the new config list
-    setLoading(true);
+    setSaving(true);
     try {
         // If the deleted config was active, we should probably deactivate it or let the user decide.
         // For simplicity, if we delete the active one, we unset activeId locally, and save that state.
@@ -107,7 +108,7 @@ export function useMinioConfig(): UseMinioConfigReturn {
         });
         // Revert local change if needed, but for now we just show error
     } finally {
-        setLoading(false);
+        setSaving(false);
     }
   };
 
@@ -143,7 +144,7 @@ export function useMinioConfig(): UseMinioConfigReturn {
     const configsToSave = currentConfigs || configs;
     setActiveId(id);
     
-    setLoading(true);
+    setSaving(true);
     try {
       await configService.saveMinioConfigs(configsToSave, id);
       setOriginalActiveId(id);
@@ -194,7 +195,7 @@ export function useMinioConfig(): UseMinioConfigReturn {
         }
     }
 
-    setLoading(true);
+    setSaving(true);
     try {
       const finalActiveId = activeIdChanged ? activeId : originalActiveId;
       
@@ -216,7 +217,7 @@ export function useMinioConfig(): UseMinioConfigReturn {
          description: '请检查网络连接后重试'
        });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
   
@@ -283,6 +284,7 @@ export function useMinioConfig(): UseMinioConfigReturn {
     selectedId,
     setSelectedId,
     loading,
+    saving,
     testing,
     createConfig,
     deleteConfig,

@@ -70,6 +70,7 @@ export interface UseMinioConfigReturn {
   selectedId: string;
   setSelectedId: (id: string) => void;
   loading: boolean;
+  saving: boolean;
   testing: boolean;
   createConfig: () => void;
   deleteConfig: (id: string) => Promise<void>;
@@ -89,6 +90,7 @@ export interface UseShortlinkConfigReturn {
   saveShortlinkConfig: (updates?: Partial<ShortlinkConfig>, silent?: boolean) => Promise<void>;
   testShortlinkConnection: (configToTest?: ShortlinkConfig | unknown) => Promise<boolean>;
   loading: boolean;
+  saving: boolean;
   testing: boolean;
 }
 

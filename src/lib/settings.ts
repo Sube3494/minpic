@@ -13,6 +13,13 @@ const globalForSettings = globalThis as unknown as {
 };
 
 /**
+ * 清除系统设置缓存，强制下次请求重新从数据库加载
+ */
+export function clearSettingsCache() {
+  globalForSettings.settingsInitPromise = undefined;
+}
+
+/**
  * 获取系统设置，如果不存在则自动初始化默认设置
  * 替代了之前手动运行 init-system.ts 的步骤
  */

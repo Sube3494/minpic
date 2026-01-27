@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
-import { getSystemSettings } from '@/lib/settings';
+import { getSystemSettings, clearSettingsCache } from '@/lib/settings';
 import { getClientIp } from '@/lib/utils';
 
 // GET /api/admin/settings - 获取系统设置
@@ -61,6 +61,9 @@ export async function PATCH(request: NextRequest) {
       where: { id: settings.id },
       data: updateData,
     });
+
+    // 清除全局设置缓存，使更改立即生效
+    clearSettingsCache();
 
     // 记录审计日志
     await prisma.auditLog.create({

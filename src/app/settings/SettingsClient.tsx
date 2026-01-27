@@ -16,13 +16,13 @@ import { ShortlinkConfigSection } from '@/components/settings/shortlink-config';
 import { PageWrapper } from '@/components/layout/page-wrapper';
 export function SettingsClient() {
   const { 
-    configs, activeId, selectedId, setSelectedId, loading: minioLoading, testing: minioTesting,
+    configs, activeId, selectedId, setSelectedId, loading: minioLoading, saving: minioSaving, testing: minioTesting,
     createConfig, deleteConfig, updateSelectedConfig, activateConfig, saveConfigs, testMinioConnection
   } = useMinioConfig();
 
   const {
     shortlinkConfig, updateShortlinkConfig, saveShortlinkConfig, testShortlinkConnection, 
-    loading: slLoading, testing: slTesting
+    loading: slLoading, saving: slSaving, testing: slTesting
   } = useShortlinkConfig();
 
   const { syncing, syncProgress, syncFiles, cancelSync } = useSync();
@@ -147,7 +147,7 @@ export function SettingsClient() {
                         <ShortlinkConfigSection
                             config={shortlinkConfig}
                             isTesting={slTesting}
-                            isSaving={slLoading}
+                            isSaving={slSaving}
                             onUpdate={updateShortlinkConfig}
                             onTest={testShortlinkConnection}
                             onSave={saveShortlinkConfig}
@@ -162,7 +162,7 @@ export function SettingsClient() {
                             config={selectedConfig}
                             isSyncing={syncing}
                             isTesting={minioTesting}
-                            isSaving={minioLoading}
+                            isSaving={minioSaving}
                             canEdit={!selectedConfig.isTeam || isTeamOwner}
                             onUpdate={updateSelectedConfig}
                             onSync={handleSyncClick}
@@ -176,7 +176,7 @@ export function SettingsClient() {
                         <ShortlinkConfigSection
                             config={shortlinkConfig}
                             isTesting={slTesting}
-                            isSaving={slLoading}
+                            isSaving={slSaving}
                             onUpdate={updateShortlinkConfig}
                             onTest={testShortlinkConnection}
                             onSave={saveShortlinkConfig}
