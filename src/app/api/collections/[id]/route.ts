@@ -189,29 +189,36 @@ export async function PATCH(
       if (shortlinkConfig) {
         const { ShortlinkService } = await import('@/lib/shortlink');
         const sConfig = JSON.parse(shortlinkConfig.value);
-        const shortlinkService = new ShortlinkService();
-        shortlinkService.setConfig(sConfig);
-
+        
         const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
         const collectionUrl = `${baseUrl}/c/${finalId}`;
 
-        if (collection.shortCode) {
-          try {
-            await shortlinkService.deleteShortlink(collection.shortCode);
-          } catch (e) {
-            console.warn('Failed to delete old shortlink during rotation:', e);
+        if (sConfig.enabled !== false) {
+          const shortlinkService = new ShortlinkService();
+          shortlinkService.setConfig(sConfig);
+
+          if (collection.shortCode) {
+            try {
+              await shortlinkService.deleteShortlink(collection.shortCode);
+            } catch (e) {
+              console.warn('Failed to delete old shortlink during rotation:', e);
+            }
           }
+
+          const shortlink = await shortlinkService.createShortlink(
+            collectionUrl,
+            undefined,
+            expiresIn,
+            unit
+          );
+
+          finalShortCode = shortlink.short_code;
+          finalShortUrl = shortlink.short_url;
+        } else {
+          // Shortlink disabled, fallback to original collection URL
+          finalShortCode = null;
+          finalShortUrl = collectionUrl;
         }
-
-        const shortlink = await shortlinkService.createShortlink(
-          collectionUrl,
-          undefined,
-          expiresIn,
-          unit
-        );
-
-        finalShortCode = shortlink.short_code;
-        finalShortUrl = shortlink.short_url;
       }
     }
 

@@ -1,5 +1,6 @@
 'use client';
 
+import type { FileItem } from '@/types/file';
 import { FilePreviewDialog } from '@/components/files/file-preview-dialog';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useSession } from 'next-auth/react';
@@ -91,8 +92,12 @@ export function FilesClient() {
   }>({ open: false, fileId: '' });
 
   const [collectionDialog, setCollectionDialog] = useState(false);
-
   const [previewFile, setPreviewFile] = useState<typeof files[0] | null>(null);
+
+  const [shareDialog, setShareDialog] = useState<{
+    open: boolean;
+    file: FileItem | null;
+  }>({ open: false, file: null });
 
   const [shortlinkEnabled, setShortlinkEnabled] = useState(false);
   const [columns, setColumns] = useState(1);
@@ -207,6 +212,65 @@ export function FilesClient() {
   const handleGenerateShortlink = useCallback((fileId: string) => {
     setShortlinkDialog({ open: true, fileId });
   }, []);
+
+  const handleShare = useCallback((file: FileItem) => {
+    setShareDialog({ open: true, file });
+  }, []);
+
+  const handleConfirmShare = async (expiresIn: number, unit: 'minutes' | 'hours' | 'days') => {
+    if (!shareDialog.file) return;
+    
+    const loadingToast = toast.loading('正在准备分享链接...');
+    try {
+      // 旋转 UUID 并设定期限 (复用合集逻辑)
+      const updatedFile = await fileService.patchFile(shareDialog.file.id, {
+          rotate: true,
+          expiresIn,
+          unit
+      });
+
+      // 更新本地状态中的该文件,确保 UI 同步 (如果是列表显示了有效期的话)
+      refreshFn(); 
+
+      let shareUrl = `${window.location.origin}/f/${updatedFile.shareId || updatedFile.id}`;
+      
+      // 如果短链功能开启,主动生成短链
+      if (shortlinkEnabled) {
+          try {
+              toast.loading('正在生成分享短链...', { id: loadingToast });
+              const shortUrl = await fileService.generateShortlink(updatedFile.id, expiresIn, unit);
+              shareUrl = shortUrl;
+          } catch (e) {
+              console.error('自动生成短链失败,回退到原链接', e);
+          }
+      }
+
+      await navigator.clipboard.writeText(shareUrl);
+      
+      toast.success(
+        <div className="flex items-center justify-between w-full gap-4 -my-1">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-sm text-foreground">
+              {shortlinkEnabled ? '时效短链已复制' : '时效分享链接已复制'}
+            </span>
+            <span className="text-[11px] text-zinc-500/80 truncate max-w-[200px]">{shareUrl}</span>
+          </div>
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="h-11 w-11 rounded-2xl hover:bg-emerald-500/10 transition-all shrink-0 -mr-1"
+            onClick={(e) => { e.stopPropagation(); window.open(shareUrl, '_blank'); }}
+          >
+            <ExternalLink className="w-6 h-6 text-emerald-500" />
+          </Button>
+        </div>,
+        { id: loadingToast }
+      );
+    } catch (err) {
+      console.error('配置分享失败:', err);
+      toast.error('操作失败,请重试', { id: loadingToast });
+    }
+  };
 
   const handleConfirmGenerateShortlink = async (expiresIn: number, unit: 'minutes' | 'hours' | 'days') => {
     const isBatch = shortlinkDialog.fileId === 'batch';
@@ -675,6 +739,7 @@ export function FilesClient() {
                                generateShortlink={handleGenerateShortlink}
                                shortlinkEnabled={shortlinkEnabled}
                                onPreview={setPreviewFile}
+                               onShare={handleShare}
                           />
                         ))}
                       </div>
@@ -690,6 +755,7 @@ export function FilesClient() {
                           generateShortlink={handleGenerateShortlink}
                           shortlinkEnabled={shortlinkEnabled}
                           onPreview={setPreviewFile}
+                          onShare={handleShare}
                       />
                     ))
                   )}
@@ -824,6 +890,20 @@ export function FilesClient() {
       open={shortlinkDialog.open}
       onOpenChange={(open) => setShortlinkDialog(prev => ({ ...prev, open }))}
       onConfirm={handleConfirmGenerateShortlink}
+    />
+
+    {/* Share Config Dialog */}
+    <ShortlinkDialog
+      open={shareDialog.open}
+      onOpenChange={(open) => setShareDialog(prev => ({ ...prev, open }))}
+      onConfirm={handleConfirmShare}
+      title="时效分享"
+      description={
+        <span className="flex flex-col gap-1">
+          <span>设置分享有效期，确定后将<strong>自动更换</strong>分享链接。</span>
+          <span className="text-amber-500/80 text-[11px]">注意：旧的分享链接将立即失效。</span>
+        </span>
+      }
     />
 
     {/* Collection Dialog */}

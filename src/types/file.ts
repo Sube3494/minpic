@@ -17,6 +17,9 @@ export interface FileItem {
   height?: number | null;
   duration?: number | null;
   configId?: string | null;
+  shareId?: string | null;
+  shortCode?: string | null;
+  shortUrl?: string | null;
 }
 
 export interface UploadTask {

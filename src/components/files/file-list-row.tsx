@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileItem } from '@/types/file';
 import Image from 'next/image';
-import { CheckCircle2, Circle, Copy, Link2 } from 'lucide-react';
+import { CheckCircle2, Circle, Copy, Link2, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn, formatFileSize } from '@/lib/utils'; 
 import { FileIcon } from './file-icon'; 
@@ -40,9 +40,10 @@ interface FileListRowProps {
   generateShortlink: (id: string) => void;
   shortlinkEnabled: boolean;
   onPreview: (file: FileItem) => void;
+  onShare: (file: FileItem) => void;
 }
 
-export function FileListRow({ file, isSelected, toggleSelect, getDirectLink, generateShortlink, shortlinkEnabled, onPreview }: FileListRowProps) {
+export function FileListRow({ file, isSelected, toggleSelect, getDirectLink, generateShortlink, shortlinkEnabled, onPreview, onShare }: FileListRowProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
@@ -140,6 +141,15 @@ export function FileListRow({ file, isSelected, toggleSelect, getDirectLink, gen
               <span className="hidden sm:inline text-xs">生成短链</span>
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 md:h-10 px-2 md:px-5 rounded-full font-medium bg-white dark:bg-white/5 border-zinc-200 dark:border-white/10 shadow-sm"
+            onClick={() => onShare(file)}
+          >
+            <Share2 className="w-3.5 h-3.5 md:mr-2" />
+            <span className="hidden sm:inline text-xs">分享</span>
+          </Button>
         </div>
       </div>
     </motion.div>

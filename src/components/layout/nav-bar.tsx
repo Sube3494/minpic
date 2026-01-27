@@ -65,8 +65,9 @@ export function NavBar() {
     }
   };
 
-  // Hide navbar on collection viewing pages (after all hooks)
-  if (pathname.startsWith('/c/')) {
+  // Hide navbar on collection viewing pages or file viewing pages
+  const isViewingPage = pathname && /^\/([a-z]{2}\/)?(c|f)\//.test(pathname);
+  if (isViewingPage) {
     return null;
   }
 

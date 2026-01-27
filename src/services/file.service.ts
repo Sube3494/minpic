@@ -117,5 +117,15 @@ export const fileService = {
     if (!response.ok) throw new Error('Failed to fetch file IDs');
     const data = await response.json();
     return data.ids;
+  },
+
+  async patchFile(id: string, data: { rotate?: boolean; expiresIn?: number; unit?: 'minutes' | 'hours' | 'days' }): Promise<FileItem> {
+    const response = await fetch(`/api/files/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to patch file');
+    return response.json();
   }
 };

@@ -1,7 +1,7 @@
 import { memo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileItem } from '@/types/file';
-import { Check, Copy, Link2 } from 'lucide-react';
+import { Check, Copy, Link2, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CopyFormatMenu } from './copy-format-menu';
 
@@ -34,9 +34,10 @@ interface FileCardProps {
   generateShortlink: (id: string) => void;
   shortlinkEnabled: boolean;
   onPreview: (file: FileItem) => void;
+  onShare: (file: FileItem) => void;
 }
 
-export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMode, toggleSelect, getDirectLink, generateShortlink, shortlinkEnabled, onPreview }: FileCardProps) {
+export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMode, toggleSelect, getDirectLink, generateShortlink, shortlinkEnabled, onPreview, onShare }: FileCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const typeBorderStyle = file.fileType === 'video' 
     ? 'border-purple-500/20 dark:border-purple-500/40' 
@@ -198,6 +199,15 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
                       <Link2 className="w-3 h-3" />
                   </Button>
                 )}
+                
+                <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    className="h-6 w-6 p-0 rounded-full shadow-lg bg-white/25 hover:bg-white/40 border-white/30 text-white transition-all hover:scale-110 active:scale-90" 
+                    onClick={() => onShare(file)}
+                >
+                    <Share2 className="w-3 h-3" />
+                </Button>
             </div>
           </div>
         </div>

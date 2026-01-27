@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
-import { MinioService } from '@/lib/minio';
 import { ShortlinkService } from '@/lib/shortlink';
-import { getUserMinioConfig } from '@/lib/get-user-minio-config';
 
 export async function POST(request: NextRequest) {
   const { user, error } = await requireAuth();
@@ -44,33 +42,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 获取 MinIO 配置
-    const minioConfig = await getUserMinioConfig(user.id, file.configId);
+    // Generate local sharing page URL (using shareId/UUID prioritised)
+    const baseUrl = process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+    const sharingId = (file as unknown as Record<string, string | null>).shareId || file.id;
+    const sharingUrl = `${baseUrl}/f/${sharingId}`;
 
-    if (!minioConfig) {
+    // Create shortlink
+    const sConfig = JSON.parse(shortlinkConfig.value);
+    
+    if (sConfig.enabled === false) {
       return NextResponse.json(
-        { error: 'MinIO config not found' },
+        { error: 'Shortlink service is currently disabled' },
         { status: 400 }
       );
     }
 
-    // Get file URL
-    const minioService = new MinioService();
-    await minioService.connect(minioConfig);
-    const fileUrl = await minioService.getFileUrl(file.minioPath);
-
-    // Create shortlink (shortlink service will handle MD5 deduplication)
-    const sConfig = JSON.parse(shortlinkConfig.value);
     const shortlinkService = new ShortlinkService();
     shortlinkService.setConfig(sConfig);
     
     // Pass expires_in and unit directly to service
     const shortlink = await shortlinkService.createShortlink(
-      fileUrl, 
-      customCode, 
+      sharingUrl, 
+      customCode,
       expiresIn !== undefined ? Number(expiresIn) : undefined,
       unit as 'minutes' | 'hours' | 'days'
     );
+
+    // Persist shortlink info to File record
+    await prisma.file.update({
+      where: { id: file.id },
+      data: {
+        shortCode: shortlink.short_code,
+        shortUrl: shortlink.short_url
+      } as Record<string, string | null>
+    });
 
     return NextResponse.json(shortlink);
   } catch (error) {

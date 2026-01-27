@@ -172,3 +172,83 @@ export async function PUT(
     );
   }
 }
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const { user, error } = await requireAuth();
+  if (error) return error;
+
+  try {
+    const body = await request.json();
+    const { rotate, expiresIn, unit } = body as {
+      rotate?: boolean;
+      expiresIn?: number;
+      unit?: 'minutes' | 'hours' | 'days';
+    };
+
+    // 验证所有权
+    const file = await prisma.file.findUnique({
+      where: { id, userId: user.id },
+    });
+
+    if (!file) {
+      return NextResponse.json({ error: 'File not found or unauthorized' }, { status: 404 });
+    }
+
+    const data: { shareId?: string; shortCode?: string | null; shortUrl?: string | null; expiresAt?: Date } = {};
+    const { randomUUID } = await import('crypto');
+
+    if (rotate) {
+      data.shareId = randomUUID();
+      
+      // Cleanup old shortlink if exists
+      const fileWithShortCode = file as unknown as { shortCode: string | null };
+      if (fileWithShortCode.shortCode) {
+        try {
+          const shortlinkConfig = await prisma.config.findUnique({
+            where: { 
+              userId_key: { userId: user.id, key: 'shortlink_default' }
+            },
+          });
+
+          if (shortlinkConfig) {
+            const { ShortlinkService } = await import('@/lib/shortlink');
+            const sConfig = JSON.parse(shortlinkConfig.value);
+            const shortlinkService = new ShortlinkService();
+            shortlinkService.setConfig(sConfig);
+            await shortlinkService.deleteShortlink(fileWithShortCode.shortCode);
+          }
+        } catch (e) {
+          console.warn('Failed to delete old shortlink for file during rotation:', e);
+        }
+        // Even if delete fails (e.g. already deleted or config missing), we clear it locally
+        data.shortCode = null;
+        data.shortUrl = null;
+      }
+    }
+
+    if (expiresIn && unit) {
+      const now = new Date();
+      let ms = 0;
+      switch (unit) {
+        case 'minutes': ms = expiresIn * 60 * 1000; break;
+        case 'hours': ms = expiresIn * 3600 * 1000; break;
+        case 'days': ms = expiresIn * 86400 * 1000; break;
+      }
+      data.expiresAt = new Date(now.getTime() + ms);
+    }
+
+    const updated = await prisma.file.update({
+      where: { id },
+      data,
+    });
+
+    return NextResponse.json(serializeBigInt(updated));
+  } catch (error) {
+    console.error('Error patching file:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

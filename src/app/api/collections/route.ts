@@ -92,32 +92,45 @@ export async function POST(request: NextRequest) {
 
       if (shortlinkConfig) {
         const sConfig = JSON.parse(shortlinkConfig.value);
-        const shortlinkService = new ShortlinkService();
-        shortlinkService.setConfig(sConfig);
+        if (sConfig.enabled !== false) {
+          const shortlinkService = new ShortlinkService();
+          shortlinkService.setConfig(sConfig);
 
-        // Get base URL from environment or request fallback
-        const baseUrl = process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
-        const collectionUrl = `${baseUrl}/c/${collection.id}`;
+          // Get base URL from environment or request fallback
+          const baseUrl = process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+          const collectionUrl = `${baseUrl}/c/${collection.id}`;
 
-        const shortlink = await shortlinkService.createShortlink(
-          collectionUrl,
-          undefined,
-          expiresIn,
-          unit
-        );
+          const shortlink = await shortlinkService.createShortlink(
+            collectionUrl,
+            undefined,
+            expiresIn,
+            unit
+          );
 
-        // Calculate expiration time and update collection with both code and full URL
-        const expiresAt = calculateExpiresAt(expiresIn, unit);
-        await prisma.collection.update({
-          where: { id: collection.id },
-          data: {
-            shortCode: shortlink.short_code,
-            shortUrl: shortlink.short_url,
-            expiresAt,
-          },
-        });
+          // Calculate expiration time and update collection with both code and full URL
+          const expiresAt = calculateExpiresAt(expiresIn, unit);
+          await prisma.collection.update({
+            where: { id: collection.id },
+            data: {
+              shortCode: shortlink.short_code,
+              shortUrl: shortlink.short_url,
+              expiresAt,
+            },
+          });
 
-        shortUrl = shortlink.short_url;
+          shortUrl = shortlink.short_url;
+        } else {
+            // Shortlink disabled, just set expiration time and stay with original collection URL
+            const expiresAt = calculateExpiresAt(expiresIn, unit);
+            await prisma.collection.update({
+              where: { id: collection.id },
+              data: {
+                expiresAt,
+              },
+            });
+            const baseUrl = process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+            shortUrl = `${baseUrl}/c/${collection.id}`;
+        }
       }
     }
 
