@@ -426,12 +426,31 @@ export function FilesClient() {
 
       const data = await res.json();
 
+      const collectionUrl = data.shortUrl || `${window.location.origin}/c/${data.shareId || data.id}`;
+      
       if (data.shortUrl) {
         await navigator.clipboard.writeText(data.shortUrl);
-        toast.success('合集已创建，短链已复制', { id: loadingToast });
-      } else {
-        toast.success('合集已创建', { id: loadingToast });
       }
+
+      toast.success(
+        <div className="flex items-center justify-between w-full gap-4 -my-1">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-sm text-foreground">
+              {data.shortUrl ? '合集短链已复制' : '合集已创建'}
+            </span>
+            <span className="text-[11px] text-zinc-500/80 truncate max-w-[200px]">{collectionUrl}</span>
+          </div>
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="h-11 w-11 rounded-2xl hover:bg-emerald-500/10 transition-all shrink-0 -mr-1"
+            onClick={(e) => { e.stopPropagation(); window.open(collectionUrl, '_blank'); }}
+          >
+            <ExternalLink className="w-6 h-6 text-emerald-500" />
+          </Button>
+        </div>,
+        { id: loadingToast }
+      );
 
       setCollectionDialog(false);
       setSelectedIds([]);
