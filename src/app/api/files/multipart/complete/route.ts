@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 获取 MinIO 配置
-    const minioConfig = await getUserMinioConfig(user.id);
+    const minioConfig = await getUserMinioConfig(user.id, upload.configId);
     if (!minioConfig) {
       return NextResponse.json(
         { error: '未配置存储服务' },

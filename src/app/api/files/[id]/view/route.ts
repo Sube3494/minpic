@@ -32,6 +32,7 @@ export async function GET(
         duration: true,
         configId: true,
         expiresAt: true,
+        shareExpiresAt: true,
       },
     });
 
@@ -43,7 +44,16 @@ export async function GET(
     }
 
     // 增加过期时间校验
-    if (file.expiresAt && new Date(file.expiresAt) < new Date()) {
+    const now = new Date();
+    // 1. 优先校验分享链接有效期
+    if (file.shareExpiresAt && new Date(file.shareExpiresAt) < now) {
+      return NextResponse.json(
+        { error: 'Share link expired' },
+        { status: 404 }
+      );
+    }
+    // 2. 其次校验文件自身寿命
+    if (file.expiresAt && new Date(file.expiresAt) < now) {
       return NextResponse.json(
         { error: 'File expired' },
         { status: 404 }

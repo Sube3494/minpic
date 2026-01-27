@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
         mimeType,
         bucket: minioConfig.bucket,
         objectKey,
+        configId: minioConfig.id,
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24小时后过期
       },
     });

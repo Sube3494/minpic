@@ -12,7 +12,8 @@ export interface FileItem {
   thumbnailPath: string | null;
   createdAt: string;
   updatedAt?: string;
-  expiresAt?: string | null; // 文件过期时间 (ISO 字符串)
+  expiresAt?: string | null; // 文件物理过期时间
+  shareExpiresAt?: string | null; // 分享链接过期时间
   width?: number | null;
   height?: number | null;
   duration?: number | null;

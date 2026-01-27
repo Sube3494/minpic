@@ -198,7 +198,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'File not found or unauthorized' }, { status: 404 });
     }
 
-    const data: { shareId?: string; shortCode?: string | null; shortUrl?: string | null; expiresAt?: Date } = {};
+    const data: { shareId?: string; shortCode?: string | null; shortUrl?: string | null; shareExpiresAt?: Date } = {};
     const { randomUUID } = await import('crypto');
 
     if (rotate) {
@@ -238,7 +238,7 @@ export async function PATCH(
         case 'hours': ms = expiresIn * 3600 * 1000; break;
         case 'days': ms = expiresIn * 86400 * 1000; break;
       }
-      data.expiresAt = new Date(now.getTime() + ms);
+      data.shareExpiresAt = new Date(now.getTime() + ms);
     }
 
     const updated = await prisma.file.update({
