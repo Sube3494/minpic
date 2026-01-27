@@ -8,9 +8,13 @@ export default auth((req) => {
   const isCollectionPage = req.nextUrl.pathname.startsWith('/c/');
   const isApiAuth = req.nextUrl.pathname.startsWith('/api/auth');
   const isPublicApi = req.nextUrl.pathname.startsWith('/api/collections/') || req.nextUrl.pathname.includes('/thumbnail');
+  
+  // Single file share allowlist
+  const isSharePage = req.nextUrl.pathname.startsWith('/f/');
+  const isShareApi = /^\/api\/files\/[^\/]+\/view$/.test(req.nextUrl.pathname);
 
-  // Allow auth API routes
-  if (isApiAuth || isPublicApi) {
+  // Allow auth API routes and public share APIs
+  if (isApiAuth || isPublicApi || isShareApi) {
     return NextResponse.next();
   }
   
@@ -24,8 +28,8 @@ export default auth((req) => {
     return NextResponse.next();
   }
   
-  // If on public page, allow
-  if (isPublicPage || isCollectionPage) {
+  // If on public page or share page, allow
+  if (isPublicPage || isCollectionPage || isSharePage) {
     return NextResponse.next();
   }
   
