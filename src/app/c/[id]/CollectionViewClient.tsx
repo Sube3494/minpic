@@ -782,7 +782,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                          e.preventDefault();
                          setShowPlaylist(!showPlaylist);
                       }}
-                      className="w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full text-white active:scale-95 transition-all duration-200 shadow-xl hover:bg-zinc-800 active:bg-zinc-700"
+                      className="w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full text-white active:scale-95 transition-all duration-200 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white"
                     >
                       <ListVideo className="w-6 h-6" />
                     </Button>
@@ -799,8 +799,8 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                          setIsLooping(!isLooping);
                       }}
                       className={cn(
-                        "w-12 h-12 bg-zinc-900/95 border rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
-                        isLooping ? "border-white/40 text-white" : "border-white/10 text-white/90"
+                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white",
+                        isLooping ? "text-white bg-zinc-800" : "text-white"
                       )}
                     >
                       {isLooping ? <Repeat1 className="w-6 h-6" /> : <Repeat className="w-6 h-6 opacity-80" />}
@@ -817,8 +817,8 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                          toggleFullScreen();
                       }}
                       className={cn(
-                        "w-12 h-12 bg-zinc-900/95 border rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
-                        isFullScreen ? "border-white/40 text-white" : "border-white/10 text-white/90"
+                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white",
+                        isFullScreen ? "text-white bg-zinc-800" : "text-white"
                       )}
                     >
                       {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}

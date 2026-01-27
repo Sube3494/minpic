@@ -404,7 +404,7 @@ export function FileViewClient({ id }: FileViewClientProps) {
                          setIsLooping(!isLooping);
                       }}
                       className={cn(
-                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
+                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white",
                         isLooping ? "text-white bg-zinc-800" : "text-white"
                       )}
                     >
@@ -421,7 +421,7 @@ export function FileViewClient({ id }: FileViewClientProps) {
                          toggleFullScreen();
                       }}
                       className={cn(
-                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
+                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white",
                         isFullScreen ? "text-white bg-zinc-800" : "text-white"
                       )}
                     >
@@ -443,7 +443,7 @@ export function FileViewClient({ id }: FileViewClientProps) {
                         }
                       }}
                       className={cn(
-                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
+                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white",
                         volume === 0 ? "text-white/90" : "text-white"
                       )}
                     >
