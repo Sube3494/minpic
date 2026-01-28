@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Loader2, ChevronLeft, ChevronRight, Play, ListVideo, Sun, Volume2, VolumeX, Maximize, Minimize, Repeat, Repeat1, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -71,6 +71,23 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const isLongPressingRef = useRef(false);
   const swipeHintTimer = useRef<NodeJS.Timeout | null>(null);
   const playerContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Detect collection type for smart button visibility
+  const collectionType = useMemo(() => {
+    if (items.length === 0) return 'unknown';
+    const hasVideo = items.some(item => item.fileType === 'video');
+    const hasImage = items.some(item => item.fileType === 'image');
+    
+    if (hasVideo && !hasImage) return 'video-only';
+    if (hasImage && !hasVideo) return 'image-only';
+    return 'mixed';
+  }, [items]);
+  
+  // Determine button visibility based on collection type and current item
+  const currentItem = items[currentIndex];
+  const isCurrentVideo = currentItem?.fileType === 'video';
+  const shouldShowVideoControls = collectionType === 'video-only' || (collectionType === 'mixed' && isCurrentVideo);
+  
   useEffect(() => {
     const handleResize = () => {
         setIsDesktop(window.innerWidth >= 768);
@@ -790,23 +807,25 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                  </div>
 
 
-                  <div className="flex flex-col items-center gap-0.5 group">
-                    <Button 
-                      variant="ghost" size="icon" 
-                      onClick={(e) => {
-                         e.stopPropagation();
-                         e.preventDefault();
-                         setIsLooping(!isLooping);
-                      }}
-                      className={cn(
-                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white",
-                        isLooping ? "text-white bg-zinc-800" : "text-white"
-                      )}
-                    >
-                      {isLooping ? <Repeat1 className="w-6 h-6" /> : <Repeat className="w-6 h-6 opacity-80" />}
-                    </Button>
-                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{isLooping ? '循环' : '顺序'}</span>
-                 </div>
+                  {shouldShowVideoControls && (
+                    <div className="flex flex-col items-center gap-0.5 group">
+                      <Button 
+                        variant="ghost" size="icon" 
+                        onClick={(e) => {
+                           e.stopPropagation();
+                           e.preventDefault();
+                           setIsLooping(!isLooping);
+                        }}
+                        className={cn(
+                          "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white",
+                          isLooping ? "text-white bg-zinc-800" : "text-white"
+                        )}
+                      >
+                        {isLooping ? <Repeat1 className="w-6 h-6" /> : <Repeat className="w-6 h-6 opacity-80" />}
+                      </Button>
+                      <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{isLooping ? '循环' : '顺序'}</span>
+                   </div>
+                  )}
 
                   <div className="flex flex-col items-center gap-0.5 group">
                     <Button 
@@ -826,29 +845,31 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                     <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{isFullScreen ? '取消' : '全屏'}</span>
                  </div>
 
-                  <div className="flex flex-col items-center gap-0.5 group">
-                    <Button 
-                      variant="ghost" size="icon" 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        const newVol = volume === 0 ? 0.5 : 0;
-                        setVolume(newVol);
-                        const video = getActiveVideo();
-                        if (video) {
-                            video.volume = newVol;
-                            video.muted = newVol === 0;
-                        }
-                      }}
-                      className={cn(
-                        "w-12 h-12 bg-zinc-900/95 border rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
-                        volume === 0 ? "border-white/5 text-white/60" : "border-white/20 text-white"
-                      )}
-                    >
-                      {volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-                    </Button>
-                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{volume === 0 ? '开音' : '静音'}</span>
-                 </div>
+                  {shouldShowVideoControls && (
+                    <div className="flex flex-col items-center gap-0.5 group">
+                      <Button 
+                        variant="ghost" size="icon" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          const newVol = volume === 0 ? 0.5 : 0;
+                          setVolume(newVol);
+                          const video = getActiveVideo();
+                          if (video) {
+                              video.volume = newVol;
+                              video.muted = newVol === 0;
+                          }
+                        }}
+                        className={cn(
+                          "w-12 h-12 bg-zinc-900/95 border rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
+                          volume === 0 ? "border-white/5 text-white/60" : "border-white/20 text-white"
+                        )}
+                      >
+                        {volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                      </Button>
+                      <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{volume === 0 ? '开音' : '静音'}</span>
+                   </div>
+                  )}
               </div>
 
 
