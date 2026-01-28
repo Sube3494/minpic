@@ -799,11 +799,11 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                          e.preventDefault();
                          setShowPlaylist(!showPlaylist);
                       }}
-                      className="w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full text-white active:scale-95 transition-all duration-200 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white"
+                      className="w-12 h-12 bg-zinc-900/90 backdrop-blur-sm border border-white/20 rounded-full text-white transition-all duration-200 shadow-xl hover:bg-zinc-800/95 hover:border-white/30 active:scale-95 active:bg-zinc-800/90"
                     >
                       <ListVideo className="w-6 h-6" />
                     </Button>
-                    <span className="text-[10px] font-bold text-white/90 drop-shadow-md group-active:text-white transition-colors">列表</span>
+                    <span className="text-[10px] font-medium text-white/90 drop-shadow-md transition-colors">列表</span>
                  </div>
 
 
@@ -817,13 +817,13 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                            setIsLooping(!isLooping);
                         }}
                         className={cn(
-                          "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white",
-                          isLooping ? "text-white bg-zinc-800" : "text-white"
+                          "w-12 h-12 bg-zinc-900/90 backdrop-blur-sm border rounded-full text-white transition-all duration-200 shadow-xl hover:bg-zinc-800/95 hover:border-white/30 active:scale-95 active:bg-zinc-800/90",
+                          isLooping ? "border-white/40 bg-zinc-800/95" : "border-white/20"
                         )}
                       >
-                        {isLooping ? <Repeat1 className="w-6 h-6" /> : <Repeat className="w-6 h-6 opacity-80" />}
+                        {isLooping ? <Repeat1 className="w-6 h-6" /> : <Repeat className="w-6 h-6" />}
                       </Button>
-                      <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{isLooping ? '循环' : '顺序'}</span>
+                      <span className="text-[10px] font-medium text-white/90 drop-shadow-sm transition-colors">{isLooping ? '循环' : '顺序'}</span>
                    </div>
                   )}
 
@@ -836,13 +836,13 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                          toggleFullScreen();
                       }}
                       className={cn(
-                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white",
-                        isFullScreen ? "text-white bg-zinc-800" : "text-white"
+                        "w-12 h-12 bg-zinc-900/90 backdrop-blur-sm border rounded-full text-white transition-all duration-200 shadow-xl hover:bg-zinc-800/95 hover:border-white/30 active:scale-95 active:bg-zinc-800/90",
+                        isFullScreen ? "border-white/40 bg-zinc-800/95" : "border-white/20"
                       )}
                     >
                       {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
                     </Button>
-                    <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{isFullScreen ? '取消' : '全屏'}</span>
+                    <span className="text-[10px] font-medium text-white/90 drop-shadow-sm transition-colors">{isFullScreen ? '取消' : '全屏'}</span>
                  </div>
 
                   {shouldShowVideoControls && (
@@ -861,13 +861,13 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                           }
                         }}
                         className={cn(
-                          "w-12 h-12 bg-zinc-900/95 border rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700",
-                          volume === 0 ? "border-white/5 text-white/60" : "border-white/20 text-white"
+                          "w-12 h-12 bg-zinc-900/90 backdrop-blur-sm border rounded-full text-white transition-all duration-200 shadow-xl hover:bg-zinc-800/95 hover:border-white/30 active:scale-95 active:bg-zinc-800/90",
+                          volume === 0 ? "border-white/10" : "border-white/20"
                         )}
                       >
                         {volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                       </Button>
-                      <span className="text-[10px] font-medium text-white/60 drop-shadow-sm group-active:text-white transition-colors">{volume === 0 ? '开音' : '静音'}</span>
+                      <span className="text-[10px] font-medium text-white/90 drop-shadow-sm transition-colors">{volume === 0 ? '开音' : '静音'}</span>
                    </div>
                   )}
               </div>
