@@ -58,7 +58,9 @@ export default function SignInPage() {
           setSystemEmpty(true);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.error('Failed to check system status:', err);
+      });
   }, []);
 
   useEffect(() => {
@@ -404,7 +406,7 @@ export default function SignInPage() {
               )}
 
               {systemEmpty && (
-                <div className="mt-4 pt-4 border-t border-border/30 animate-in fade-in slide-in-from-top-2 duration-700">
+                <div className="mt-6 pt-4 border-t border-border/30 animate-fade-in duration-700">
                   <Link
                     href="/setup/restore"
                     className="text-[10px] text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 font-bold flex items-center justify-center gap-1.5 transition-colors group"

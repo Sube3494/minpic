@@ -7,16 +7,19 @@ export default auth((req) => {
   const isPublicPage = req.nextUrl.pathname === '/';
   const isCollectionPage = req.nextUrl.pathname.startsWith('/c/');
   const isApiAuth = req.nextUrl.pathname.startsWith('/api/auth');
+  const isSetupPage = req.nextUrl.pathname.startsWith('/setup');
   const isPublicApi = req.nextUrl.pathname.startsWith('/api/collections/') || 
                     req.nextUrl.pathname.startsWith('/api/shares/') || 
-                    req.nextUrl.pathname.includes('/thumbnail');
+                    req.nextUrl.pathname.includes('/thumbnail') ||
+                    req.nextUrl.pathname === '/api/admin/backup/status' ||
+                    req.nextUrl.pathname === '/api/admin/backup/import';
   
   // Single file share allowlist
   const isSharePage = req.nextUrl.pathname.startsWith('/f/');
   const isShareApi = req.nextUrl.pathname.startsWith('/api/files/') && req.nextUrl.pathname.endsWith('/view');
 
-  // Allow auth API routes and public share APIs
-  if (isApiAuth || isPublicApi || isShareApi) {
+  // Allow auth API routes, setup paths and public share APIs
+  if (isApiAuth || isPublicApi || isShareApi || isSetupPage) {
     return NextResponse.next();
   }
   
