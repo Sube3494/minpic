@@ -58,6 +58,8 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/start.sh ./start.sh
+RUN chmod +x ./start.sh
 
 # 此时静态资源已经通过 COPY 指令存放在 .next/static 和 public 目录中
 USER nextjs
@@ -70,10 +72,5 @@ ENV HOSTNAME="0.0.0.0"
 # 启动应用
 # 由于应用内部已集成 ensureDatabaseExists 逻辑，支持自动建库、建表和初始化
 # 这里的启动命令回归简洁，不再需要 shell 脚本前缀
-# Copy startup script
-COPY --from=builder /app/start.sh ./start.sh
-RUN chmod +x ./start.sh
-
 # 启动应用
-USER nextjs
 CMD ["./start.sh"]
