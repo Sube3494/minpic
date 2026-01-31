@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { isEncryptedBackup, decryptBackup } from '@/lib/backup-encryption';
 
 interface BackupData {
   systemSettings?: Prisma.SystemSettingsCreateInput | Prisma.SystemSettingsCreateInput[];
@@ -27,12 +28,35 @@ export async function POST(req: Request) {
   }
 
   try {
-    const data = await req.json() as { backup: unknown };
+    const data = await req.json() as { backup: unknown; password?: string };
     if (!data.backup) {
       throw new Error('无效的备份文件');
     }
 
-    const { backup } = data;
+    let backupData = data.backup;
+    const { password } = data;
+
+    // 如果数据是加密格式
+    if (isEncryptedBackup(backupData)) {
+      if (!password) {
+        return NextResponse.json({ error: 'THIS_IS_ENCRYPTED', message: '备份已加密，请输入密码' }, { status: 400 });
+      }
+      try {
+        const decryptedStr = await decryptBackup(backupData, password);
+        backupData = JSON.parse(decryptedStr);
+      } catch {
+        return NextResponse.json({ error: '解密失败，密码可能错误' }, { status: 400 });
+      }
+    }
+
+    const getBackupPayload = (data: unknown): unknown => {
+      if (typeof data === 'object' && data !== null && 'backup' in data) {
+        return (data as { backup: unknown }).backup;
+      }
+      return data;
+    };
+
+    const backup = getBackupPayload(backupData);
 
     // 递归助手：还原 BigInt
     const deserialize = (obj: unknown): unknown => {

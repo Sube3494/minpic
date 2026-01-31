@@ -5,12 +5,15 @@
  * @LastEditTime: 2026-01-31 22:35:04
  * @Description: 
  */
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { encryptBackup } from '@/lib/backup-encryption';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth();
+  const { searchParams } = new URL(req.url);
+  const password = searchParams.get('pwd');
   
   if (!session || session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -72,8 +75,15 @@ export async function GET() {
     };
 
     const fileName = `minpic-backup-${new Date().toISOString().split('T')[0]}.json`;
+    let finalData = JSON.stringify(serialize(data));
 
-    return new NextResponse(JSON.stringify(serialize(data), null, 2), {
+    // 如果提供了密码，则加密
+    if (password) {
+      const encrypted = await encryptBackup(finalData, password);
+      finalData = JSON.stringify(encrypted);
+    }
+
+    return new NextResponse(finalData, {
       status: 200,
       headers: {
         'Content-Type': 'application/json',

@@ -9,6 +9,7 @@ import { Database, Upload, AlertTriangle, ArrowLeft, Loader2, Sparkles } from 'l
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Label } from '@/components/ui/label';
 
 export default function RestorePage() {
   const router = useRouter();
@@ -17,6 +18,8 @@ export default function RestorePage() {
   const [importing, setImporting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [password, setPassword] = useState('');
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
 
   useEffect(() => {
     checkStatus();
@@ -45,6 +48,8 @@ export default function RestorePage() {
     if (!file) return;
     setPendingFile(file);
     setShowConfirm(true);
+    setShowPasswordInput(false);
+    setPassword('');
     e.target.value = '';
   };
 
@@ -63,12 +68,24 @@ export default function RestorePage() {
           const res = await fetch('/api/admin/backup/import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ backup: content.backup }),
+            body: JSON.stringify({ 
+              backup: content.backup || content, 
+              password 
+            }),
           });
 
+          const result = await res.json();
+
           if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || '还原失败');
+            if (result.error === 'THIS_IS_ENCRYPTED') {
+              setShowPasswordInput(true);
+              setShowConfirm(true);
+              toast.info('该备份已加密，请输入密码');
+            } else {
+              throw new Error(result.error || '还原失败');
+            }
+            setImporting(false);
+            return;
           }
 
           toast.success('系统还原成功！即将引导至登录页面');
@@ -172,6 +189,21 @@ export default function RestorePage() {
                 <p className="text-sm text-muted-foreground">
                     您选择的文件：<span className="font-mono text-foreground font-bold">{pendingFile?.name}</span>
                 </p>
+                
+                {showPasswordInput && (
+                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                        <Label className="text-xs font-bold uppercase tracking-wider opacity-70">解密密码</Label>
+                        <Input
+                            type="password"
+                            placeholder="请输入备份加密密码"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+                            autoFocus
+                        />
+                    </div>
+                )}
+
                 <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-100 dark:border-red-900/20 text-xs text-red-600 dark:text-red-400">
                     警告：此操作不可撤销。所有当前用户、配置及文件记录将被永久删除。
                 </div>

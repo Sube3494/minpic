@@ -30,6 +30,9 @@ export default function SettingsPage() {
   const [importing, setImporting] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [exportPassword, setExportPassword] = useState('');
+  const [importPassword, setImportPassword] = useState('');
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -78,7 +81,10 @@ export default function SettingsPage() {
 
   const handleExport = () => {
     toast.info('正在准备备份文件...');
-    window.location.href = '/api/admin/backup/export';
+    const url = exportPassword 
+      ? `/api/admin/backup/export?pwd=${encodeURIComponent(exportPassword)}`
+      : '/api/admin/backup/export';
+    window.location.href = url;
   };
 
   const handleImportClick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,6 +92,8 @@ export default function SettingsPage() {
     if (!file) return;
     setPendingFile(file);
     setShowImportConfirm(true);
+    setShowPasswordDialog(false);
+    setImportPassword('');
     // 重置 input 方便下次触发
     e.target.value = '';
   };
@@ -106,12 +114,24 @@ export default function SettingsPage() {
           const res = await fetch('/api/admin/backup/import', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ backup: content.backup }),
+            body: JSON.stringify({ 
+              backup: content.backup || content, 
+              password: importPassword 
+            }),
           });
 
+          const result = await res.json();
+
           if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.error || '还原过程中发生错误');
+            if (result.error === 'THIS_IS_ENCRYPTED') {
+              setShowPasswordDialog(true);
+              setShowImportConfirm(true);
+              toast.info('该备份已加密，请输入解析密码');
+            } else {
+              throw new Error(result.error || '还原过程中发生错误');
+            }
+            setImporting(false);
+            return;
           }
 
           toast.success('系统还原成功！正在重新载入...');
@@ -344,7 +364,17 @@ export default function SettingsPage() {
                               <Download className="w-4 h-4 text-blue-500" />
                               <span className="font-medium">导出全量备份</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">导出包含所有用户、文件记录、短链及系统配置的 JSON 文件。</p>
+                            <p className="text-xs text-muted-foreground">导出包含所有记录的 JSON。您可以设置密码以加密文件。</p>
+                            <div className="space-y-2">
+                              <Label className="text-[10px] uppercase font-bold text-muted-foreground">加密密码 (可选)</Label>
+                              <Input
+                                type="password"
+                                placeholder="留空则不加密"
+                                value={exportPassword}
+                                onChange={(e) => setExportPassword(e.target.value)}
+                                className="h-8 text-xs bg-zinc-50/50 dark:bg-white/5"
+                              />
+                            </div>
                             <Button variant="outline" size="sm" onClick={handleExport} className="w-full">
                               开始导出
                             </Button>
@@ -395,12 +425,26 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="space-y-4 w-full text-center">
-                        <div className="space-y-1">
                             <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">此操作将清空所有现有数据</h3>
                             <p className="text-sm text-muted-foreground">
                                 正在操作的文件：<span className="font-mono text-zinc-700 dark:text-zinc-300">{pendingFile?.name}</span>
                             </p>
                         </div>
+
+                        {showPasswordDialog && (
+                            <div className="w-full space-y-2 animate-in fade-in slide-in-from-top-2">
+                                <Label className="text-xs font-bold uppercase tracking-wider opacity-70">解密密码</Label>
+                                <Input
+                                    type="password"
+                                    placeholder="请输入备份加密密码"
+                                    value={importPassword}
+                                    onChange={(e) => setImportPassword(e.target.value)}
+                                    className="bg-zinc-100 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800"
+                                    autoFocus
+                                />
+                            </div>
+                        )}
+
                         <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-xl border border-red-100 dark:border-red-900/20 text-xs text-red-600 dark:text-red-400 leading-relaxed">
                             还原备份将永久删除当前数据库中的所有用户、文件、短链、团队和设置，并用备份文件中的内容完全替换。此操作无法撤销。
                         </div>
