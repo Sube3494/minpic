@@ -224,7 +224,8 @@ export async function PATCH(
             collectionUrl,
             undefined,
             expiresIn,
-            unit
+            unit,
+            name !== undefined ? name : (collection.name || undefined)
           );
 
           finalShortCode = shortlink.short_code;

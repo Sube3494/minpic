@@ -61,8 +61,6 @@ export class ShortlinkService {
       }
     }
 
-    console.log('[ShortlinkService] Creating shortlink with body:', JSON.stringify(body));
-
     const response = await fetch(`${this.config.apiUrl}/api/shorten`, {
       method: 'POST',
       headers: {

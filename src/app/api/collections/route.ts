@@ -113,7 +113,8 @@ export async function POST(request: NextRequest) {
             collectionUrl,
             undefined,
             expiresIn,
-            unit
+            unit,
+            collection.name || undefined
           );
 
           // Calculate expiration time and update collection with sharing info
