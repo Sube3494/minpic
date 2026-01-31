@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FileItem } from '@/types/file';
 import Image from 'next/image';
-import { CheckCircle2, Circle, Copy, Link2, Share2 } from 'lucide-react';
+import { Check, Copy, Link2, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn, formatFileSize } from '@/lib/utils'; 
 import { FileIcon } from './file-icon'; 
@@ -61,17 +61,20 @@ export function FileListRow({ file, isSelected, toggleSelect, getDirectLink, gen
     >
       <div className="flex items-center gap-2 md:gap-4 p-2 md:p-3 relative">
         <div 
-          className="shrink-0 pl-1 cursor-pointer"
+          className="shrink-0 pl-1 cursor-pointer transition-all hover:scale-110 active:scale-95"
           onClick={(e) => {
             e.stopPropagation();
             toggleSelect(file.id);
           }}
         >
-          {isSelected ? (
-            <CheckCircle2 className="w-5 h-5 text-primary" />
-          ) : (
-            <Circle className="w-5 h-5 text-zinc-300 dark:text-zinc-800" />
-          )}
+          <div className={cn(
+            "rounded-full w-5 h-5 flex items-center justify-center transition-all duration-300",
+            isSelected 
+              ? "bg-primary border border-primary text-white scale-110" 
+              : "bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/20 text-transparent"
+          )}>
+            <Check className="w-3 h-3" strokeWidth={4} />
+          </div>
         </div>
 
         <div 

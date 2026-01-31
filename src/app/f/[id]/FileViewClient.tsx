@@ -24,12 +24,13 @@ interface FileInfo {
 
 interface FileViewClientProps {
   id: string;
+  initialError?: 'not_found' | 'failed' | 'expired';
 }
 
-export function FileViewClient({ id }: FileViewClientProps) {
+export function FileViewClient({ id, initialError }: FileViewClientProps) {
   const [file, setFile] = useState<FileInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(!initialError);
+  const [error, setError] = useState<string | null>(initialError || null);
   
   // Player States
   const [isPlaying, setIsPlaying] = useState(false);
@@ -41,6 +42,8 @@ export function FileViewClient({ id }: FileViewClientProps) {
   const [isLooping, setIsLooping] = useState(false);
   const [videoDimensions, setVideoDimensions] = useState<{width: number, height: number} | null>(null);
   const [thumbnailError, setThumbnailError] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [bufferedProgress, setBufferedProgress] = useState(0);
 
   // HUD & Adjustments
   const [brightness, setBrightness] = useState(1);
@@ -248,6 +251,24 @@ export function FileViewClient({ id }: FileViewClientProps) {
     }
   };
 
+  const handleProgress = () => {
+    if (videoRef.current && videoRef.current.buffered.length > 0) {
+      const buffered = videoRef.current.buffered;
+      const duration = videoRef.current.duration;
+      if (duration > 0) {
+        // Find the buffer range that contains the current time
+        let currentBufferEnd = 0;
+        for (let i = 0; i < buffered.length; i++) {
+          if (buffered.start(i) <= currentTime && buffered.end(i) >= currentTime) {
+            currentBufferEnd = buffered.end(i);
+            break;
+          }
+        }
+        setBufferedProgress((currentBufferEnd / duration) * 100);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white">
@@ -360,20 +381,38 @@ export function FileViewClient({ id }: FileViewClientProps) {
                 playsInline 
                 autoPlay
                 muted
+                preload="auto"
                 loop={isLooping}
                 className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain"
-                onPlay={() => setIsPlaying(true)}
+                onPlay={() => {
+                  setIsPlaying(true);
+                  setIsBuffering(false);
+                }}
                 onPause={() => setIsPlaying(false)}
                 onTimeUpdate={handleTimeUpdate}
+                onProgress={handleProgress}
+                onWaiting={() => setIsBuffering(true)}
+                onPlaying={() => setIsBuffering(false)}
+                onCanPlay={() => setIsBuffering(false)}
                 onLoadedMetadata={handleLoadedMetadata}
                 onEnded={() => {
                     if (!isLooping) setIsPlaying(false);
                 }}
               />
 
-              {/* Center Play/Pause Feedback */}
+              {/* Center Play/Pause / Loading Feedback */}
               <AnimatePresence>
-                {!isPlaying && (
+                {isBuffering && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none bg-black/20 backdrop-blur-[2px]"
+                  >
+                    <Loader2 className="w-12 h-12 text-white animate-spin opacity-80" />
+                  </motion.div>
+                )}
+                {!isPlaying && !isBuffering && (
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 0.6, scale: 1 }}
@@ -471,6 +510,12 @@ export function FileViewClient({ id }: FileViewClientProps) {
                     className="absolute inset-x-0 -top-4 -bottom-2 w-full opacity-0 z-20 cursor-pointer"
                   />
                   <div className="absolute inset-0 bg-white/10" />
+                  {/* Buffered Progress */}
+                  <div 
+                    className="absolute inset-y-0 left-0 bg-white/20 transition-[width] duration-300"
+                    style={{ width: `${bufferedProgress}%` }}
+                  />
+                  {/* Playback Progress */}
                   <div 
                     className="absolute inset-y-0 left-0 bg-white shadow-[0_0_15px_rgba(255,255,255,0.6)] rounded-r-full transition-[width] duration-100"
                     style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}

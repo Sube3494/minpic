@@ -10,7 +10,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 import { ExpirationSelector, ExpirationValue } from './expiration-selector';
 
@@ -19,7 +21,8 @@ interface CollectionDialogProps {
   onOpenChange: (open: boolean) => void;
   selectedCount: number;
   shortlinkEnabled: boolean;
-  onConfirm: (name: string, expiresIn?: number, unit?: 'minutes' | 'hours' | 'days') => Promise<void>;
+  onConfirm: (name: string, shared?: boolean, expiresIn?: number, unit?: 'minutes' | 'hours' | 'days') => Promise<void>;
+  defaultShare?: boolean;
 }
 
 export function CollectionDialog({
@@ -30,16 +33,18 @@ export function CollectionDialog({
   onConfirm,
 }: CollectionDialogProps) {
   const [name, setName] = useState('');
+  const [shareImmediately, setShareImmediately] = useState(false);
   const [expiration, setExpiration] = useState<ExpirationValue>({
     expiresIn: 3,
     unit: 'days',
   });
   const [isLoading, setIsLoading] = useState(false);
 
-  // Reset name when dialog opens
+  // Reset when dialog opens
   useEffect(() => {
     if (open) {
       setName('');
+      setShareImmediately(false);
       setExpiration({
         expiresIn: 3,
         unit: 'days',
@@ -48,12 +53,17 @@ export function CollectionDialog({
   }, [open]);
 
   const handleConfirm = async () => {
+    if (!name.trim()) {
+      toast.error('请填写合集名称');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      if (shortlinkEnabled) {
-        await onConfirm(name, expiration.expiresIn, expiration.unit);
+      if (shareImmediately && shortlinkEnabled) {
+        await onConfirm(name, true, expiration.expiresIn, expiration.unit);
       } else {
-        await onConfirm(name);
+        await onConfirm(name, false);
       }
     } finally {
       setIsLoading(false);
@@ -66,19 +76,16 @@ export function CollectionDialog({
         <DialogHeader>
           <DialogTitle>创建媒体合集</DialogTitle>
           <DialogDescription>
-            {shortlinkEnabled 
-              ? `将创建包含 ${selectedCount} 个文件的合集（自动生成分享短链）`
-              : `将创建包含 ${selectedCount} 个文件的合集`
-            }
+            将 {selectedCount} 个文件组织为合集，方便您统一管理
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="collection-name">合集名称 (可选)</Label>
+            <Label htmlFor="collection-name">合集名称</Label>
             <Input
               id="collection-name"
-              placeholder="命名此合集..."
+              placeholder="为此合集命名..."
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="border-none bg-zinc-100/50 dark:bg-white/5 shadow-none focus-visible:ring-1 focus-visible:ring-white/20"
@@ -86,10 +93,33 @@ export function CollectionDialog({
           </div>
 
           {shortlinkEnabled && (
-            <ExpirationSelector 
-              value={expiration}
-              onChange={setExpiration}
-            />
+            <div className="pt-2">
+              <div 
+                className="flex items-center space-x-3 py-2 cursor-pointer group select-none"
+                onClick={() => setShareImmediately(!shareImmediately)}
+              >
+                <div className={cn(
+                  "w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300",
+                  shareImmediately
+                    ? "bg-primary border border-primary text-white scale-110"
+                    : "bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-transparent group-hover:border-primary/50"
+                )}>
+                  <Check className="w-3 h-3" strokeWidth={4} />
+                </div>
+                <Label 
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  立即生成分享链接
+                </Label>
+              </div>
+
+              {shareImmediately && (
+                <ExpirationSelector 
+                  value={expiration}
+                  onChange={setExpiration}
+                />
+              )}
+            </div>
           )}
         </div>
 
@@ -104,7 +134,7 @@ export function CollectionDialog({
           </Button>
           <Button onClick={handleConfirm} disabled={isLoading}>
             {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            创建并复制
+            {shareImmediately ? '创建并复制链接' : '确认创建'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -19,7 +19,9 @@ export async function GET(
           include: {
             file: {
               select: {
+                id: true,
                 filename: true,
+                fileSize: true,
                 fileType: true,
                 mimeType: true,
                 minioPath: true,
@@ -52,10 +54,18 @@ export async function GET(
         );
     }
 
-    // Get user's MinIO config
+    // If collection is empty, return early to avoid MinIO config issues
+    if (collection.items.length === 0) {
+      return NextResponse.json({
+        id: collection.id,
+        items: [],
+      });
+    }
+
+    // Get user's MinIO config using the first file's configId
     const minioConfig = await getUserMinioConfig(
       collection.userId,
-      collection.items[0]?.file.configId
+      collection.items[0]?.file?.configId
     );
 
     if (!minioConfig) {
@@ -90,6 +100,7 @@ export async function GET(
           id: item.id,
           fileId: item.fileId,
           filename: item.file.filename,
+          fileSize: item.file.fileSize?.toString(),
           fileType: item.file.fileType,
           mimeType: item.file.mimeType,
           fileUrl,
@@ -104,6 +115,8 @@ export async function GET(
 
     return NextResponse.json({
       id: collection.id,
+      name: collection.name,
+      description: collection.description,
       items,
     });
   } catch (error) {
@@ -145,12 +158,14 @@ export async function PATCH(
 
   try {
     const body = await request.json();
-    const { expiresIn, unit } = body as {
-      expiresIn: number;
-      unit: 'minutes' | 'hours' | 'days';
+    const { expiresIn, unit, name, description } = body as {
+      expiresIn?: number;
+      unit?: 'minutes' | 'hours' | 'days';
+      name?: string;
+      description?: string;
     };
 
-    if ((!expiresIn || !unit) && !body.addFileIds && !body.removeFileIds) {
+    if ((!expiresIn || !unit) && !body.addFileIds && !body.removeFileIds && name === undefined && description === undefined) {
       return NextResponse.json({ error: 'Missing update parameters' }, { status: 400 });
     }
 
@@ -281,7 +296,8 @@ export async function PATCH(
                 data: {
                     id: finalId,
                     userId: collection.userId,
-                    name: collection.name,
+                    name: name !== undefined ? name : collection.name,
+                    description: description !== undefined ? description : collection.description,
                     fileCount,
                     totalSize: BigInt(totalSize),
                     shortCode: finalShortCode,
@@ -301,6 +317,8 @@ export async function PATCH(
         updated = await prisma.collection.update({
             where: { id },
             data: {
+                name: name !== undefined ? name : undefined,
+                description: description !== undefined ? description : undefined,
                 fileCount,
                 totalSize: BigInt(totalSize),
             },

@@ -266,23 +266,27 @@ model MultipartUpload {
 }
 
 model Collection {
-  id        String           @id @default(cuid())
-  userId    String
-  name      String?
-  fileCount Int              @default(0)
-  totalSize BigInt           @default(0)
-  shortCode String?          @unique
-  shortUrl  String?
-  expiresAt DateTime?
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-  items     CollectionItem[]
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String           @id @default(cuid())
+  userId      String
+  name        String?
+  description String?
+  fileCount   Int              @default(0)
+  totalSize   BigInt           @default(0)
+  shortCode   String?          @unique
+  shortUrl    String?
+  expiresAt   DateTime?
+  isShared    Boolean          @default(false)
+  sharedAt    DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  items       CollectionItem[]
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([shortCode])
   @@index([expiresAt])
   @@index([createdAt])
+  @@index([userId, isShared])
   @@map("collections")
 }
 

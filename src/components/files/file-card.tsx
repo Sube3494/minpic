@@ -106,12 +106,12 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
           }}
         >
           <div className={cn(
-            "rounded-full w-6 h-6 flex items-center justify-center transition-all duration-300 shadow-lg ring-1 ring-white/20 dark:ring-white/10 backdrop-blur-sm",
+            "rounded-full w-5 h-5 flex items-center justify-center transition-all duration-300",
             isSelected 
               ? "bg-primary border border-primary text-white scale-110" 
-              : "bg-black/30 hover:bg-black/40 border border-white/50 text-transparent"
+              : "bg-black/20 hover:bg-black/40 border border-white/20 text-transparent"
           )}>
-            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+            <Check className="w-3 h-3" strokeWidth={4} />
           </div>
         </div>
 

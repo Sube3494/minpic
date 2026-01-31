@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Image as ImageIcon, Settings, Menu } from 'lucide-react';
+import { Home, Image as ImageIcon, Settings, Menu, FolderOpen, Share2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ModeToggle } from '@/components/mode-toggle';
 import { UserMenu } from './user-menu';

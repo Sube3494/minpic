@@ -151,6 +151,9 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                       src={url}
                       controls
                       autoPlay
+                      muted
+                      preload="auto"
+                      playsInline
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.2 }}

@@ -8,7 +8,7 @@ import { useState, useEffect, useTransition, useCallback, useMemo } from 'react'
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Server, ChevronDown, ExternalLink, CheckSquare, X } from 'lucide-react';
+import { Loader2, Server, ChevronDown, ExternalLink, Check, X } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -266,6 +266,9 @@ export function FilesClient() {
         </div>,
         { id: loadingToast }
       );
+
+      // 成功后关闭对话框
+      setShareDialog({ open: false, file: null });
     } catch (err) {
       console.error('配置分享失败:', err);
       toast.error('操作失败,请重试', { id: loadingToast });
@@ -275,105 +278,75 @@ export function FilesClient() {
   const handleConfirmGenerateShortlink = async (expiresIn: number, unit: 'minutes' | 'hours' | 'days') => {
     const isBatch = shortlinkDialog.fileId === 'batch';
     const targets = isBatch ? selectedIds : [shortlinkDialog.fileId];
-    const total = targets.length;
     
-    if (total === 0) return;
+    if (targets.length === 0) return;
 
-    const loadingToast = toast.loading(isBatch ? `正在生成第 1/${total} 个短链...` : '正在生成短链...');
+    const loadingToast = toast.loading(isBatch ? '正在准备分享链接...' : '正在生成短链...');
     
     try {
-      const results: string[] = [];
-      let successCount = 0;
-      let failCount = 0;
+      let shareUrl = '';
 
-      for (let i = 0; i < total; i++) {
-        const id = targets[i];
-        if (isBatch) {
-          toast.loading(`正在生成第 ${i + 1}/${total} 个短链...`, { id: loadingToast });
+      if (isBatch) {
+        // 多文件合并分享逻辑 (创建无名合集作为技术容器)
+        const body = {
+          fileIds: targets,
+          shared: true,
+          expiresIn,
+          unit
+        };
+
+        const res = await fetch('/api/collections', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.message || errorData.error || 'Failed to create share collection');
         }
         
-        try {
-          const url = await fileService.generateShortlink(id, expiresIn, unit);
-          results.push(new URL(url).toString());
-          successCount++;
-        } catch (e) {
-          console.error(`Failed to generate shortlink for ${id}`, e);
-          failCount++;
-        }
-      }
-
-      if (successCount > 0) {
-        const textToCopy = results.join('\n');
-        await navigator.clipboard.writeText(textToCopy);
+        const data = await res.json();
         
-        if (isBatch) {
-          toast.success(
-            <div className="flex flex-col gap-2 w-full -my-1">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-foreground">已生成 {successCount} 个短链并复制</span>
-                {failCount > 0 && <span className="text-[10px] text-red-500 font-medium">{failCount} 个失败</span>}
-              </div>
-              <div className="space-y-1.5 pr-2">
-                {results.slice(0, 2).map((url, idx) => (
-                  <div key={idx} className="flex items-center group/link">
-                    <span className="text-[12px] text-zinc-500 dark:text-zinc-400 font-medium truncate tracking-tight hover:text-primary transition-colors cursor-default pl-1">
-                      {url.replace(/^https?:\/\//, '')}
-                    </span>
-                  </div>
-                ))}
-                {results.length > 2 && (
-                  <div className="flex items-center pl-1">
-                    <span className="text-[10px] text-zinc-400/80 font-medium italic">
-                      ... 以及另外 {results.length - 2} 个链接
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>,
-            { id: loadingToast, duration: 5000 }
-          );
-        } else {
-          const encodedUrl = results[0];
-          toast.success(
-            <div className="flex items-center justify-between w-full gap-4 -my-1">
-              <div className="flex flex-col gap-0.5 min-w-0">
-                <span className="text-sm text-foreground">短链已生成并复制</span>
-                <span className="text-[11px] text-zinc-500/80 truncate max-w-[200px]">{encodedUrl}</span>
-              </div>
-              <Button 
-                size="icon" 
-                variant="ghost" 
-                className="h-11 w-11 rounded-2xl hover:bg-emerald-500/10 transition-all shrink-0 -mr-1"
-                onClick={(e) => { e.stopPropagation(); window.open(encodedUrl, '_blank'); }}
-              >
-                <ExternalLink className="w-6 h-6 text-emerald-500" />
-              </Button>
-            </div>,
-            { id: loadingToast }
-          );
-        }
+        // 生成统一的 /f/ 路径 (如果 shortUrl 是外部短链则用短链)
+        shareUrl = data.shortUrl || `${window.location.origin}/f/${data.id}`;
       } else {
-        toast.error('生成失败，请检查服务配置', { id: loadingToast });
+        // 单文件短链逻辑
+        const id = targets[0];
+        const rawUrl = await fileService.generateShortlink(id, expiresIn, unit);
+        shareUrl = new URL(rawUrl).toString();
       }
+
+      await navigator.clipboard.writeText(shareUrl);
+      
+      toast.success(
+        <div className="flex items-center justify-between w-full gap-4 -my-1">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-sm text-foreground font-medium">
+              {isBatch ? '分享链接已复制' : '分享短链已复制'}
+            </span>
+            <span className="text-[11px] text-zinc-500/80 truncate max-w-[200px]">{shareUrl}</span>
+          </div>
+          <Button 
+            size="icon" 
+            variant="ghost" 
+            className="h-10 w-10 rounded-xl hover:bg-emerald-500/10 transition-all shrink-0 -mr-1"
+            onClick={(e) => { e.stopPropagation(); window.open(shareUrl, '_blank'); }}
+          >
+            <ExternalLink className="w-5 h-5 text-emerald-500" />
+          </Button>
+        </div>,
+        { id: loadingToast }
+      );
 
       setShortlinkDialog({ open: false, fileId: '' });
+      if (isBatch) setSelectedIds([]);
     } catch (err) {
-      console.error('Shortlink generation error:', err);
-      toast.error('生成过程发生错误', { id: loadingToast });
+      console.error('Share generation error:', err);
+      toast.error('操作失败，请重试', { id: loadingToast });
     }
   };
 
-  const handleBatchShortlinks = async () => {
-    if (selectedIds.length === 0) return;
-    
-    if (!shortlinkEnabled) {
-      toast.error('短链服务未启用');
-      return;
-    }
-
-    // Trigger dialog for batch mode
-    setShortlinkDialog({ open: true, fileId: 'batch' });
-  };
 
   const handleBatchDeleteClick = () => {
     setDeleteDialog({ open: true, fileId: 'batch', filename: `选中的 ${selectedIds.length} 个文件`, deleteMode: 'record-only' });
@@ -398,18 +371,19 @@ export function FilesClient() {
     setIsDeleting(false);
   };
 
-  const handleCreateCollection = async (name: string, expiresIn?: number, unit?: 'minutes' | 'hours' | 'days') => {
+  const handleCreateCollection = async (name: string, shared?: boolean, expiresIn?: number, unit?: 'minutes' | 'hours' | 'days') => {
     if (selectedIds.length === 0) return;
 
     const loadingToast = toast.loading('正在创建合集...');
 
     try {
-      const body: { fileIds: string[]; name?: string; expiresIn?: number; unit?: string } = {
+      const body: { fileIds: string[]; name?: string; shared?: boolean; expiresIn?: number; unit?: string } = {
         fileIds: selectedIds,
         name,
       };
 
-      if (expiresIn && unit) {
+      if (shared && expiresIn && unit) {
+        body.shared = true;
         body.expiresIn = expiresIn;
         body.unit = unit;
       }
@@ -435,19 +409,23 @@ export function FilesClient() {
       toast.success(
         <div className="flex items-center justify-between w-full gap-4 -my-1">
           <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-sm text-foreground">
-              {data.shortUrl ? '合集短链已复制' : '合集已创建'}
+            <span className="text-sm text-foreground font-medium">
+              {data.shortUrl ? '合集已创建，分享链接已复制' : '合集已创建'}
             </span>
-            <span className="text-[11px] text-zinc-500/80 truncate max-w-[200px]">{collectionUrl}</span>
+            {data.shortUrl && (
+              <span className="text-[11px] text-zinc-500/80 truncate max-w-[200px]">{collectionUrl}</span>
+            )}
           </div>
-          <Button 
-            size="icon" 
-            variant="ghost" 
-            className="h-11 w-11 rounded-2xl hover:bg-emerald-500/10 transition-all shrink-0 -mr-1"
-            onClick={(e) => { e.stopPropagation(); window.open(collectionUrl, '_blank'); }}
-          >
-            <ExternalLink className="w-6 h-6 text-emerald-500" />
-          </Button>
+          {data.shortUrl && (
+            <Button 
+              size="icon" 
+              variant="ghost" 
+              className="h-11 w-11 rounded-2xl hover:bg-emerald-500/10 transition-all shrink-0 -mr-1"
+              onClick={(e) => { e.stopPropagation(); window.open(collectionUrl, '_blank'); }}
+            >
+              <ExternalLink className="w-6 h-6 text-emerald-500" />
+            </Button>
+          )}
         </div>,
         { id: loadingToast }
       );
@@ -636,43 +614,6 @@ export function FilesClient() {
                 </DropdownMenu>
               </div>
 
-             {/* Mobile Select Toggle */}
-             <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "md:hidden w-10 h-10 rounded-full transition-all",
-                  selectedIds.length > 0 ? "bg-primary/10 text-primary" : "hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-500"
-                )}
-                onClick={() => {
-                  if (selectedIds.length > 0) {
-                    setSelectedIds([]);
-                  } else {
-                    // Enter selection mode simply by not doing anything (Files will handle click)
-                    // But we want to give visual feedback or select the first one?
-                    // Actually, usually user wants to just "Toggle Mode". 
-                    // Since our logic relies on `selectedIds.length > 0` for mode,
-                    // we might need a way to enter mode without selecting.
-                    // For now, let's just show a toast or help user realize long press works too. 
-                    // OR: We can select the first visible file? No that's jarring.
-                    // Better: Just toast "点击文件进行多选" if state logic requires selection to be in mode.
-                    // Wait, `FileCard` uses `isSelectionMode` prop which comes from `selectedIds.length > 0`.
-                    // So we can't be in mode without selection.
-                    // Let's rely on long-press or just this button clearing selection.
-                    // IMPROVEMENT: Let's allow users to start selection by clicking this button properly?
-                    // Maybe we just rely on long press context menu which we added back?
-                    // Actually, let's make this button a "Select All" or "Cancel" if active.
-                    // If inactive, maybe it can be "Select Mode" which implies... nothing until you pick one?
-                    // Let's just make it a "Cancel Selection" button when active, and hidden when inactive?
-                    // No, user requested "Multi-select option on mobile".
-                    // Let's make it toggle a flag `forceSelectionMode` if we really want empty selection mode.
-                    // But for now, easiest is:
-                    toast.info("长按任意文件即可进入选择模式", { position: 'top-center' });
-                  }
-                }}
-             >
-                {selectedIds.length > 0 ? <X className="w-5 h-5" /> : <CheckSquare className="w-5 h-5" />}
-             </Button>
 
 
           </div>
@@ -803,86 +744,101 @@ export function FilesClient() {
   </PageWrapper>
 
     {/* Bulk Action Toolbar - Clean & Balanced UI */}
-      <AnimatePresence>
-        {selectedIds.length > 0 && (
-          <motion.div 
-            initial={{ opacity: 0, y: 30, x: "-50%", scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, x: "-50%", scale: 1 }}
-            exit={{ opacity: 0, y: 20, x: "-50%", scale: 0.98 }}
-            transition={{ type: "spring", damping: 25, stiffness: 400 }}
-            style={{ willChange: "transform, opacity, backdrop-filter" }}
-            className="fixed bottom-20 sm:bottom-12 left-1/2 z-9999 pointer-events-auto w-auto max-w-[calc(100vw-32px)] p-1.5 sm:p-2 rounded-full bg-white/95 dark:bg-zinc-900/95 backdrop-blur-3xl border border-white/20 dark:border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.3)] ring-1 ring-black/5 dark:ring-white/5 flex items-center justify-between gap-1 sm:gap-4"
-          >
-            {/* Info section - Badge Style */}
-            <div className="flex items-center gap-2 pl-1 pr-3 sm:pr-4 border-r border-zinc-200/50 dark:border-white/10 shrink-0">
-              <div className="flex items-center justify-center min-w-[24px] h-6 px-1.5 rounded-full bg-primary text-white text-[11px] font-bold shadow-sm shadow-primary/30">
-                {selectedIds.length}
-              </div>
-              <span className="text-zinc-500 dark:text-zinc-400 font-medium text-[11px] sm:text-xs hidden min-[400px]:inline">
-                已选中
-              </span>
+    {/* Bulk Action Toolbar - Unified Minimalist UI */}
+    <AnimatePresence>
+      {selectedIds.length > 0 && (
+        <motion.div
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          className="fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-50 px-3 sm:px-4 py-2.5 sm:py-3 w-auto sm:min-w-[320px] bg-white dark:bg-[#18181b] border border-slate-200 dark:border-white/10 rounded-full shadow-[0_8px_40px_-12px_rgba(0,0,0,0.3)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.8)] flex items-center justify-between gap-4 sm:gap-8 whitespace-nowrap"
+        >
+          {/* Left: Selection Status */}
+          <div className="flex items-center gap-4 ml-2">
+            {/* Mobile: Digital Badge (Count only) */}
+            <div 
+              className="sm:hidden flex items-center justify-center w-8 h-8 rounded-full bg-primary text-white font-bold text-sm shadow-sm cursor-pointer active:scale-90 transition-transform"
+              onClick={handleSelectAll}
+            >
+              {isRefreshing || isSelectingAll ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                selectedIds.length
+              )}
             </div>
 
-            {/* Functional Buttons */}
-            <div className="flex items-center gap-1 sm:gap-1.5 flex-1 justify-center min-w-0 px-1">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 px-2 sm:px-3 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 font-medium text-[12px] sm:text-xs transition-colors shrink-0"
+            {/* Desktop: Checkbox + Text */}
+            <div className="hidden sm:flex items-center gap-4">
+              <div 
+                className="cursor-pointer transition-all hover:scale-110 active:scale-95"
                 onClick={handleSelectAll}
-                disabled={isRefreshing || isSelectingAll}
               >
-                {isRefreshing || isSelectingAll ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  isAllSelected ? '取消' : '全选'
-                )}
+                <div className={cn(
+                  "w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300",
+                  isAllSelected 
+                    ? "bg-primary border border-primary text-white scale-110" 
+                    : "bg-transparent border border-slate-300 dark:border-zinc-600 text-transparent"
+                )}>
+                  {isRefreshing || isSelectingAll ? (
+                     <Loader2 className="w-3 h-3 animate-spin text-primary dark:text-white" />
+                  ) : (
+                     <Check className="w-3 h-3" strokeWidth={4} />
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-slate-800 dark:text-zinc-100">已选择 {selectedIds.length} 项</span>
+                <span className="text-[10px] text-slate-500 dark:text-zinc-500 tracking-wider uppercase">批量管理模式</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1 sm:gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 px-3 sm:px-4 rounded-full text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors font-medium text-xs sm:text-sm"
+                onClick={() => handleGenerateShortlink('batch')}
+              >
+                <span className="sm:hidden">分享</span>
+                <span className="hidden sm:inline">批量分享</span>
               </Button>
-              
-              {shortlinkEnabled && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 px-2 sm:px-4 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 font-medium text-[12px] sm:text-xs transition-colors shrink-0"
-                  onClick={handleBatchShortlinks}
-                >
-                  短链
-                </Button>
-              )}
 
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2 sm:px-4 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-600 dark:text-zinc-300 font-medium text-[12px] sm:text-xs transition-colors shrink-0"
+                className="h-9 px-3 sm:px-4 rounded-full text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors font-medium text-xs sm:text-sm"
                 onClick={() => setCollectionDialog(true)}
               >
-                合集
+                <span className="sm:hidden">合集</span>
+                <span className="hidden sm:inline">创建合集</span>
               </Button>
-            </div>
 
             <Button
               variant="destructive"
               size="sm"
-              className="h-8 sm:h-9 px-4 sm:px-5 rounded-full font-bold text-[12px] sm:text-xs shadow-lg shadow-red-500/20 hover:shadow-red-500/30 bg-linear-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 transition-all active:scale-95 shrink-0"
+              className="h-9 px-4 sm:px-5 rounded-full font-bold bg-red-500 hover:bg-red-600 transition-all active:scale-95 text-xs sm:text-sm"
               onClick={handleBatchDeleteClick}
               disabled={isDeleting}
             >
               {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "删除"}
             </Button>
 
-            <div className="w-px h-5 bg-zinc-200 dark:bg-zinc-700/50 mx-0.5" />
+            <div className="w-px h-4 bg-slate-200 dark:bg-white/10 mx-1 sm:mx-2" />
 
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8 sm:h-9 sm:w-9 rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors shrink-0 mr-1"
+              className="h-9 w-9 rounded-full text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 hover:bg-slate-100 dark:hover:bg-white/10 transition-colors shrink-0"
               onClick={() => setSelectedIds([])}
             >
               <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
 
     {/* Delete Dialog */}
     <ConfirmDialog

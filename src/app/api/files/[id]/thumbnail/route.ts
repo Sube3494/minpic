@@ -90,9 +90,10 @@ export async function GET(
           const minioService = new MinioService();
           await minioService.connect(config);
           
-          const videoBuffer = await minioService.downloadFile(file.minioPath);
-          const { generateVideoThumbnail } = await import('@/lib/image-utils');
-          const thumbnailBuffer = await generateVideoThumbnail(videoBuffer);
+          // Get a presigned URL instead of downloading the whole file
+          const videoUrl = await minioService.getFileUrl(file.minioPath);
+          const { generateVideoThumbnailFromUrl } = await import('@/lib/image-utils');
+          const thumbnailBuffer = await generateVideoThumbnailFromUrl(videoUrl);
 
           if (thumbnailBuffer) {
             // Save to DB for next time

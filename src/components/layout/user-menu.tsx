@@ -9,7 +9,7 @@
 
 import { signOut } from 'next-auth/react';
 import Link from 'next/link';
-import { LogOut, User, Shield, Users, FolderOpen } from 'lucide-react';
+import { LogOut, User, Shield, Users, Share2, FolderOpen } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -91,6 +91,13 @@ export function UserMenu({ user }: UserMenuProps) {
           <Link href="/collections">
             <FolderOpen className="mr-2 h-4 w-4" />
             <span>我的合集</span>
+          </Link>
+        </DropdownMenuItem>
+        
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href="/shares">
+            <Share2 className="mr-2 h-4 w-4" />
+            <span>分享管理</span>
           </Link>
         </DropdownMenuItem>
         

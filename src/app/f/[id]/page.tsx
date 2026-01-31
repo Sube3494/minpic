@@ -1,6 +1,6 @@
-import { FileViewClient } from './FileViewClient';
+import { ShareViewClient } from './ShareViewClient';
 
 export default async function FileViewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  return <FileViewClient id={id} />;
+  return <ShareViewClient id={id} />;
 }

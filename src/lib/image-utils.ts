@@ -36,6 +36,59 @@ export async function generateThumbnail(
 }
 
 /**
+ * Generate a thumbnail from a video URL using ffmpeg (Streaming)
+ */
+export async function generateVideoThumbnailFromUrl(
+  videoUrl: string,
+  maxWidth: number = 400
+): Promise<Buffer | null> {
+  const tempId = crypto.randomBytes(16).toString('hex');
+  const tempOutputPath = path.join(os.tmpdir(), `minpic_output_${tempId}.webp`);
+
+  return new Promise((resolve) => {
+    try {
+      ffmpeg(videoUrl)
+        .seekInput(0.1)
+        .frames(1)
+        .size(`${maxWidth}x?`)
+        .on('error', (err) => {
+          console.error('FFmpeg error from URL:', err);
+          cleanup();
+          resolve(null);
+        })
+        .on('end', async () => {
+          try {
+            if (fs.existsSync(tempOutputPath)) {
+              const finalThumb = fs.readFileSync(tempOutputPath);
+              cleanup();
+              resolve(finalThumb);
+            } else {
+              cleanup();
+              resolve(null);
+            }
+          } catch (e) {
+            console.error('Error reading video frame from URL:', e);
+            cleanup();
+            resolve(null);
+          }
+        })
+        .save(tempOutputPath);
+      
+      const cleanup = () => {
+        try {
+          if (fs.existsSync(tempOutputPath)) fs.unlinkSync(tempOutputPath);
+        } catch (e) {
+          console.error('Cleanup failed:', e);
+        }
+      };
+    } catch (error) {
+      console.error('Error initiating video thumbnail generation from URL:', error);
+      resolve(null);
+    }
+  });
+}
+
+/**
  * Generate a thumbnail from a video buffer using ffmpeg
  */
 export async function generateVideoThumbnail(
