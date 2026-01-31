@@ -90,7 +90,7 @@ export async function POST(
           undefined,
           expiresIn,
           unit,
-          collection.name || undefined
+          collection.name || `多选分享 (${collection.fileCount}个文件)`
         );
 
         shortUrl = shortlink.short_url;

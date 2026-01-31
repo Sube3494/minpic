@@ -225,7 +225,7 @@ export async function PATCH(
             undefined,
             expiresIn,
             unit,
-            name !== undefined ? name : (collection.name || undefined)
+            name !== undefined ? (name || `多选分享 (${collection.fileCount}个文件)`) : (collection.name || `多选分享 (${collection.fileCount}个文件)`)
           );
 
           finalShortCode = shortlink.short_code;

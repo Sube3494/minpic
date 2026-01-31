@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
             undefined,
             expiresIn,
             unit,
-            collection.name || undefined
+            collection.name || `多选分享 (${collection.fileCount}个文件)`
           );
 
           // Calculate expiration time and update collection with sharing info
