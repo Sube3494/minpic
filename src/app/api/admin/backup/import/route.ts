@@ -36,27 +36,25 @@ export async function POST(req: Request) {
     let backupData = data.backup;
     const { password } = data;
 
-    // 如果数据是加密格式
-    if (isEncryptedBackup(backupData)) {
-      if (!password) {
-        return NextResponse.json({ error: 'THIS_IS_ENCRYPTED', message: '备份已加密，请输入密码' }, { status: 400 });
-      }
-      try {
-        const decryptedStr = await decryptBackup(backupData, password);
-        backupData = JSON.parse(decryptedStr);
-      } catch {
-        return NextResponse.json({ error: '解密失败，密码可能错误' }, { status: 400 });
-      }
+    // 强制加密校验：如果不是加密格式，直接拒绝
+    if (!isEncryptedBackup(backupData)) {
+      return NextResponse.json({ 
+        error: '不支持的备份格式。系统目前仅支持加密后的备份文件，请使用带有密码导出的备份进行还原。' 
+      }, { status: 400 });
     }
 
-    const getBackupPayload = (data: unknown): unknown => {
-      if (typeof data === 'object' && data !== null && 'backup' in data) {
-        return (data as { backup: unknown }).backup;
-      }
-      return data;
-    };
+    if (!password) {
+      return NextResponse.json({ error: 'THIS_IS_ENCRYPTED', message: '备份已加密，请输入密码' }, { status: 400 });
+    }
 
-    const backup = getBackupPayload(backupData);
+    try {
+      const decryptedStr = await decryptBackup(backupData, password);
+      backupData = JSON.parse(decryptedStr);
+    } catch {
+      return NextResponse.json({ error: '解密失败，密码可能错误' }, { status: 400 });
+    }
+
+    const backup = backupData;
 
     // 递归助手：还原 BigInt
     const deserialize = (obj: unknown): unknown => {

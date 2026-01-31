@@ -16,6 +16,10 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const password = searchParams.get('pwd');
   
+  if (!password) {
+    return NextResponse.json({ error: '必须提供加密密码以导出备份' }, { status: 400 });
+  }
+
   if (!session || session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
@@ -75,11 +79,8 @@ export async function GET(req: NextRequest) {
     const fileName = `minpic-backup-${dateStr}-${timeStr}.json`;
     let finalData = JSON.stringify(serializeBigInt(data));
 
-    // 如果提供了密码，则加密
-    if (password) {
-      const encrypted = await encryptBackup(finalData, password);
-      finalData = JSON.stringify(encrypted);
-    }
+    const encrypted = await encryptBackup(finalData, password);
+    finalData = JSON.stringify(encrypted);
 
     return new NextResponse(finalData, {
       status: 200,

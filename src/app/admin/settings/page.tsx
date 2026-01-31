@@ -80,10 +80,12 @@ export default function SettingsPage() {
   }
 
   const handleExport = () => {
+    if (!exportPassword) {
+      toast.error('请先设置加密密码。系统不再支持明文备份以确保您的数据安全。');
+      return;
+    }
     toast.info('正在准备备份文件...');
-    const url = exportPassword 
-      ? `/api/admin/backup/export?pwd=${encodeURIComponent(exportPassword)}`
-      : '/api/admin/backup/export';
+    const url = `/api/admin/backup/export?pwd=${encodeURIComponent(exportPassword)}`;
     window.location.href = url;
   };
 
@@ -364,19 +366,19 @@ export default function SettingsPage() {
                               <Download className="w-4 h-4 text-blue-500" />
                               <span className="font-medium">导出全量备份</span>
                             </div>
-                            <p className="text-xs text-muted-foreground">导出包含所有记录的 JSON。您可以设置密码以加密文件。</p>
+                            <p className="text-xs text-muted-foreground">导出包含所有记录的 JSON。系统将强制使用加密以确保数据安全。</p>
                             <div className="space-y-2">
-                              <Label className="text-[10px] uppercase font-bold text-muted-foreground">加密密码 (可选)</Label>
+                              <Label className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400">加密密码 (必填)</Label>
                               <Input
                                 type="password"
-                                placeholder="留空则不加密"
+                                placeholder="设置导出密码，必须牢记"
                                 value={exportPassword}
                                 onChange={(e) => setExportPassword(e.target.value)}
-                                className="h-8 text-xs bg-zinc-50/50 dark:bg-white/5"
+                                className="h-8 text-xs bg-zinc-100/50 dark:bg-white/5 border-blue-100 dark:border-blue-900/30"
                               />
                             </div>
-                            <Button variant="outline" size="sm" onClick={handleExport} className="w-full">
-                              开始导出
+                            <Button variant="default" size="sm" onClick={handleExport} className="w-full shadow-md shadow-blue-500/10">
+                              开始加密导出
                             </Button>
                           </div>
 
