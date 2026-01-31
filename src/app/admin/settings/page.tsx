@@ -503,9 +503,9 @@ export default function SettingsPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-            className="fixed inset-0 z-100 flex items-center justify-center bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl"
+            className="fixed inset-0 z-100 flex items-center justify-center bg-zinc-950/20 backdrop-blur-sm"
             >
-                <div className="max-w-md w-full p-8 space-y-8 text-center text-zinc-900 dark:text-zinc-100">
+                <div className="max-w-md w-full p-8 space-y-8 text-center bg-white/90 dark:bg-zinc-900/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-white/5 mx-4">
                 <motion.div
                     animate={{ 
                     scale: [1, 1.05, 1],
