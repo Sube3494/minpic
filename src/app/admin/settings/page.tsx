@@ -97,7 +97,8 @@ export default function SettingsPage() {
     if (!file) return;
     setPendingFile(file);
     setShowImportConfirm(true);
-    setShowPasswordDialog(false);
+    setShowImportConfirm(true);
+    setShowPasswordDialog(true);
     setImportPassword('');
     // 重置 input 方便下次触发
     e.target.value = '';

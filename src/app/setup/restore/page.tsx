@@ -52,7 +52,7 @@ export default function RestorePage() {
     if (!file) return;
     setPendingFile(file);
     setShowConfirm(true);
-    setShowPasswordInput(false);
+    setShowPasswordInput(true);
     setPassword('');
     e.target.value = '';
   };
