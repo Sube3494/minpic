@@ -9,8 +9,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Settings2, Shield, Users } from 'lucide-react';
+import { Settings2, Shield, Users, Database, Download, Upload, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 interface Settings {
   id: string;
@@ -26,6 +27,9 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -71,6 +75,59 @@ export default function SettingsPage() {
       setSaving(false);
     }
   }
+
+  const handleExport = () => {
+    toast.info('正在准备备份文件...');
+    window.location.href = '/api/admin/backup/export';
+  };
+
+  const handleImportClick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPendingFile(file);
+    setShowImportConfirm(true);
+    // 重置 input 方便下次触发
+    e.target.value = '';
+  };
+
+  const confirmImport = async () => {
+    if (!pendingFile) return;
+    
+    setImporting(true);
+    setShowImportConfirm(false);
+    
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const content = JSON.parse(event.target?.result as string);
+          if (!content.backup) throw new Error('无效的备份文件格式');
+
+          const res = await fetch('/api/admin/backup/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ backup: content.backup }),
+          });
+
+          if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || '还原过程中发生错误');
+          }
+
+          toast.success('系统还原成功！正在重新载入...');
+          setTimeout(() => window.location.href = '/auth/signin', 2000);
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : '还原过程中发生错误';
+          toast.error(message);
+          setImporting(false);
+        }
+      };
+      reader.readAsText(pendingFile);
+    } catch {
+      toast.error('无法读取备份文件');
+      setImporting(false);
+    }
+  };
 
 
 
@@ -265,6 +322,57 @@ export default function SettingsPage() {
                       </CardContent>
                     </Card>
                   </div>
+
+                  {/* Data Management (Backup/Restore) */}
+                  <div>
+                    <Card className="glass-strong border-zinc-200/50 dark:border-white/10 shadow-lg bg-white/50 dark:bg-black/20 hover:translate-y-0">
+                      <CardHeader>
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-amber-500/10 rounded-lg">
+                            <Database className="w-5 h-5 text-amber-500" />
+                          </div>
+                          <div>
+                            <CardTitle>数据管理</CardTitle>
+                            <CardDescription>导出系统备份或从可用备份中还原</CardDescription>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="p-4 rounded-xl bg-zinc-50/50 dark:bg-white/5 border border-zinc-200/50 dark:border-white/10 space-y-4">
+                            <div className="flex items-center gap-3">
+                              <Download className="w-4 h-4 text-blue-500" />
+                              <span className="font-medium">导出全量备份</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">导出包含所有用户、文件记录、短链及系统配置的 JSON 文件。</p>
+                            <Button variant="outline" size="sm" onClick={handleExport} className="w-full">
+                              开始导出
+                            </Button>
+                          </div>
+
+                          <div className="p-4 rounded-xl bg-zinc-50/50 dark:bg-white/5 border border-zinc-200/50 dark:border-white/10 space-y-4">
+                            <div className="flex items-center gap-3">
+                              <Upload className="w-4 h-4 text-amber-500" />
+                              <span className="font-medium">从备份还原</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">上传备份文件以恢复系统状态。注意：这会覆盖当前所有数据！</p>
+                            <div className="relative">
+                              <Input
+                                type="file"
+                                accept=".json"
+                                onChange={handleImportClick}
+                                disabled={importing}
+                                className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
+                              />
+                              <Button variant="outline" size="sm" disabled={importing} className="w-full">
+                                {importing ? '还原中...' : '选择文件并还原'}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
 
 
@@ -272,6 +380,38 @@ export default function SettingsPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <ConfirmDialog
+            open={showImportConfirm}
+            onOpenChange={setShowImportConfirm}
+            title="危险操作：确认还原备份？"
+            description={
+                <div className="flex flex-col items-center gap-6 py-4">
+                    <div className="relative flex items-center justify-center w-20 h-20">
+                        <div className="absolute inset-0 bg-red-500/10 dark:bg-red-400/10 rounded-full animate-ping opacity-20 duration-3000" />
+                        <div className="relative flex items-center justify-center w-20 h-20 bg-red-50 dark:bg-red-900/20 rounded-full border border-red-100 dark:border-red-800/30">
+                            <AlertTriangle className="w-10 h-10 text-red-600 dark:text-red-400" />
+                        </div>
+                    </div>
+
+                    <div className="space-y-4 w-full text-center">
+                        <div className="space-y-1">
+                            <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">此操作将清空所有现有数据</h3>
+                            <p className="text-sm text-muted-foreground">
+                                正在操作的文件：<span className="font-mono text-zinc-700 dark:text-zinc-300">{pendingFile?.name}</span>
+                            </p>
+                        </div>
+                        <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-xl border border-red-100 dark:border-red-900/20 text-xs text-red-600 dark:text-red-400 leading-relaxed">
+                            还原备份将永久删除当前数据库中的所有用户、文件、短链、团队和设置，并用备份文件中的内容完全替换。此操作无法撤销。
+                        </div>
+                    </div>
+                </div>
+            }
+            confirmText="我已知晓风险，执行还原"
+            cancelText="取消"
+            onConfirm={confirmImport}
+            variant="destructive"
+        />
       </div>
     </PageWrapper>
   );

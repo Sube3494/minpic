@@ -2,7 +2,7 @@
  * @Date: 2025-12-24 21:27:32
  * @Author: Sube
  * @FilePath: utils.ts
- * @LastEditTime: 2026-01-02 19:13:57
+ * @LastEditTime: 2026-01-31 22:31:32
  * @Description: 
  */
 import { clsx, type ClassValue } from "clsx"
@@ -22,21 +22,34 @@ export function formatFileSize(bytes: number | bigint) {
 
 
 export function getClientIp(request: Request) {
-  const forwardedFor = request.headers.get('x-forwarded-for');
-  const ip = forwardedFor ? forwardedFor.split(',')[0].trim() : (request.headers.get('x-real-ip') || '127.0.0.1');
+  // 1. 优先尝试 Cloudflare 特有的真实 IP 头
+  const cfIp = request.headers.get('cf-connecting-ip');
+  if (cfIp) return cfIp;
 
-  if (ip === '::1') {
-    return '127.0.0.1';
+  // 2. 尝试标准 X-Forwarded-For (处理多级代理)
+  const forwardedFor = request.headers.get('x-forwarded-for');
+  if (forwardedFor) {
+    // 真实的客户端 IP 通常是列表中的第一个
+    const firstIp = forwardedFor.split(',')[0].trim();
+    if (firstIp && firstIp !== '::1' && firstIp !== '127.0.0.1') {
+      return firstIp;
+    }
   }
-  
-  return ip;
+
+  // 3. 尝试 X-Real-IP
+  const realIp = request.headers.get('x-real-ip');
+  if (realIp && realIp !== '::1' && realIp !== '127.0.0.1') {
+    return realIp;
+  }
+
+  // 4. 最后兜底
+  return '127.0.0.1';
 }
 
 /**
  * 递归序列化对象中的 BigInt 类型，将其转为字符串
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function serializeBigInt<T>(obj: T): any {
+export function serializeBigInt(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;
   
   if (typeof obj === 'bigint') {
@@ -44,7 +57,7 @@ export function serializeBigInt<T>(obj: T): any {
   }
   
   if (Array.isArray(obj)) {
-    return obj.map(serializeBigInt);
+    return obj.map(item => serializeBigInt(item));
   }
 
   if (obj instanceof Date) {
@@ -52,11 +65,12 @@ export function serializeBigInt<T>(obj: T): any {
   }
   
   if (typeof obj === 'object') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res: any = {};
-    for (const key in obj) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      res[key] = serializeBigInt((obj as any)[key]);
+    const record = obj as Record<string, unknown>;
+    const res: Record<string, unknown> = {};
+    for (const key in record) {
+      if (Object.prototype.hasOwnProperty.call(record, key)) {
+        res[key] = serializeBigInt(record[key]);
+      }
     }
     return res;
   }

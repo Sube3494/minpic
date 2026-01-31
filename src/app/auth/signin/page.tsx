@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Github, Sparkles, Shield, Zap, Lock, User, Loader2, UserPlus, KeyRound, Mail, ArrowLeft } from 'lucide-react';
+import { Github, Sparkles, Shield, Zap, Lock, User, Loader2, UserPlus, KeyRound, Mail, ArrowLeft, Database } from 'lucide-react';
 import { toast } from 'sonner';
 
 type AuthMode = 'signin' | 'register' | 'forgot';
@@ -23,6 +23,7 @@ export default function SignInPage() {
   const [codeLoading, setCodeLoading] = useState(false);
   const [ghLoading, setGhLoading] = useState(false);
   const [githubEnabled, setGithubEnabled] = useState(true);
+  const [systemEmpty, setSystemEmpty] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>(() => {
     const mode = searchParams.get('authMode');
     return (mode === 'register' || mode === 'forgot') ? mode : 'signin';
@@ -45,6 +46,16 @@ export default function SignInPage() {
       .then(data => {
         if (data.githubLoginEnabled !== undefined) {
           setGithubEnabled(data.githubLoginEnabled);
+        }
+      })
+      .catch(() => {});
+
+    // Check System Empty Status
+    fetch('/api/admin/backup/status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.isEmpty) {
+          setSystemEmpty(true);
         }
       })
       .catch(() => {});
@@ -390,6 +401,18 @@ export default function SignInPage() {
                     {authMode === 'register' ? '立即登录' : '创建新账号'}
                   </span>
                 </button>
+              )}
+
+              {systemEmpty && (
+                <div className="mt-4 pt-4 border-t border-border/30 animate-in fade-in slide-in-from-top-2 duration-700">
+                  <Link
+                    href="/setup/restore"
+                    className="text-[10px] text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 font-bold flex items-center justify-center gap-1.5 transition-colors group"
+                  >
+                    <Database className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                    系统初装？从备份还原数据
+                  </Link>
+                </div>
               )}
             </div>
           </div>
