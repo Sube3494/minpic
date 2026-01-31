@@ -31,6 +31,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # 生成 Prisma Client
+ENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma
 RUN npx prisma generate
 
 # 构建应用
