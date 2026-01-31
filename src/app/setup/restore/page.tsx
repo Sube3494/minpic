@@ -150,7 +150,7 @@ export default function RestorePage() {
             <div className="relative group">
               <Input
                 type="file"
-                accept=".json"
+                accept=".backup"
                 onChange={handleFileChange}
                 disabled={importing}
                 className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
@@ -161,7 +161,7 @@ export default function RestorePage() {
                 disabled={importing}
               >
                 {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                {importing ? '系统还原中...' : '选择备份文件 (.json)'}
+                {importing ? '系统还原中...' : '选择备份文件 (.backup)'}
               </Button>
             </div>
 

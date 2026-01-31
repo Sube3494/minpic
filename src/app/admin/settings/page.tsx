@@ -394,13 +394,13 @@ export default function SettingsPage() {
                             <div className="relative">
                               <Input
                                 type="file"
-                                accept=".json"
+                                accept=".backup"
                                 onChange={handleImportClick}
                                 disabled={importing}
                                 className="opacity-0 absolute inset-0 w-full h-full cursor-pointer z-10"
                               />
                               <Button variant="outline" size="sm" disabled={importing} className="w-full">
-                                {importing ? '还原中...' : '选择文件并还原'}
+                                {importing ? '还原中...' : '选择 .backup 文件并还原'}
                               </Button>
                             </div>
                           </div>
