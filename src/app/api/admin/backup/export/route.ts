@@ -9,6 +9,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { encryptBackup } from '@/lib/backup-encryption';
+import { serializeBigInt } from '@/lib/utils';
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -18,16 +19,6 @@ export async function GET(req: NextRequest) {
   if (!session || session.user.role !== 'ADMIN') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-
-  // Helper to handle BigInt
-  const serialize = (obj: unknown): unknown => {
-    return JSON.parse(JSON.stringify(obj, (_key, value) => {
-      if (typeof value === 'bigint') {
-        return { __bigint: value.toString() }; // Special marker for restore
-      }
-      return value;
-    }));
-  };
 
   try {
     const [
@@ -74,8 +65,15 @@ export async function GET(req: NextRequest) {
       }
     };
 
-    const fileName = `minpic-backup-${new Date().toISOString().split('T')[0]}.json`;
-    let finalData = JSON.stringify(serialize(data));
+    const now = new Date();
+    const dateStr = now.getFullYear().toString() + 
+                   (now.getMonth() + 1).toString().padStart(2, '0') + 
+                   now.getDate().toString().padStart(2, '0');
+    const timeStr = now.getHours().toString().padStart(2, '0') + 
+                   now.getMinutes().toString().padStart(2, '0') + 
+                   now.getSeconds().toString().padStart(2, '0');
+    const fileName = `minpic-backup-${dateStr}-${timeStr}.json`;
+    let finalData = JSON.stringify(serializeBigInt(data));
 
     // 如果提供了密码，则加密
     if (password) {

@@ -70,6 +70,11 @@ export async function POST(req: Request) {
       if ('__bigint' in record && typeof record.__bigint === 'string') {
         return BigInt(record.__bigint);
       }
+
+      // 处理 Buffer (Bytes) 类型
+      if (record.type === 'Buffer' && Array.isArray(record.data)) {
+        return Buffer.from(record.data as number[]);
+      }
       
       const newObj: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(record)) {
@@ -174,7 +179,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true });
   } catch (error: unknown) {
     console.error('[Backup Import Error]:', error);
-    const message = error instanceof Error ? error.message : '未知错误';
+    let message = error instanceof Error ? error.message : '未知错误';
+    
+    // 如果是严重的 Prisma 报错，截断展示防止撑破 UI
+    if (message.includes('invocation') || message.includes('PrismaClient')) {
+      message = '数据库操作失败，请确保备份文件版本匹配且内容完整。详细错误已记录在服务器日志。';
+    }
+
     return NextResponse.json({ error: '还原失败: ' + message }, { status: 500 });
   }
 }

@@ -53,7 +53,11 @@ export function serializeBigInt(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;
   
   if (typeof obj === 'bigint') {
-    return obj.toString();
+    return { __bigint: obj.toString() };
+  }
+  
+  if (Buffer.isBuffer(obj)) {
+    return { type: 'Buffer', data: Array.from(obj) };
   }
   
   if (Array.isArray(obj)) {
