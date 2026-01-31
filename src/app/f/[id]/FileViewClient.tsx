@@ -334,7 +334,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                 {showIndicator === 'brightness' && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                    className="absolute left-6 top-1/2 -translate-y-1/2 bg-zinc-900/80 border border-white/10 p-3 rounded-2xl flex flex-col items-center gap-2 shadow-2xl"
+                    className="absolute left-6 top-1/2 -translate-y-1/2 bg-zinc-950/40 backdrop-blur-md border border-white/10 p-3 rounded-2xl flex flex-col items-center gap-2 shadow-2xl"
                   >
                     <div className="relative w-1 h-24 bg-white/20 rounded-full overflow-hidden">
                        <div className="absolute bottom-0 left-0 right-0 bg-white" style={{ height: `${brightness * 100}%` }} />
@@ -345,7 +345,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                 {showIndicator === 'volume' && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 bg-zinc-900/80 border border-white/10 p-3 rounded-2xl flex flex-col items-center gap-2 shadow-2xl"
+                    className="absolute right-6 top-1/2 -translate-y-1/2 bg-zinc-950/40 backdrop-blur-md border border-white/10 p-3 rounded-2xl flex flex-col items-center gap-2 shadow-2xl"
                   >
                     <div className="relative w-1 h-24 bg-white/20 rounded-full overflow-hidden">
                        <div className="absolute bottom-0 left-0 right-0 bg-white" style={{ height: `${volume * 100}%` }} />
@@ -442,10 +442,10 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                          e.stopPropagation();
                          setIsLooping(!isLooping);
                       }}
-                      className={cn(
-                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white",
-                        isLooping ? "text-white bg-zinc-800" : "text-white"
-                      )}
+                       className={cn(
+                         "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white focus:ring-0 focus-visible:ring-0 focus:outline-none",
+                         isLooping ? "text-white bg-zinc-800 focus:bg-zinc-800" : "text-white focus:bg-zinc-900/80"
+                       )}
                     >
                       {isLooping ? <Repeat1 className="w-6 h-6" /> : <Repeat className="w-6 h-6 opacity-80" />}
                     </Button>
@@ -459,10 +459,10 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                          e.stopPropagation();
                          toggleFullScreen();
                       }}
-                      className={cn(
-                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white",
-                        isFullScreen ? "text-white bg-zinc-800" : "text-white"
-                      )}
+                       className={cn(
+                         "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white focus:ring-0 focus-visible:ring-0 focus:outline-none",
+                         isFullScreen ? "text-white bg-zinc-800 focus:bg-zinc-800" : "text-white focus:bg-zinc-900/80"
+                       )}
                     >
                       {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
                     </Button>
@@ -481,10 +481,10 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                             videoRef.current.muted = newVol === 0;
                         }
                       }}
-                      className={cn(
-                        "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white",
-                        volume === 0 ? "text-white/90" : "text-white"
-                      )}
+                       className={cn(
+                         "w-12 h-12 bg-zinc-900/80 backdrop-blur-md border border-white/20 rounded-full transition-all duration-200 active:scale-95 shadow-xl hover:bg-zinc-800 active:bg-zinc-700 active:text-white focus:text-white hover:text-white focus:ring-0 focus-visible:ring-0 focus:outline-none",
+                         volume === 0 ? "text-white/90 focus:bg-zinc-900/80" : "text-white focus:bg-zinc-900/80"
+                       )}
                     >
                       {volume === 0 ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                     </Button>

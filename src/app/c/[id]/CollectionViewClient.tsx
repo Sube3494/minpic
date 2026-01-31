@@ -593,7 +593,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                 {showIndicator === 'brightness' && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                    className="absolute left-6 top-1/2 -translate-y-1/2 bg-zinc-900/80 border border-white/10 p-3 rounded-2xl flex flex-col items-center gap-2 shadow-2xl"
+                    className="absolute left-6 top-1/2 -translate-y-1/2 bg-zinc-950/40 backdrop-blur-md border border-white/10 p-3 rounded-2xl flex flex-col items-center gap-2 shadow-2xl"
                   >
                     <div className="relative w-1 h-24 bg-white/20 rounded-full overflow-hidden">
                        <div className="absolute bottom-0 left-0 right-0 bg-white" style={{ height: `${brightness * 100}%` }} />
@@ -604,7 +604,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                 {showIndicator === 'volume' && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 bg-zinc-900/80 border border-white/10 p-3 rounded-2xl flex flex-col items-center gap-2 shadow-2xl"
+                    className="absolute right-6 top-1/2 -translate-y-1/2 bg-zinc-950/40 backdrop-blur-md border border-white/10 p-3 rounded-2xl flex flex-col items-center gap-2 shadow-2xl"
                   >
                     <div className="relative w-1 h-24 bg-white/20 rounded-full overflow-hidden">
                        <div className="absolute bottom-0 left-0 right-0 bg-white" style={{ height: `${volume * 100}%` }} />
@@ -754,7 +754,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                       exit={{ opacity: 0 }}
                       className="absolute top-10 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
                     >
-                       <div className="bg-zinc-900/95 px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-2xl">
+                       <div className="bg-zinc-950/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-2xl">
                           <span className="text-sm font-medium text-white/90 tracking-widest drop-shadow-sm">{currentIndex + 1} / {items.length}</span>
                        </div>
                     </motion.div>
@@ -799,7 +799,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                          e.preventDefault();
                          setShowPlaylist(!showPlaylist);
                       }}
-                      className="w-12 h-12 bg-zinc-900/90 backdrop-blur-sm border border-white/20 rounded-full text-white transition-all duration-200 shadow-xl hover:bg-zinc-800/95 hover:border-white/30 active:scale-95 active:bg-zinc-800/90"
+                       className="w-12 h-12 bg-zinc-900/90 backdrop-blur-sm border border-white/20 rounded-full text-white transition-all duration-200 shadow-xl hover:bg-zinc-800/95 hover:border-white/30 active:scale-95 active:bg-zinc-800/90 focus:ring-0 focus-visible:ring-0 focus:outline-none focus:bg-zinc-900/90"
                     >
                       <ListVideo className="w-6 h-6" />
                     </Button>
@@ -817,8 +817,8 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                            setIsLooping(!isLooping);
                         }}
                         className={cn(
-                          "w-12 h-12 bg-zinc-900/90 backdrop-blur-sm border rounded-full text-white transition-all duration-200 shadow-xl hover:bg-zinc-800/95 hover:border-white/30 active:scale-95 active:bg-zinc-800/90",
-                          isLooping ? "border-white/40 bg-zinc-800/95" : "border-white/20"
+                          "w-12 h-12 bg-zinc-900/90 backdrop-blur-sm border rounded-full text-white transition-all duration-200 shadow-xl hover:bg-zinc-800/95 hover:border-white/30 active:scale-95 active:bg-zinc-800/90 focus:ring-0 focus-visible:ring-0 focus:outline-none",
+                          isLooping ? "border-white/40 bg-zinc-800/95 focus:bg-zinc-800/95" : "border-white/20 focus:bg-zinc-900/90"
                         )}
                       >
                         {isLooping ? <Repeat1 className="w-6 h-6" /> : <Repeat className="w-6 h-6" />}
@@ -836,8 +836,8 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                          toggleFullScreen();
                       }}
                       className={cn(
-                        "w-12 h-12 bg-zinc-900/90 backdrop-blur-sm border rounded-full text-white transition-all duration-200 shadow-xl hover:bg-zinc-800/95 hover:border-white/30 active:scale-95 active:bg-zinc-800/90",
-                        isFullScreen ? "border-white/40 bg-zinc-800/95" : "border-white/20"
+                        "w-12 h-12 bg-zinc-900/90 backdrop-blur-sm border rounded-full text-white transition-all duration-200 shadow-xl hover:bg-zinc-800/95 hover:border-white/30 active:scale-95 active:bg-zinc-800/90 focus:ring-0 focus-visible:ring-0 focus:outline-none",
+                        isFullScreen ? "border-white/40 bg-zinc-800/95 focus:bg-zinc-800/95" : "border-white/20 focus:bg-zinc-900/90"
                       )}
                     >
                       {isFullScreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
