@@ -34,16 +34,21 @@ export class ShortlinkService {
     url: string, 
     customCode?: string, 
     expiresIn?: number,
-    unit: 'minutes' | 'hours' | 'days' = 'hours'
+    unit: 'minutes' | 'hours' | 'days' = 'hours',
+    remark?: string
   ): Promise<ShortlinkResponse> {
     if (!this.config) {
       throw new Error('Shortlink config not initialized');
     }
 
-    const body: ShortlinkRequestBody = { url };
+    const body: ShortlinkRequestBody & { remark?: string } = { url };
 
     if (customCode) {
       body.custom_code = customCode;
+    }
+
+    if (remark) {
+      body.remark = remark;
     }
 
     if (expiresIn !== undefined && expiresIn > 0) {

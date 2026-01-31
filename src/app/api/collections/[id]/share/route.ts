@@ -89,7 +89,8 @@ export async function POST(
           collectionUrl,
           undefined,
           expiresIn,
-          unit
+          unit,
+          collection.name || undefined
         );
 
         shortUrl = shortlink.short_url;

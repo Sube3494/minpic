@@ -69,7 +69,8 @@ export async function POST(request: NextRequest) {
       sharingUrl, 
       customCode,
       expiresIn !== undefined ? Number(expiresIn) : undefined,
-      unit as 'minutes' | 'hours' | 'days'
+      unit as 'minutes' | 'hours' | 'days',
+      file.filename
     );
 
     // Persist shortlink info to File record
