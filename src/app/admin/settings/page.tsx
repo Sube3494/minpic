@@ -125,11 +125,14 @@ export default function SettingsPage() {
           }
 
           if (importPassword) {
-            setProgress(25);
-            setRestoreStep('正在安全解密数据中...');
+            setProgress(15);
+            setRestoreStep('正在校验密码并解密数据...');
+            // 模拟一个短暂的校验延迟，让用户感知到正在验证
+            await new Promise(resolve => setTimeout(resolve, 800));
           }
-
-          // 核心事务阶段：模拟进度
+          
+          setProgress(30);
+          setRestoreStep('密码校验通过，开始还原...');
           const progressInterval = setInterval(() => {
             setProgress(prev => {
               if (prev >= 92) {
@@ -490,6 +493,7 @@ export default function SettingsPage() {
             confirmText="我已知晓风险，执行还原"
             cancelText="取消"
             onConfirm={confirmImport}
+            confirmDisabled={showPasswordDialog && !importPassword}
             variant="destructive"
         />
 

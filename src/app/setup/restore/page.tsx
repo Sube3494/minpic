@@ -77,9 +77,14 @@ export default function RestorePage() {
           }
 
           if (password) {
-            setProgress(25);
-            setRestoreStep('正在对备份进行安全解密...');
+            setProgress(15);
+            setRestoreStep('正在校验密码并解密数据...');
+            // 模拟校验延迟
+            await new Promise(resolve => setTimeout(resolve, 800));
           }
+          
+          setProgress(30);
+          setRestoreStep('密码校验通过，正在写入数据...');
 
           // 模拟进度增加
           const progressInterval = setInterval(() => {
@@ -247,6 +252,7 @@ export default function RestorePage() {
         confirmText="确认还原"
         cancelText="取消"
         onConfirm={confirmImport}
+        confirmDisabled={showPasswordInput && !password}
         variant="destructive"
       />
 
