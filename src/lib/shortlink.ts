@@ -41,14 +41,14 @@ export class ShortlinkService {
       throw new Error('Shortlink config not initialized');
     }
 
-    const body: ShortlinkRequestBody & { remark?: string } = { url };
+    const body: ShortlinkRequestBody & { title?: string } = { url };
 
     if (customCode) {
       body.custom_code = customCode;
     }
 
     if (remark) {
-      body.remark = remark;
+      body.title = remark;
     }
 
     if (expiresIn !== undefined && expiresIn > 0) {
@@ -60,6 +60,8 @@ export class ShortlinkService {
         body.expires_in_hours = expiresIn;
       }
     }
+
+    console.log('[ShortlinkService] Creating shortlink with body:', JSON.stringify(body));
 
     const response = await fetch(`${this.config.apiUrl}/api/shorten`, {
       method: 'POST',
