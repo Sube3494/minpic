@@ -449,7 +449,6 @@ export default function SettingsPage() {
                             还原备份将永久删除当前数据库中的所有用户、文件、短链、团队和设置，并用备份文件中的内容完全替换。此操作无法撤销。
                         </div>
                     </div>
-                </div>
             }
             confirmText="我已知晓风险，执行还原"
             cancelText="取消"
