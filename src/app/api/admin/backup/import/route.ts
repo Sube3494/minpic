@@ -81,7 +81,10 @@ export async function POST(req: Request) {
       return newObj;
     };
 
-    const restoredBackup = deserialize(backup) as BackupData;
+    const deserialized = deserialize(backup);
+    const restoredBackup = (deserialized && typeof deserialized === 'object' && 'backup' in deserialized) 
+      ? (deserialized as Record<string, unknown>).backup as BackupData 
+      : deserialized as BackupData;
 
     // 使用事务确保原子性
     await prisma.$transaction(async (tx) => {

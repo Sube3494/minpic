@@ -9,9 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Settings2, Shield, Users, Database, Download, Upload, AlertTriangle } from 'lucide-react';
+import { Settings2, Shield, Users, Database, Download, Upload, AlertTriangle, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Progress } from '@/components/ui/progress';
 
 interface Settings {
   id: string;
@@ -33,6 +34,8 @@ export default function SettingsPage() {
   const [exportPassword, setExportPassword] = useState('');
   const [importPassword, setImportPassword] = useState('');
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [restoreStep, setRestoreStep] = useState('');
 
   useEffect(() => {
     fetchSettings();
@@ -105,16 +108,36 @@ export default function SettingsPage() {
     
     setImporting(true);
     setShowImportConfirm(false);
+    setProgress(5);
+    setRestoreStep('初始化导入组件...');
     
     try {
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
+          setProgress(15);
+          setRestoreStep('正在预处理备份文件...');
           const content = JSON.parse(event.target?.result as string);
           // 只要是有效的 JSON 即可，加密识别交由后端处理
           if (typeof content !== 'object' || content === null) {
             throw new Error('无效的备份文件格式');
           }
+
+          if (importPassword) {
+            setProgress(25);
+            setRestoreStep('正在安全解密数据中...');
+          }
+
+          // 核心事务阶段：模拟进度
+          const progressInterval = setInterval(() => {
+            setProgress(prev => {
+              if (prev >= 92) {
+                clearInterval(progressInterval);
+                return 92;
+              }
+              return prev + (prev < 60 ? 1.5 : 0.3);
+            });
+          }, 400);
 
           const res = await fetch('/api/admin/backup/import', {
             method: 'POST',
@@ -126,8 +149,10 @@ export default function SettingsPage() {
           });
 
           const result = await res.json();
+          setRestoreStep('正在完成收尾工作...');
 
           if (!res.ok) {
+            clearInterval(progressInterval);
             if (result.error === 'THIS_IS_ENCRYPTED') {
               setShowPasswordDialog(true);
               setShowImportConfirm(true);
@@ -136,21 +161,27 @@ export default function SettingsPage() {
               throw new Error(result.error || '还原过程中发生错误');
             }
             setImporting(false);
+            setProgress(0);
             return;
           }
 
+          clearInterval(progressInterval);
+          setProgress(100);
+          setRestoreStep('系统还原完成！正在重载...');
           toast.success('系统还原成功！正在重新载入...');
           setTimeout(() => window.location.href = '/auth/signin', 2000);
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : '还原过程中发生错误';
           toast.error(message);
           setImporting(false);
+          setProgress(0);
         }
       };
       reader.readAsText(pendingFile);
     } catch {
       toast.error('无法读取备份文件');
       setImporting(false);
+      setProgress(0);
     }
   };
 
@@ -460,6 +491,54 @@ export default function SettingsPage() {
             onConfirm={confirmImport}
             variant="destructive"
         />
+
+        <AnimatePresence>
+            {importing && (
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+            className="fixed inset-0 z-100 flex items-center justify-center bg-white/80 dark:bg-zinc-950/80 backdrop-blur-xl"
+            >
+                <div className="max-w-md w-full p-8 space-y-8 text-center text-zinc-900 dark:text-zinc-100">
+                <motion.div
+                    animate={{ 
+                    scale: [1, 1.05, 1],
+                    rotate: [0, 5, -5, 0] 
+                    }}
+                    transition={{ duration: 4, repeat: Infinity }}
+                    className="flex justify-center"
+                >
+                    <div className="p-5 bg-primary/10 rounded-3xl">
+                    <Database className="w-12 h-12 text-primary animate-pulse" />
+                    </div>
+                </motion.div>
+                
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-bold tracking-tight">核心数据正在极速还原</h2>
+                    <p className="text-sm text-muted-foreground leading-relaxed h-5 italic">
+                    {restoreStep}
+                    </p>
+                </div>
+
+                <div className="space-y-3">
+                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest opacity-60">
+                    <span>Restoring System Records</span>
+                    <span>{Math.round(progress)}%</span>
+                    </div>
+                    <Progress value={progress} className="h-2 bg-zinc-200 dark:bg-zinc-800 overflow-hidden relative border-none">
+                        <div className="absolute inset-0 bg-linear-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                    </Progress>
+                </div>
+
+                <div className="pt-4 flex items-center justify-center gap-3 text-xs text-muted-foreground">
+                    <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                    <span>引擎正在全速运作，请耐心等待...</span>
+                </div>
+                </div>
+            </motion.div>
+            )}
+        </AnimatePresence>
       </div>
     </PageWrapper>
   );
