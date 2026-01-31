@@ -111,7 +111,10 @@ export default function SettingsPage() {
       reader.onload = async (event) => {
         try {
           const content = JSON.parse(event.target?.result as string);
-          if (!content.backup) throw new Error('无效的备份文件格式');
+          // 只要是有效的 JSON 即可，加密识别交由后端处理
+          if (typeof content !== 'object' || content === null) {
+            throw new Error('无效的备份文件格式');
+          }
 
           const res = await fetch('/api/admin/backup/import', {
             method: 'POST',
