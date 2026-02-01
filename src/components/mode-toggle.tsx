@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useEffect, useState } from "react"
 
 export function ModeToggle() {
-  const { theme, setTheme, resolvedTheme } = useTheme()
+  const { setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -15,8 +15,10 @@ export function ModeToggle() {
   }, [])
 
   const cycleTheme = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const currentEffectiveTheme = resolvedTheme || theme || 'light';
-    const nextTheme = currentEffectiveTheme === 'dark' ? 'light' : 'dark';
+    // Determine target theme based on REAL current theme (resolvedTheme)
+    // This fixes the bug where 'system' mode prevents toggling in dark mode
+    const isCurrentlyDark = resolvedTheme === 'dark';
+    const nextTheme = isCurrentlyDark ? 'light' : 'dark';
     
     // 1. Fallback for browsers not supporting View Transition API
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,8 +28,9 @@ export function ModeToggle() {
     }
 
     // 2. Calculate transition center and radius
-    const x = e.clientX;
-    const y = e.clientY;
+    // Use touch-friendly coordinates or fallback to button center
+    const x = e.clientX || window.innerWidth / 2;
+    const y = e.clientY || window.innerHeight / 2;
     const endRadius = Math.hypot(
         Math.max(x, innerWidth - x),
         Math.max(y, innerHeight - y)
@@ -37,7 +40,17 @@ export function ModeToggle() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transition = (document as any).startViewTransition(async () => {
         setTheme(nextTheme);
-        // Wait for next tick to ensure theme is applied
+        
+        // CRITICAL: Manually sync DOM class to ensure the View Transition 
+        // snapshot captures the correct state immediately. 
+        // React's batching might delay the attribute update.
+        if (nextTheme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        
+        // Wait for next tick to ensure theme is applied in React state
         await new Promise(resolve => setTimeout(resolve, 0));
     });
 
