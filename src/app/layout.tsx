@@ -11,6 +11,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { NavBar } from "@/components/layout/nav-bar";
+import { ScrollToTop } from "@/components/ui/scroll-to-top";
 import { getSystemSettings } from "@/lib/settings";
 import { auth } from "@/lib/auth";
 import "./globals.css";
@@ -77,6 +78,7 @@ export default async function RootLayout({
               <div className="relative z-10 flex flex-col min-h-screen">
                 {children}
               </div>
+              <ScrollToTop />
               <Toaster 
                 position="top-right"
                 expand={false}

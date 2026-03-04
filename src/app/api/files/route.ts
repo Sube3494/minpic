@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
   const { error: authError, user } = await requireAuth();
   if (authError) return authError;
 
+  let minioConfig: MinioConfig | null = null;
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
@@ -58,8 +59,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user's MinIO config using refactored utility
-    const config = await getUserMinioConfig(user.id, configId);
-    if (!config) {
+    minioConfig = await getUserMinioConfig(user.id, configId);
+    if (!minioConfig) {
       return NextResponse.json({ error: 'Invalid config' }, { status: 400 });
     }
 
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     // Upload to MinIO
     const minioService = new MinioService();
-    await minioService.connect(config);
+    await minioService.connect(minioConfig);
     const { objectName, expiresAt } = await minioService.uploadFile(
       fileBuffer,
       file.name,
@@ -112,7 +113,7 @@ export async function POST(request: NextRequest) {
         pinyin: generatePinyin(file.name),
         width,
         height,
-        configId: config.id,
+        configId: minioConfig.id,
         expiresAt: expiresAt || (expiresAtStr ? new Date(expiresAtStr) : null),
       },
       select: {
@@ -168,8 +169,9 @@ export async function POST(request: NextRequest) {
     }
     
     console.error('Error uploading file:', error);
+    const friendlyError = MinioService.formatError(error, minioConfig?.endpoint, minioConfig?.port);
     return NextResponse.json(
-      { error: 'Failed to upload file', message: String(error) },
+      { error: friendlyError, details: String(error) },
       { status: 500 }
     );
   }

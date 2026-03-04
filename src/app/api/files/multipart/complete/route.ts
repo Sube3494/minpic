@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
-import { MinioService } from '@/lib/minio';
+import { MinioService, MinioConfig } from '@/lib/minio';
 import { getUserMinioConfig } from '@/lib/get-user-minio-config';
 import { updateStorageUsage, updateFileCount } from '@/lib/team-quota';
 import { serializeBigInt } from '@/lib/utils';
@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
   const { error, user } = await requireAuth();
   if (error) return error;
 
+  let minioConfig: MinioConfig | null = null;
   try {
     const body = await request.json();
     const { uploadId, filename, parts } = body;
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 获取 MinIO 配置
-    const minioConfig = await getUserMinioConfig(user.id, upload.configId);
+    minioConfig = await getUserMinioConfig(user.id, upload.configId);
     if (!minioConfig) {
       return NextResponse.json(
         { error: '未配置存储服务' },
@@ -188,8 +189,9 @@ export async function POST(request: NextRequest) {
     }));
   } catch (err) {
     console.error('Complete multipart upload error:', err);
+    const friendlyError = MinioService.formatError(err, minioConfig?.endpoint, minioConfig?.port);
     return NextResponse.json(
-      { error: '完成上传失败', details: String(err) },
+      { error: friendlyError, details: String(err) },
       { status: 500 }
     );
   }

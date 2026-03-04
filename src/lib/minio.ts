@@ -36,7 +36,7 @@ export class MinioService {
       return `连接被拒绝，目标端口${port ? ` ${port}` : ''} 未开放或服务未启动`;
     } else if (errorMessage.includes('EHOSTUNREACH')) {
       return `无法访问目标主机${hostInfo}，请检查网络连接或防火墙设置`;
-    } else if (errorMessage.includes('ETIMEDOUT') || errorMessage.includes('timout')) {
+    } else if (errorMessage.includes('ETIMEDOUT') || errorMessage.includes('timeout')) {
       return '连接超时，请检查网络连接或防火墙设置';
     } else if (errorMessage.includes('Connection test timed out')) {
        return 'MinIO 服务响应超时 (10s)，虽然 TCP 连接成功但服务未响应 API 请求';
@@ -46,6 +46,10 @@ export class MinioService {
       return 'API 端口配置错误，请确保连接到正确的 S3 API 端口';
     } else if (errorMessage.includes('certificate') || errorMessage.includes('SSL')) {
       return 'SSL 证书验证失败，请检查 useSSL 设置或证书配置';
+    } else if (errorMessage.includes('InvalidBucketName')) {
+      return '存储桶名称不合法，请检查配置中的存储桶名称';
+    } else if (errorMessage.includes('NoSuchBucket')) {
+      return '存储桶不存在，请先在 MinIO 中创建该存储桶';
     } else if (errorMessage.includes('FILE_EXISTS')) {
       return '文件已存在';
     }
@@ -133,15 +137,14 @@ export class MinioService {
            // If we get here without error, file exists
            throw new Error('FILE_EXISTS');
         } catch (error: unknown) {
-           const err = error as Error;
-           if (err.message === 'FILE_EXISTS') throw error;
-           // If error code is 'NotFound', we are good to go.
-           // MinIO SDK specific error for not found might vary, usually it throws an object with code 'NotFound'
-           if ((error as { code?: string }).code === 'NotFound') return;
+           if (error instanceof Error && error.message === 'FILE_EXISTS') throw error;
            
-           // If it's a different error, we might want to let it pass or throw?
-           // For safety, if we can't confirm it doesn't exist, we probably shouldn't block unless we are sure it exists.
-           // But 'statObject' failing usually means it doesn't exist or we can't see it.
+           // 检查 SDK 返回的错误码。NotFound/NoSuchKey 说明路径可用，可以继续。
+           const code = (error as { code?: string })?.code;
+           if (code === 'NotFound' || code === 'NoSuchKey') return;
+           
+           // 其他错误（如认证失败、连接超时）必须抛出，否则会因静默失败导致后续逻辑异常
+           throw error;
         }
     }
   }
@@ -224,6 +227,14 @@ export class MinioService {
         throw new Error('FILE_EXISTS');
       } catch (error: unknown) {
         if (error instanceof Error && error.message === 'FILE_EXISTS') throw error;
+        
+        const code = (error as { code?: string })?.code;
+        if (code === 'NotFound' || code === 'NoSuchKey') {
+           // 文件不存在，可以继续上传
+        } else {
+           // 连接或权限错误，重新抛出
+           throw error;
+        }
       }
     }
 

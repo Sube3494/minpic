@@ -1,59 +1,56 @@
+/*
+ * @Date: 2026-03-04 14:20:00
+ * @Author: Sube
+ * @FilePath: scroll-to-top.tsx
+ * @LastEditTime: 2026-03-04 14:22:00
+ * @Description: 返回顶部按钮
+ */
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { ArrowUp } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export function ScrollToTop() {
-  const [isVisible, setIsVisible] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const toggleVisibility = () => {
-      if (window.scrollY > 300) {
-        setIsVisible(true);
-      } else {
-        setIsVisible(false);
-      }
-    };
-
-    window.addEventListener('scroll', toggleVisibility);
-
-    return () => window.removeEventListener('scroll', toggleVisibility);
+    const onScroll = () => setVisible(window.scrollY > 300);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const scrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth',
-    });
-  };
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.5, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.5, y: 20 }}
-          className="fixed bottom-32 sm:bottom-10 right-5 z-10001 md:right-10"
-        >
-          <Button
-            size="icon"
-            onClick={scrollToTop}
-            className={cn(
-              "h-10 w-10 md:h-12 md:w-12 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)]",
-              "bg-white/95 dark:bg-zinc-800/95 backdrop-blur-md",
-              "border border-zinc-200 dark:border-white/10", 
-              "text-primary hover:bg-white dark:hover:bg-zinc-800",
-              "transition-all duration-300 hover:scale-110 active:scale-95"
-            )}
-          >
-            <ArrowUp className="w-5 h-5 md:w-6 md:h-6" strokeWidth={3} />
-          </Button>
-        </motion.div>
+    <button
+      onClick={scrollToTop}
+      aria-label="返回顶部"
+      className={cn(
+        // 定位
+        'fixed bottom-6 right-6 z-50',
+        // 尺寸 & 形状
+        'size-13 rounded-full',
+        'flex items-center justify-center',
+        // 浅色：白色背景 + 明显边框 + 较深阴影
+        'bg-white/80 border border-black/10 shadow-xl shadow-black/10',
+        // 深色：毛玻璃
+        'dark:bg-white/5 dark:border-white/10 dark:shadow-lg dark:shadow-black/30',
+        'backdrop-blur-xl',
+        // 文字颜色
+        'text-foreground/60 hover:text-foreground',
+        // hover 背景
+        'hover:bg-white dark:hover:bg-white/10',
+        // 出入场过渡
+        'transition-all duration-200',
+        visible
+          ? 'opacity-100 translate-y-0 pointer-events-auto'
+          : 'opacity-0 translate-y-2 pointer-events-none',
+        // 点击缩放
+        'active:scale-90'
       )}
-    </AnimatePresence>
+    >
+      <ArrowUp className="size-5" />
+    </button>
   );
 }

@@ -82,8 +82,8 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                   (isMenuOpen || loading) ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                 )}
               >
-                {/* Contrast Scrim - Top-down gradient */}
-                <div className="absolute inset-x-0 top-0 h-32 bg-linear-to-b from-black/40 to-transparent -z-10" />
+                {/* Contrast Scrim - Top-down gradient - Increased height for smoother transition */}
+                <div className="absolute inset-x-0 top-0 h-48 bg-linear-to-b from-black/30 to-transparent -z-10" />
                 
                 <div className="p-6 flex items-start justify-between gap-4">
                   {/* Left: Info Overlay - Pure Text */}
