@@ -74,7 +74,9 @@ export async function POST(
 
     let shortUrl: string;
     let shortCode: string | undefined;
-    const baseUrl = process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+    const host = request.headers.get('host');
+    const protocol = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(':', '');
+    const baseUrl = host ? `${protocol}://${host}` : (process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`);
     const collectionUrl = `${baseUrl}/c/${collection.id}`;
 
     if (shortlinkConfig) {

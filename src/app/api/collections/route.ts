@@ -101,8 +101,10 @@ export async function POST(request: NextRequest) {
           const shortlinkService = new ShortlinkService();
           shortlinkService.setConfig(sConfig);
 
-          // Get base URL from environment or request fallback
-          const baseUrl = process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+          // Get base URL from request or environment
+          const host = request.headers.get('host');
+          const protocol = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(':', '');
+          const baseUrl = host ? `${protocol}://${host}` : (process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`);
           
           // 如果没有名称，意味着这是一个“临时分享”，路径使用 /f/
           // 如果有名称，意味着这是一个“合集”，路径使用 /c/
@@ -142,7 +144,9 @@ export async function POST(request: NextRequest) {
                 sharedAt: new Date(),
               },
             });
-            const baseUrl = process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+            const host = request.headers.get('host');
+            const protocol = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(':', '');
+            const baseUrl = host ? `${protocol}://${host}` : (process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`);
             const pathPrefix = !collection.name ? 'f' : 'c';
             shortUrl = `${baseUrl}/${pathPrefix}/${collection.id}`;
         }

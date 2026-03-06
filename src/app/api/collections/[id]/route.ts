@@ -205,7 +205,9 @@ export async function PATCH(
         const { ShortlinkService } = await import('@/lib/shortlink');
         const sConfig = JSON.parse(shortlinkConfig.value);
         
-        const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+        const host = request.headers.get('host');
+        const protocol = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(':', '');
+        const baseUrl = host ? `${protocol}://${host}` : (process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`);
         const collectionUrl = `${baseUrl}/c/${finalId}`;
 
         if (sConfig.enabled !== false) {

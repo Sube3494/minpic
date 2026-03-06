@@ -47,7 +47,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate local sharing page URL (using shareId/UUID prioritised)
-    const baseUrl = process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+    const host = request.headers.get('host');
+    const protocol = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(':', '');
+    const baseUrl = host ? `${protocol}://${host}` : (process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`);
+    
     const sharingId = (file as unknown as Record<string, string | null>).shareId || file.id;
     const sharingUrl = `${baseUrl}/f/${sharingId}`;
 
