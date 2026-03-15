@@ -108,7 +108,7 @@ export function FilesClient() {
     
     const updateColumns = () => {
       const width = window.innerWidth;
-      if (width < 640) setColumns(3);
+      if (width < 640) setColumns(2);
       else if (width < 1024) setColumns(4);
       else if (width < 1440) setColumns(5);
       else setColumns(6);

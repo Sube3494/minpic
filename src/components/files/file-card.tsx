@@ -115,26 +115,6 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
           </div>
         </div>
 
-        {/* Info Badges - Overlay Top-Left */}
-        <div className="absolute top-2 left-2 z-30 flex flex-col gap-1 pointer-events-none">
-          {formatExpiryTime(file.expiresAt) && (
-            <span className={cn(
-              "text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-black/40 text-white border border-white/20 shadow-sm backdrop-blur-xs",
-              formatExpiryTime(file.expiresAt) === '已过期' ? 'text-red-300' : 'text-amber-300'
-            )}>
-              {formatExpiryTime(file.expiresAt)}
-            </span>
-          )}
-          
-          <span className={cn(
-              "file-type-badge w-fit",
-              "text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border backdrop-blur-xs shadow-sm", 
-              badgeStyle.replace('bg-white/5', 'bg-black/20').replace('bg-purple-500/10', 'bg-purple-500/20').replace('bg-blue-500/10', 'bg-blue-500/20')
-          )}>
-              {file.fileType}
-          </span>
-        </div>
-
         {/* Thumbnail / Preview Area */}
         <div className={cn(
           "w-full transition-transform duration-700",
@@ -169,11 +149,31 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
           <div className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-black/60 via-black/20 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300" />
           
           <div className={cn(
-            "relative p-2 sm:p-3 flex items-center justify-center sm:justify-between opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 translate-y-0 md:translate-y-2 md:group-hover:translate-y-0",
+            "relative p-3 flex items-center justify-between opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 translate-y-0 md:translate-y-2 md:group-hover:translate-y-0",
             isMenuOpen && "md:opacity-100 md:translate-y-0"
           )}>
-            {/* Right: Actions - Now centered on mobile if left is empty */}
-            <div className="flex gap-2 sm:gap-1.5 pointer-events-auto" onClick={e => e.stopPropagation()}>
+            {/* Left: Info Badges */}
+            <div className="flex items-center gap-2">
+                {formatExpiryTime(file.expiresAt) && (
+                   <span className={cn(
+                     "text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-black/30 text-white border border-white/20 shadow-sm",
+                     formatExpiryTime(file.expiresAt) === '已过期' ? 'text-red-300' : 'text-amber-300'
+                   )}>
+                     {formatExpiryTime(file.expiresAt)}
+                   </span>
+                )}
+                
+                <span className={cn(
+                    "file-type-badge",
+                    "text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider border", 
+                    badgeStyle
+                )}>
+                    {file.fileType}
+                </span>
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex gap-1.5 pointer-events-auto" onClick={e => e.stopPropagation()}>
               <CopyFormatMenu 
                 fileId={file.id} 
                 filename={file.filename}
@@ -183,9 +183,9 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
                 <Button 
                   size="sm" 
                   variant="secondary" 
-                  className="h-7 w-7 sm:h-6 sm:w-6 p-0 rounded-full shadow-lg bg-white/25 hover:bg-white/40 border-white/30 text-white transition-all hover:scale-110 active:scale-90" 
+                  className="h-6 w-6 p-0 rounded-full shadow-lg bg-white/25 hover:bg-white/40 border-white/30 text-white transition-all hover:scale-110 active:scale-90" 
                 >
-                  <Copy className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
+                  <Copy className="w-3 h-3" />
                 </Button>
               </CopyFormatMenu>
                 
@@ -193,20 +193,20 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
                   <Button 
                       size="sm" 
                       variant="secondary" 
-                      className="h-7 w-7 sm:h-6 sm:w-6 p-0 rounded-full shadow-lg bg-white/25 hover:bg-white/40 border-white/30 text-white transition-all hover:scale-110 active:scale-90" 
+                      className="h-6 w-6 p-0 rounded-full shadow-lg bg-white/25 hover:bg-white/40 border-white/30 text-white transition-all hover:scale-110 active:scale-90" 
                       onClick={() => generateShortlink(file.id)}
                   >
-                      <Link2 className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
+                      <Link2 className="w-3 h-3" />
                   </Button>
                 )}
                 
                 <Button 
                     size="sm" 
                     variant="secondary" 
-                    className="h-7 w-7 sm:h-6 sm:w-6 p-0 rounded-full shadow-lg bg-white/25 hover:bg-white/40 border-white/30 text-white transition-all hover:scale-110 active:scale-90" 
+                    className="h-6 w-6 p-0 rounded-full shadow-lg bg-white/25 hover:bg-white/40 border-white/30 text-white transition-all hover:scale-110 active:scale-90" 
                     onClick={() => onShare(file)}
                 >
-                    <Share2 className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
+                    <Share2 className="w-3 h-3" />
                 </Button>
             </div>
           </div>
