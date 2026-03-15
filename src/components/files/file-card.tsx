@@ -149,11 +149,11 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
           <div className="absolute inset-x-0 bottom-0 h-20 bg-linear-to-t from-black/60 via-black/20 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300" />
           
           <div className={cn(
-            "relative p-3 flex items-center justify-between opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 translate-y-0 md:translate-y-2 md:group-hover:translate-y-0",
+            "relative p-2 sm:p-3 flex items-center justify-between opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 translate-y-0 md:translate-y-2 md:group-hover:translate-y-0",
             isMenuOpen && "md:opacity-100 md:translate-y-0"
           )}>
             {/* Left: Info Badges */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
                 {formatExpiryTime(file.expiresAt) && (
                    <span className={cn(
                      "text-[9px] font-bold px-1.5 py-0.5 rounded-sm bg-black/30 text-white border border-white/20 shadow-sm",
@@ -173,7 +173,7 @@ export const FileCard = memo(function FileCard({ file, isSelected, isSelectionMo
             </div>
 
             {/* Right: Actions */}
-            <div className="flex gap-1.5 pointer-events-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex gap-1 sm:gap-1.5 pointer-events-auto" onClick={e => e.stopPropagation()}>
               <CopyFormatMenu 
                 fileId={file.id} 
                 filename={file.filename}
