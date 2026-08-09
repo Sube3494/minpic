@@ -191,26 +191,9 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
 
     if (Math.abs(deltaY) < 10 && isAdjusting === 'none') return;
     
-    if (isLongPressingRef.current || isAdjusting !== 'none') {
-        if (isAdjusting !== 'none' || Math.abs(deltaY) > 20) {
-            setShowControls(false);
-        }
-
-        if (touchStartX.current < window.innerWidth * 0.5) {
-            // Brightness adjustment removed: keep the source video's native brightness.
-        } else {
-            setIsAdjusting('volume');
-            setShowIndicator('volume');
-            if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
-
-            const change = deltaY / 200;
-            const newVolume = Math.max(0, Math.min(1, startVolume.current + change));
-            setVolume(newVolume);
-            if (videoRef.current) {
-                videoRef.current.volume = newVolume;
-                videoRef.current.muted = newVolume === 0;
-            }
-        }
+    // Disable brightness and volume adjustment gestures. Swipes only hide controls.
+    if (Math.abs(deltaY) > 20) {
+        setShowControls(false);
     }
   };
 
