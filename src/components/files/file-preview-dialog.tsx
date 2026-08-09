@@ -229,6 +229,10 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                       onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => setIsPlaying(false)}
+                      onVolumeChange={(e) => {
+                        const video = e.currentTarget;
+                        setVolume(video.muted ? 0 : video.volume);
+                      }}
                       onClick={togglePlay}
                       className="block max-w-full max-h-[90vh]"
                     />
