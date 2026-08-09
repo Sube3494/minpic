@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, Play, ListVideo, Sun, Volume2, VolumeX, Maximize, Minimize, Repeat, Repeat1, ChevronUp } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronRight, Play, ListVideo, Volume2, VolumeX, Maximize, Minimize, Repeat, Repeat1, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -47,14 +47,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const activeItemRef = useRef<HTMLDivElement>(null);
   const isSwitchingRef = useRef(false);
 
-  // Brightness Control
-  const [brightness, setBrightness] = useState(1);
   const [volume, setVolume] = useState(0); // Start at 0 to ensure first video autoplays muted
-  const [isAdjusting, setIsAdjusting] = useState<'brightness' | 'volume' | 'none'>('none');
-  const startBrightness = useRef(1);
-  const startVolume = useRef(1);
-  const [showIndicator, setShowIndicator] = useState<'brightness' | 'volume' | false>(false);
-  const indicatorTimer = useRef<NodeJS.Timeout | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // Custom Player States
@@ -224,9 +217,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
-    startBrightness.current = brightness;
-    startVolume.current = volume;
-    setIsAdjusting('none');
     isLongPressingRef.current = false;
     
     // Start long press timer
@@ -251,40 +241,11 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
         if (longPressTimer.current) clearTimeout(longPressTimer.current);
     }
 
-    if (Math.abs(deltaY) < 10 && isAdjusting === 'none') return;
-    
-    // If long pressing, allowed to adjust HUD
-    if (isLongPressingRef.current || isAdjusting !== 'none') {
-        // Hide controls if we start adjusting brightness/volume to focus on the indicator
-        if (isAdjusting !== 'none' || Math.abs(deltaY) > 20) {
-            setShowControls(false);
-        }
+    if (Math.abs(deltaY) < 10) return;
 
-        // If starting on left 50% of screen, adjust brightness
-        if (touchStartX.current < window.innerWidth * 0.5) {
-            // Brightness adjustment removed: keep the source video's native brightness.
-        } 
-        // If starting on right 50% of screen, adjust volume
-        else {
-            setIsAdjusting('volume');
-            setShowIndicator('volume');
-            if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
-
-            const change = deltaY / 200;
-            const newVolume = Math.max(0, Math.min(1, startVolume.current + change));
-            setVolume(newVolume);
-            
-            // Apply volume to video immediately if exists
-            const video = getActiveVideo();
-            if (video) {
-                video.volume = newVolume;
-                if (newVolume > 0) video.muted = false;
-                else video.muted = true;
-            }
-        }
-    }
-    // TikTok Gesture: Vertical swipe follow-finger (Only if NOT long-pressing)
-    else if (isAdjusting === 'none' && !isDesktop) {
+    // Vertical swipes only navigate between videos. Brightness and volume
+    // adjustment gestures are intentionally disabled.
+    if (!isDesktop) {
         // We multiply by a factor if we want resistance at ends, but for now linear
         setSwipeY(-deltaY);
         // Hide UI during swipe for "visual silence"
@@ -305,7 +266,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     const deltaY = touchEndY - touchStartY.current;
     
     // Only switch if not adjusting
-    if (isAdjusting === 'none') {
+    {
         // Vertical swipe for video switching
         if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 40) {
             if (deltaY < 0) {
@@ -329,18 +290,11 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
     // Always reset swipe offset
     setSwipeY(0);
     
-    if (isAdjusting !== 'none') {
-        indicatorTimer.current = setTimeout(() => {
-            setShowIndicator(false);
-        }, 800);
-    }
-    
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     isLongPressingRef.current = false;
     
     touchStartX.current = null;
     touchStartY.current = null;
-    setIsAdjusting('none');
     
     // Handle timer based on interaction type
     const isSwipe = Math.abs(deltaY) > 50 || Math.abs(deltaX) > 20;
@@ -592,28 +546,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
           {/* Persistent HUD Indicators */}
           <div className="absolute inset-0 pointer-events-none z-50">
             <AnimatePresence>
-                {showIndicator === 'brightness' && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                    className="absolute left-6 top-1/2 -translate-y-1/2 bg-zinc-950/40 backdrop-blur-md border border-white/10 p-3 rounded-2xl flex flex-col items-center gap-2 shadow-2xl"
-                  >
-                    <div className="relative w-1 h-24 bg-white/20 rounded-full overflow-hidden">
-                       <div className="absolute bottom-0 left-0 right-0 bg-white" style={{ height: `${brightness * 100}%` }} />
-                    </div>
-                    <Sun className="w-4 h-4 text-white" />
-                  </motion.div>
-                )}
-                {showIndicator === 'volume' && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 bg-zinc-950/40 backdrop-blur-md border border-white/10 p-3 rounded-2xl flex flex-col items-center gap-2 shadow-2xl"
-                  >
-                    <div className="relative w-1 h-24 bg-white/20 rounded-full overflow-hidden">
-                       <div className="absolute bottom-0 left-0 right-0 bg-white" style={{ height: `${volume * 100}%` }} />
-                    </div>
-                    {volume > 0 ? <Volume2 className="w-4 h-4 text-white" /> : <VolumeX className="w-4 h-4 text-zinc-500" />}
-                  </motion.div>
-                )}
             </AnimatePresence>
           </div>
 
@@ -1022,7 +954,12 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => setShowPlaylist(false)} className="hidden md:flex text-zinc-400 hover:text-white hover:bg-white/10 rounded-full w-8 h-8"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></Button>
               </div>
-               <div className="flex-1 overflow-y-auto p-2 custom-scrollbar">
+                <div
+                  className="flex-1 overflow-y-auto p-2 custom-scrollbar touch-pan-y"
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchMove={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
+                >
                 <div className="space-y-2">
                   {items.map((item: CollectionItem, index: number) => {
                     const isActive = index === currentIndex;
