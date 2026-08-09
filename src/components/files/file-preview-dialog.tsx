@@ -23,7 +23,7 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
+  const [volume, setVolume] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [showPlaybackMenu, setShowPlaybackMenu] = useState(false);
 
