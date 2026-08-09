@@ -16,6 +16,7 @@ import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useConfigs } from '@/hooks/use-configs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface CollectionAddDialogProps {
   open: boolean;
@@ -144,8 +145,8 @@ export function CollectionAddDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl bg-white dark:bg-zinc-950/80 backdrop-blur-3xl border-zinc-200/50 dark:border-white/10 h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden shadow-2xl rounded-t-[32px] sm:rounded-3xl">
-        <div className="p-4 sm:p-6 pb-4 bg-linear-to-b from-zinc-50/50 to-transparent dark:from-white/5 dark:to-transparent border-b border-zinc-100 dark:border-white/5">
+      <DialogContent className="sm:max-w-3xl bg-white dark:bg-zinc-900/95 backdrop-blur-3xl border-zinc-200/70 dark:border-white/15 h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden shadow-2xl rounded-t-[32px] sm:rounded-3xl">
+        <div className="p-4 sm:p-6 pb-4 bg-linear-to-b from-zinc-50/80 to-transparent dark:from-white/[0.08] dark:to-transparent border-b border-zinc-100 dark:border-white/10">
             <DialogHeader className="mb-4 text-left">
                 <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-primary/10 text-primary">
@@ -156,21 +157,26 @@ export function CollectionAddDialog({
             </DialogHeader>
             <div className="mb-3 flex items-center gap-2">
                 <label htmlFor="collection-source" className="shrink-0 text-xs font-medium text-zinc-500">资源库</label>
-                <select
-                    id="collection-source"
+                <Select
                     value={sourceConfigId}
                     disabled={configLoading || availableConfigs.length === 0}
-                    onChange={(e) => {
-                        setSourceConfigId(e.target.value);
+                    onValueChange={(value) => {
+                        setSourceConfigId(value);
                         setSelectedIds([]);
                         setSearch('');
                     }}
-                    className="h-9 min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white/70 px-3 text-xs text-zinc-700 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200"
                 >
-                    {availableConfigs.length === 0 ? <option value="">暂无可用资源库</option> : availableConfigs.map(config => (
-                        <option key={config.id} value={config.id}>{config.name}</option>
-                    ))}
-                </select>
+                    <SelectTrigger className="h-9 min-w-0 flex-1 rounded-xl border-zinc-200/80 bg-white/70 text-xs text-zinc-700 shadow-sm hover:bg-white dark:border-white/15 dark:bg-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.12]">
+                        <SelectValue placeholder={configLoading ? '正在加载资源库...' : '选择资源库'} />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="border-zinc-200/80 bg-white/95 dark:border-white/15 dark:bg-zinc-800/95">
+                        {availableConfigs.length === 0 ? (
+                            <SelectItem value="empty" disabled>暂无可用资源库</SelectItem>
+                        ) : availableConfigs.map(config => (
+                            <SelectItem key={config.id} value={config.id}>{config.name}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
             <div className="relative group">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-primary transition-colors" />
