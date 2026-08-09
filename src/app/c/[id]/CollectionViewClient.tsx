@@ -900,11 +900,11 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                   />
                   <div className="absolute inset-x-4 bottom-2 h-2 rounded-full bg-black/70 ring-1 ring-white/30 shadow-[0_2px_12px_rgba(0,0,0,0.7)]" />
                   <div 
-                    className="absolute left-4 bottom-2 h-2 rounded-full bg-gradient-to-r from-cyan-300 to-sky-500 shadow-[0_0_12px_rgba(56,189,248,0.9)] transition-[width] duration-100"
+                    className="absolute left-4 bottom-2 h-2 rounded-full bg-white/85 shadow-[0_0_8px_rgba(255,255,255,0.35)] transition-[width] duration-100"
                     style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                   />
                   <div 
-                    className="absolute bottom-[3px] h-4 w-4 bg-white border-2 border-sky-400 rounded-full shadow-[0_0_10px_rgba(56,189,248,0.95)] transition-transform z-10"
+                    className="absolute bottom-[3px] h-4 w-4 bg-white border-2 border-zinc-700 rounded-full shadow-[0_1px_6px_rgba(0,0,0,0.7)] transition-transform z-10"
                     style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 8px)` }}
                    />
                   <div className="absolute left-4 bottom-3 -translate-y-full rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90 opacity-0 transition-opacity group-hover/progress:opacity-100">
