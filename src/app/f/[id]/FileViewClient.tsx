@@ -442,7 +442,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                    "absolute flex transition-all duration-500 z-50",
                    isLandscape
                      ? "right-6 top-1/2 -translate-y-1/2 flex-col gap-1 scale-[0.85] origin-right"
-                     : "right-4 bottom-28 flex-col gap-2",
+                     : "right-4 bottom-28 flex-col gap-1.5 scale-90 origin-right",
                     showControls ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
                 onClick={(e) => e.stopPropagation()}

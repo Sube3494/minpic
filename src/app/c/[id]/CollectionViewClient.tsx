@@ -779,7 +779,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                    // Avoid layout break in landscape regardless of video orientation
                    isLandscape
                      ? "right-6 top-1/2 -translate-y-1/2 flex-col gap-1 scale-[0.85] origin-right" // Extra Compact Landscape
-                     : "right-4 bottom-28 flex-col gap-2", // Tighter Vertical Bottom-Right
+                     : "right-4 bottom-28 flex-col gap-1.5 scale-90 origin-right", // Compact Vertical Bottom-Right
                    showControls ? "opacity-100" : "opacity-0"
                 )}
                 onClick={(e) => e.stopPropagation()}
