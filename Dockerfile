@@ -31,7 +31,7 @@ COPY . .
 
 # 生成 Prisma Client
 ENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma
-RUN bunx prisma generate
+RUN ./node_modules/.bin/prisma generate
 
 # 构建应用
 RUN bun run build
