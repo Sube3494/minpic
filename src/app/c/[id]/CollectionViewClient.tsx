@@ -654,7 +654,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                             src={item.thumbnailUrl} 
                             className={cn(
                                 "absolute inset-0 w-full h-full object-contain z-10 transition-opacity duration-300",
-                                (isActive && !isTransitioning) ? "opacity-0 pointer-events-none" : "opacity-100"
+                                isActive ? "opacity-0 pointer-events-none" : "opacity-100"
                             )} 
                             alt="" 
                           />
@@ -691,11 +691,16 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                                      setIsPlaying(true);
                                  }
                                }}
-                               onPlaying={() => {
-                                 if (isActive) {
-                                     setIsTransitioning(false);
-                                 }
-                               }}
+                                onPlaying={() => {
+                                  if (isActive) {
+                                      setIsTransitioning(false);
+                                  }
+                                }}
+                                onCanPlay={(e) => {
+                                  if (isActive) {
+                                    e.currentTarget.play().catch(() => setIsTransitioning(false));
+                                  }
+                                }}
                                onPause={() => {
                                  if (isActive) setIsPlaying(false);
                                }}
