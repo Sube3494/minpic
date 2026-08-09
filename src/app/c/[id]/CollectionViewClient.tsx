@@ -686,7 +686,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                                autoPlay={isActive}
                                muted={!isActive || volume === 0}
                                loop={isLooping}
-                               className="relative z-10 w-full h-full object-cover"
+                               className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain"
                                onEnded={() => {
                                  if (isActive && !isLooping && currentIndex < items.length - 1) {
                                    jumpToIndex(currentIndex + 1);
