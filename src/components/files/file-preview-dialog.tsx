@@ -241,7 +241,8 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                         value={progress}
                         onChange={(e) => seek(Number(e.target.value))}
                         aria-label="视频进度"
-                        className="mb-3 h-1.5 w-full cursor-pointer accent-white [&::-webkit-slider-thumb]:h-0 [&::-webkit-slider-thumb]:w-0 [&::-moz-range-thumb]:h-0 [&::-moz-range-thumb]:w-0"
+                        className="mb-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-transparent [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:hidden [&::-moz-range-thumb]:hidden"
+                        style={{ background: `linear-gradient(to right, rgba(255,255,255,0.95) ${(progress / (duration || 1)) * 100}%, rgba(255,255,255,0.4) ${(progress / (duration || 1)) * 100}%)` }}
                       />
                       <div className="flex items-center gap-2 text-white">
                         <button type="button" onClick={togglePlay} aria-label={isPlaying ? '暂停' : '播放'} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 transition-colors hover:bg-white/25">
