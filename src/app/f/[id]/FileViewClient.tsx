@@ -441,7 +441,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                    isLandscape
                      ? "right-6 top-1/2 -translate-y-1/2 flex-col gap-1 scale-[0.85] origin-right"
                      : "right-4 bottom-28 flex-col gap-2",
-                   showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+                    showControls ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -506,7 +506,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                <div 
                  className={cn(
                    "absolute bottom-0 left-3 right-3 z-50 h-7 pb-2 transition-all duration-300 group/progress overflow-visible",
-                   showControls ? "opacity-100" : "opacity-0 pointer-events-none"
+                   showControls && !isPlaying ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
