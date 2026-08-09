@@ -52,13 +52,13 @@ MinPic 是一个现代化、高性能的图床管理系统，基于 Next.js 16 �
 
 确保您的环境已安装：
 - Node.js >= 18
-- pnpm >= 8
+- Bun >= 1.3
 - 一个可用的 MinIO 服务或 S3 兼容存储。
 
 ### 2. 安装依赖
 
 ```bash
-pnpm install
+bun install
 ```
 
 ### 3. 配置环境变量
@@ -93,14 +93,14 @@ REDIS_URL="redis://:your_password@localhost:6379/0"
 ### 4. 初始化数据库
 
 ```bash
-pnpm prisma generate
-pnpm prisma db push
+bunx prisma generate
+bunx prisma db push
 ```
 
 ### 5. 启动服务
 
 ```bash
-pnpm dev
+bun dev
 ```
 访问 http://localhost:3000 即可开始使用。
 

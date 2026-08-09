@@ -12,17 +12,16 @@ ARG NPM_REGISTRY=https://registry.npmmirror.com
 
 WORKDIR /app
 
-# 安装 pnpm 并配置镜像源
+# 安装 Bun 并配置镜像源
 RUN npm config set registry ${NPM_REGISTRY} && \
-    npm install -g pnpm
+    npm install -g bun
 
 # 仅拷贝依赖相关文件
-COPY package.json pnpm-lock.yaml ./
+COPY package.json bun.lock ./
 COPY prisma ./prisma
 
-# 使用 --shamefully-hoist 确保 node_modules 结构扁平化，解决 Docker COPY 无法处理深层符号链接的问题
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile --config.shamefully-hoist=true
+RUN --mount=type=cache,id=bun,target=/root/.bun \
+    bun install --frozen-lockfile
 
 # --- 阶段 2: 构建应用 ---
 FROM base AS builder
@@ -32,10 +31,10 @@ COPY . .
 
 # 生成 Prisma Client
 ENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma
-RUN npx prisma generate
+RUN bunx prisma generate
 
 # 构建应用
-RUN npm run build
+RUN bun run build
 
 # --- 阶段 3: 运行环境 ---
 FROM base AS runner
