@@ -237,7 +237,7 @@ export function CollectionManageDialog({
                     "rounded-2xl border transition-all duration-300 overflow-hidden",
                     isEditingInfo 
                         ? "bg-zinc-50/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 p-3 sm:p-4" 
-                        : "bg-transparent border-transparent p-0"
+                        : "bg-white/[0.04] dark:bg-white/10 border-white/10 dark:border-white/10 p-3 sm:p-4"
                 )}>
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 text-xs font-normal text-zinc-500">
@@ -305,7 +305,7 @@ export function CollectionManageDialog({
                 </div>
             </div>
 
-            <div className="px-5 sm:px-7 py-3.5 flex flex-col sm:flex-row gap-3 sm:items-center justify-between border-y border-zinc-100 bg-zinc-50/30 dark:border-white/5 dark:bg-white/[0.025]">
+            <div className="px-5 sm:px-7 py-3.5 flex flex-col sm:flex-row gap-3 sm:items-center justify-between border-y border-zinc-100 bg-zinc-50/50 dark:border-white/10 dark:bg-white/10">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3.5">
                         <div 
