@@ -510,26 +510,26 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
-                  <input 
-                    type="range"
-                    min={0}
-                    max={duration || 100}
-                    step={0.1}
-                    value={currentTime}
-                    onChange={handleSeek}
-                     className="absolute inset-x-0 -top-2 -bottom-2 w-full opacity-0 z-20 cursor-pointer"
-                   />
-                   <div className="absolute inset-x-0 bottom-2 h-1.5 rounded-full bg-black/75 ring-1 ring-white/20" />
-                  {/* Buffered Progress */}
-                  <div 
-                     className="absolute left-0 bottom-2 h-1.5 rounded-full bg-white/30 transition-[width] duration-300"
-                    style={{ width: `${bufferedProgress}%` }}
-                  />
-                  {/* Playback Progress */}
-                  <div 
-                     className="absolute left-0 bottom-2 h-1.5 rounded-full bg-white transition-[width] duration-100"
-                    style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
-                  />
+                   <div className="absolute inset-x-0 bottom-2 h-1.5">
+                     <div
+                       className="absolute inset-0 rounded-full"
+                       style={{ background: `linear-gradient(to right, rgba(255,255,255,0.95) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.4) ${(currentTime / (duration || 1)) * 100}%)` }}
+                     />
+                     <input
+                       type="range"
+                       min={0}
+                       max={duration || 100}
+                       step={0.1}
+                       value={currentTime}
+                       onChange={handleSeek}
+                       className="absolute inset-x-0 -top-1.5 z-10 h-4 w-full cursor-pointer opacity-0"
+                       aria-label="视频进度"
+                     />
+                     <span
+                       className="pointer-events-none absolute top-1/2 z-20 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.65)]"
+                       style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
+                     />
+                   </div>
                    <span className="absolute right-0 bottom-3 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90">
                      {formatTime(currentTime)} / {formatTime(duration)}
                    </span>
