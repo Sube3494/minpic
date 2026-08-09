@@ -774,7 +774,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
               {/* TikTok Style: Right Sidebar Actions */}
               <div 
                 className={cn(
-                   "absolute flex transition-all duration-500 z-50 [&>div>button]:!bg-white [&>div>button]:!text-zinc-900 [&>div>button]:!border-white [&>div>button:hover]:!bg-zinc-200 [&>div>button:hover]:!text-zinc-900",
+                   "absolute flex transition-all duration-500 z-50 [&>div>button]:!bg-transparent [&>div>button]:!text-white [&>div>button]:!border-transparent [&>div>button]:!shadow-none [&>div>button:hover]:!bg-white/10 [&>div>button:hover]:!text-white",
                    // Avoid layout break in landscape regardless of video orientation
                    isLandscape
                      ? "right-6 top-1/2 -translate-y-1/2 flex-col gap-1 scale-[0.85] origin-right" // Extra Compact Landscape
