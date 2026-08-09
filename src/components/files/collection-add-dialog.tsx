@@ -145,8 +145,8 @@ export function CollectionAddDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl bg-white dark:bg-zinc-950/85 backdrop-blur-3xl border-zinc-200/50 dark:border-white/10 h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden shadow-2xl rounded-t-[32px] sm:rounded-3xl">
-        <div className="p-4 sm:p-6 pb-4 bg-linear-to-b from-zinc-50/50 to-transparent dark:from-white/5 dark:to-transparent border-b border-zinc-100 dark:border-white/5">
+      <DialogContent className="sm:max-w-3xl bg-white dark:bg-[#0d1424]/95 backdrop-blur-3xl border-zinc-200 dark:border-[#2d3748] h-[90vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden shadow-2xl rounded-t-[32px] sm:rounded-3xl">
+        <div className="p-4 sm:p-6 pb-4 bg-linear-to-b from-zinc-50/60 to-transparent dark:from-[#171e2d] dark:to-transparent border-b border-zinc-100 dark:border-[#202938]">
             <DialogHeader className="mb-4 text-left">
                 <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-primary/10 text-primary">

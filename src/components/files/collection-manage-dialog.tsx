@@ -215,8 +215,8 @@ export function CollectionManageDialog({
   return (
     <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl glass-strong bg-white/90 dark:bg-zinc-950/85 backdrop-blur-3xl border-zinc-200/80 dark:border-white/10 max-h-[92vh] sm:max-h-[86vh] flex flex-col p-0 overflow-hidden shadow-2xl rounded-t-[28px] sm:rounded-[28px]">
-            <div className="px-5 sm:px-7 pt-5 sm:pt-7 pb-4 border-b border-zinc-100 dark:border-white/5">
+        <DialogContent className="sm:max-w-2xl glass-strong bg-white dark:bg-[#0d1424]/95 backdrop-blur-3xl border-zinc-200 dark:border-[#2d3748] max-h-[92vh] sm:max-h-[86vh] flex flex-col p-0 overflow-hidden shadow-2xl rounded-t-[28px] sm:rounded-[28px]">
+            <div className="px-5 sm:px-7 pt-5 sm:pt-7 pb-4 border-b border-zinc-100 dark:border-[#202938]">
                 <DialogHeader className="text-left">
                     <div className="flex items-start gap-3.5">
                         <div className="p-2.5 rounded-2xl bg-primary/10 border border-primary/15 text-primary shadow-sm">
@@ -237,10 +237,10 @@ export function CollectionManageDialog({
                     "rounded-2xl border transition-all duration-300 overflow-hidden",
                     isEditingInfo 
                         ? "bg-zinc-50/50 dark:bg-white/5 border-zinc-200/50 dark:border-white/10 p-3 sm:p-4" 
-                        : "bg-white/[0.04] dark:bg-white/10 border-white/10 dark:border-white/10 p-3 sm:p-4"
+                        : "bg-zinc-50 dark:bg-[#171e2d] border-zinc-200 dark:border-[#2d3748] p-3 sm:p-4"
                 )}>
                     <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2 text-xs font-normal text-zinc-500">
+                        <div className="flex items-center gap-2 text-xs font-normal text-zinc-500 dark:text-slate-400">
                             <Settings2 className="w-3.5 h-3.5" />
                             <span className="font-medium">合集信息</span>
                         </div>
@@ -298,14 +298,14 @@ export function CollectionManageDialog({
 
                     {!isEditingInfo && (
                         <div className="px-1 py-1">
-                            <h4 className="text-base font-medium text-zinc-800 dark:text-zinc-100 truncate">{name || '未命名合集'}</h4>
-                            <p className="text-xs text-zinc-500 mt-1 line-clamp-1">{description || '暂无描述'}</p>
+                            <h4 className="text-base font-medium text-zinc-800 dark:text-slate-100 truncate">{name || '未命名合集'}</h4>
+                            <p className="text-xs text-zinc-500 dark:text-slate-400 mt-1 line-clamp-1">{description || '暂无描述'}</p>
                         </div>
                     )}
                 </div>
             </div>
 
-            <div className="px-5 sm:px-7 py-3.5 flex flex-col sm:flex-row gap-3 sm:items-center justify-between border-y border-zinc-100 bg-zinc-50/50 dark:border-white/10 dark:bg-white/10">
+            <div className="px-5 sm:px-7 py-3.5 flex flex-col sm:flex-row gap-3 sm:items-center justify-between border-y border-zinc-100 bg-zinc-50/60 dark:border-[#202938] dark:bg-[#121927]">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3.5">
                         <div 
@@ -323,7 +323,7 @@ export function CollectionManageDialog({
                         </div>
                         <Label 
                             htmlFor="select-all" 
-                            className="text-sm font-normal text-zinc-700 dark:text-zinc-300 cursor-pointer select-none tracking-tight"
+                            className="text-sm font-normal text-zinc-700 dark:text-slate-200 cursor-pointer select-none tracking-tight"
                             onClick={() => toggleSelectAll(!isAllSelected)}
                         >
                             <span className="font-medium">全选</span><span className="text-zinc-400">{items.length}</span>
@@ -394,8 +394,8 @@ export function CollectionManageDialog({
                                             className={cn(
                                                 "group relative grid grid-cols-[auto_auto_1fr_auto] items-center gap-3 sm:gap-4 px-2.5 py-2.5 rounded-2xl cursor-pointer transition-all duration-200 border",
                                                 isSelected 
-                                                    ? "bg-zinc-100/80 dark:bg-white/10 border-zinc-200 dark:border-primary/20 shadow-sm" 
-                                                    : "bg-transparent border-transparent hover:bg-zinc-100/50 dark:hover:bg-white/5 hover:border-zinc-200/50 dark:hover:border-white/5"
+                                                    ? "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-400/25 shadow-sm" 
+                                                    : "bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-[#171e2d] hover:border-slate-200 dark:hover:border-[#2d3748]"
                                             )}
                                             onClick={() => toggleSelect(item.fileId)}
                                         >
