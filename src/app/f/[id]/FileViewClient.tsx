@@ -531,6 +531,14 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                          e.stopPropagation();
                          setShowControls(true);
                        }}
+                       onPointerUp={(e) => {
+                         e.stopPropagation();
+                         setShowControls(false);
+                       }}
+                       onTouchEnd={(e) => {
+                         e.stopPropagation();
+                         setShowControls(false);
+                       }}
                        className="absolute inset-x-0 -top-1.5 z-10 h-4 w-full cursor-pointer opacity-0"
                        aria-label="视频进度"
                      />
