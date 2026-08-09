@@ -34,7 +34,7 @@ ENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma
 RUN ./node_modules/.bin/prisma generate
 
 # 构建应用
-RUN bun run build
+RUN ./node_modules/.bin/next build
 
 # --- 阶段 3: 运行环境 ---
 FROM base AS runner
