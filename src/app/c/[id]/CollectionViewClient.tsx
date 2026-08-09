@@ -580,7 +580,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
       onClick={() => {}}
     >
       {/* MAIN STAGE */}
-      <div className="flex-1 relative flex flex-col bg-zinc-950 overflow-hidden" onWheel={handleWheel}>
+      <div className="flex-1 relative flex flex-col bg-zinc-950 overflow-hidden" onWheel={handleWheel} style={{ touchAction: 'none' }}>
         {/* Mobile Position Indicator */}
         {/* Note: Top labels removed for cleaner TikTok look */}
 
@@ -638,7 +638,9 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
             <motion.div 
                className="w-full h-full flex flex-col"
                animate={{ y: carouselY }}
-               transition={{ type: "spring", damping: 50, stiffness: 800, mass: 0.5 }}
+                transition={swipeY !== 0
+                  ? { duration: 0 }
+                  : { type: "spring", damping: 34, stiffness: 360, mass: 0.8 }}
             >
               {items.map((item: CollectionItem, index: number) => {
                 const isActive = index === currentIndex;
