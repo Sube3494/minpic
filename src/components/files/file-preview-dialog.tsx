@@ -241,7 +241,7 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                         value={progress}
                         onChange={(e) => seek(Number(e.target.value))}
                         aria-label="视频进度"
-                        className="mb-3 h-1.5 w-full cursor-pointer accent-blue-400"
+                        className="mb-3 h-1.5 w-full cursor-pointer accent-white [&::-webkit-slider-thumb]:h-0 [&::-webkit-slider-thumb]:w-0 [&::-moz-range-thumb]:h-0 [&::-moz-range-thumb]:w-0"
                       />
                       <div className="flex items-center gap-2 text-white">
                         <button type="button" onClick={togglePlay} aria-label={isPlaying ? '暂停' : '播放'} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 transition-colors hover:bg-white/25">
@@ -266,7 +266,7 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                             }
                           }}
                           aria-label="音量"
-                          className="hidden w-16 cursor-pointer accent-blue-400 sm:block"
+                          className="hidden w-16 cursor-pointer accent-white sm:block"
                         />
                         <button type="button" onClick={toggleFullscreen} aria-label="全屏" className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/15">
                           <Maximize className="h-4 w-4" />
