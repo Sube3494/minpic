@@ -28,13 +28,6 @@ interface CollectionViewClientProps {
   id: string;
 }
 
-const formatTime = (seconds: number) => {
-  if (!Number.isFinite(seconds) || seconds <= 0) return '0:00';
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-};
-
 export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const [items, setItems] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -870,7 +863,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
               {/* High-contrast progress bar with an always-visible seek thumb */}
               <div 
                 className={cn(
-                  "absolute bottom-0 left-4 right-4 z-50 h-9 pb-2 transition-all duration-300 group/progress overflow-visible",
+                  "absolute bottom-0 left-3 right-3 z-50 h-7 pb-2 transition-all duration-300 group/progress overflow-visible",
                   showControls ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
                 onClick={(e) => e.stopPropagation()}
@@ -884,19 +877,16 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                     onChange={handleSeek}
                     className="absolute inset-x-0 -top-2 -bottom-2 w-full opacity-0 z-20 cursor-pointer"
                   />
-                  <div className="absolute inset-x-0 bottom-2 h-2 rounded-full bg-black/70 ring-1 ring-white/30 shadow-[0_2px_12px_rgba(0,0,0,0.7)]" />
+                  <div className="absolute inset-x-0 bottom-2 h-1.5 rounded-full bg-black/75 ring-1 ring-white/20" />
                   <div 
-                    className="absolute left-0 bottom-2 h-2 rounded-full bg-white/85 shadow-[0_0_8px_rgba(255,255,255,0.35)] transition-[width] duration-100"
+                    className="absolute left-0 bottom-2 h-1.5 rounded-full bg-white transition-[width] duration-100"
                     style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                   />
                   <div 
-                    className="absolute bottom-[3px] h-4 w-4 bg-white border-2 border-zinc-700 rounded-full shadow-[0_1px_6px_rgba(0,0,0,0.7)] transition-transform z-10"
-                    style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 8px)` }}
+                    className="absolute bottom-0.5 h-3 w-3 bg-white border border-zinc-700 rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.7)] scale-0 group-hover/progress:scale-100 transition-transform z-10"
+                    style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 6px)` }}
                    />
-                  <div className="absolute left-0 bottom-3 -translate-y-full rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90 opacity-0 transition-opacity group-hover/progress:opacity-100">
-                    {formatTime(currentTime)} / {formatTime(duration)}
-                  </div>
-               </div>
+                </div>
              </>
            )}
         </div>
