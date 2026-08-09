@@ -63,6 +63,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const [isSeeking, setIsSeeking] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [swipeY, setSwipeY] = useState(0); // TikTok-style gesture offset
@@ -882,7 +883,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                  <div className="absolute inset-x-0 bottom-2 h-1">
+                  <div className={cn("absolute inset-x-0 bottom-2 transition-[height]", isSeeking ? "h-1.5" : "h-1")}>
                     <div
                       className="absolute inset-0 rounded-full"
                       style={{ background: `linear-gradient(to right, rgba(255,255,255,0.95) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.4) ${(currentTime / (duration || 1)) * 100}%)` }}
@@ -897,24 +898,28 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                       onPointerDown={(e) => {
                         e.stopPropagation();
                         setShowControls(true);
+                        setIsSeeking(true);
                       }}
                       onTouchStart={(e) => {
                         e.stopPropagation();
                         setShowControls(true);
+                        setIsSeeking(true);
                       }}
                       onPointerUp={(e) => {
                         e.stopPropagation();
                         setShowControls(false);
+                        setIsSeeking(false);
                       }}
                       onTouchEnd={(e) => {
                         e.stopPropagation();
                         setShowControls(false);
+                        setIsSeeking(false);
                       }}
                       className="absolute inset-x-0 -top-1.5 z-10 h-4 w-full cursor-pointer opacity-0"
                       aria-label="视频进度"
                     />
                     <span
-                      className="pointer-events-none absolute top-1/2 z-20 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
+                      className={cn("pointer-events-none absolute top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white transition-[width,height]", isSeeking ? "h-3.5 w-3.5" : "h-2.5 w-2.5")}
                       style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
                     />
                   </div>
