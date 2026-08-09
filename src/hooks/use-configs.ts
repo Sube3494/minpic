@@ -14,8 +14,6 @@ export function useConfigs() {
         setConfigs(data.configs || []);
         if (data.activeId) {
           setSelectedConfigId(data.activeId);
-        } else if (data.configs && data.configs.length > 0) {
-          setSelectedConfigId(data.configs[0].id);
         }
       } catch (error) {
         console.error('Failed to load configs', error);
