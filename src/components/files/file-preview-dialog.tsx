@@ -125,7 +125,7 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="max-w-[95vw] sm:max-w-7xl w-fit p-0 overflow-hidden bg-transparent border-none shadow-none flex flex-col items-center justify-center focus:outline-none focus:ring-0">
+      <DialogContent showCloseButton={false} overlayClassName="backdrop-blur-sm" className="max-w-[95vw] sm:max-w-7xl w-fit p-0 overflow-hidden bg-transparent border-none shadow-none flex flex-col items-center justify-center focus:outline-none focus:ring-0">
         {/* Hidden Title for Accessibility */}
         <DialogTitle className="sr-only">预览: {file.filename}</DialogTitle>
         <DialogDescription className="sr-only">文件预览详情</DialogDescription>
@@ -241,7 +241,7 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                         value={progress}
                         onChange={(e) => seek(Number(e.target.value))}
                         aria-label="视频进度"
-                        className="mb-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-transparent [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent [&::-webkit-slider-thumb]:hidden [&::-moz-range-thumb]:hidden"
+                        className="mb-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-transparent [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:bg-white [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
                         style={{ background: `linear-gradient(to right, rgba(255,255,255,0.95) ${(progress / (duration || 1)) * 100}%, rgba(255,255,255,0.4) ${(progress / (duration || 1)) * 100}%)` }}
                       />
                       <div className="flex items-center gap-2 text-white">
@@ -249,10 +249,11 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                           {isPlaying ? <Pause className="h-4 w-4 fill-white" /> : <Play className="h-4 w-4 fill-white" />}
                         </button>
                         <span className="min-w-24 text-xs font-medium tabular-nums text-white/85">{formatTime(progress)} <span className="text-white/40">/</span> {formatTime(duration)}</span>
-                        <button type="button" onClick={toggleMute} aria-label={volume ? '静音' : '取消静音'} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/15">
+                        <div className="ml-auto flex items-center gap-2">
+                          <button type="button" onClick={toggleMute} aria-label={volume ? '静音' : '取消静音'} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/15">
                           {volume ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-                        </button>
-                        <input
+                          </button>
+                          <input
                           type="range"
                           min={0}
                           max={1}
@@ -268,11 +269,11 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                           }}
                           aria-label="音量"
                           className="hidden w-16 cursor-pointer accent-white sm:block"
-                        />
-                        <button type="button" onClick={toggleFullscreen} aria-label="全屏" className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/15">
+                          />
+                          <button type="button" onClick={toggleFullscreen} aria-label="全屏" className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/15">
                           <Maximize className="h-4 w-4" />
-                        </button>
-                        <div className="relative">
+                          </button>
+                          <div className="relative">
                           <button
                             type="button"
                             onClick={() => setShowPlaybackMenu((open) => !open)}
@@ -305,6 +306,7 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                               </button>
                             </div>
                           )}
+                          </div>
                         </div>
                       </div>
                     </div>
