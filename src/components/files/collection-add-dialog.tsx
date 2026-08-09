@@ -15,6 +15,7 @@ import { Loader2, Search, CheckCircle2, Circle, Image as ImageIcon, Video, Check
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useConfigs } from '@/hooks/use-configs';
 
 interface CollectionAddDialogProps {
   open: boolean;
@@ -46,9 +47,13 @@ export function CollectionAddDialog({
   const [submitting, setSubmitting] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const { configs, selectedConfigId, configLoading } = useConfigs();
+  const [sourceConfigId, setSourceConfigId] = useState('');
+
+  const availableConfigs = configs.filter(config => config.status !== 'error');
 
   // Stable fetch function
-  const fetchFiles = useCallback(async (pageParam: number, searchParam: string, reset: boolean) => {
+  const fetchFiles = useCallback(async (pageParam: number, searchParam: string, reset: boolean, configId: string) => {
     setLoading(true);
     
     try {
@@ -57,6 +62,7 @@ export function CollectionAddDialog({
         pageSize: '30',
       });
       if (searchParam) params.set('search', searchParam);
+      if (configId) params.set('configId', configId);
 
       const res = await fetch(`/api/files?${params}`);
       if (!res.ok) throw new Error('Failed to load files');
@@ -88,19 +94,28 @@ export function CollectionAddDialog({
       setSelectedIds([]);
       setPage(1);
       setHasMore(true);
-      fetchFiles(1, '', true);
     }
-  }, [open, fetchFiles]);
+  }, [open]);
+
+  useEffect(() => {
+    if (!sourceConfigId && (selectedConfigId || availableConfigs[0]?.id)) {
+      setSourceConfigId(selectedConfigId || availableConfigs[0].id);
+    }
+  }, [sourceConfigId, selectedConfigId, availableConfigs]);
+
+  useEffect(() => {
+    if (open && sourceConfigId) fetchFiles(1, '', true, sourceConfigId);
+  }, [open, sourceConfigId, fetchFiles]);
 
   // Refetch when search changes (debounce)
   useEffect(() => {
     if (open && debouncedSearch !== undefined) {
-        fetchFiles(1, debouncedSearch, true);
+        fetchFiles(1, debouncedSearch, true, sourceConfigId);
     }
-  }, [debouncedSearch, open, fetchFiles]);
+  }, [debouncedSearch, open, sourceConfigId, fetchFiles]);
 
   const handleLoadMore = () => {
-      fetchFiles(page, debouncedSearch, false);
+      fetchFiles(page, debouncedSearch, false, sourceConfigId);
   };
 
 
@@ -139,6 +154,24 @@ export function CollectionAddDialog({
                     <DialogTitle className="text-xl font-bold tracking-tight">添加文件至合集</DialogTitle>
                 </div>
             </DialogHeader>
+            <div className="mb-3 flex items-center gap-2">
+                <label htmlFor="collection-source" className="shrink-0 text-xs font-medium text-zinc-500">资源库</label>
+                <select
+                    id="collection-source"
+                    value={sourceConfigId}
+                    disabled={configLoading || availableConfigs.length === 0}
+                    onChange={(e) => {
+                        setSourceConfigId(e.target.value);
+                        setSelectedIds([]);
+                        setSearch('');
+                    }}
+                    className="h-9 min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white/70 px-3 text-xs text-zinc-700 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15 dark:border-white/10 dark:bg-white/5 dark:text-zinc-200"
+                >
+                    {availableConfigs.length === 0 ? <option value="">暂无可用资源库</option> : availableConfigs.map(config => (
+                        <option key={config.id} value={config.id}>{config.name}</option>
+                    ))}
+                </select>
+            </div>
             <div className="relative group">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-primary transition-colors" />
                 <Input 

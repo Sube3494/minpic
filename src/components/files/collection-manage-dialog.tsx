@@ -215,24 +215,24 @@ export function CollectionManageDialog({
   return (
     <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-xl glass-strong bg-white/90 dark:bg-zinc-950/20 backdrop-blur-3xl border-zinc-200 dark:border-white/10 max-h-[90vh] sm:max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-2xl rounded-t-[32px] sm:rounded-[32px]">
-            <div className="p-4 sm:p-6 pb-0">
+        <DialogContent className="sm:max-w-2xl glass-strong bg-white/95 dark:bg-zinc-950/85 backdrop-blur-3xl border-zinc-200/80 dark:border-white/10 max-h-[92vh] sm:max-h-[86vh] flex flex-col p-0 overflow-hidden shadow-2xl rounded-t-[28px] sm:rounded-[28px]">
+            <div className="px-5 sm:px-7 pt-5 sm:pt-7 pb-4 border-b border-zinc-100 dark:border-white/5">
                 <DialogHeader className="text-left">
-                    <div className="flex items-center gap-4 mb-2">
-                        <div className="p-2.5 rounded-2xl bg-zinc-100/80 dark:bg-white/5 border border-zinc-200/50 dark:border-white/5 text-zinc-500 shadow-sm">
-                            <Layers className="w-5 h-5" />
+                    <div className="flex items-start gap-3.5">
+                        <div className="p-2.5 rounded-2xl bg-primary/10 border border-primary/15 text-primary shadow-sm">
+                            <Layers className="w-5 h-5" strokeWidth={1.8} />
                         </div>
-                        <div className="flex flex-col">
-                            <DialogTitle className="text-xl font-semibold tracking-tight bg-clip-text text-transparent bg-linear-to-r from-zinc-900 to-zinc-500 dark:from-white dark:to-white/40">管理合集内容</DialogTitle>
-                            <DialogDescription className="text-zinc-500 dark:text-zinc-400 text-xs mt-0.5">
-                                管理合集中的文件，或通过添加按钮引入新资源。
+                        <div className="flex min-w-0 flex-col gap-1">
+                            <DialogTitle className="text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">管理合集内容</DialogTitle>
+                            <DialogDescription className="text-zinc-500 dark:text-zinc-400 text-xs leading-5">
+                                管理合集中的文件，或添加新资源。
                             </DialogDescription>
                         </div>
                     </div>
                 </DialogHeader>
             </div>
 
-            <div className="px-4 sm:px-6 pb-2">
+            <div className="px-5 sm:px-7 py-4">
                 <div className={cn(
                     "rounded-2xl border transition-all duration-300 overflow-hidden",
                     isEditingInfo 
@@ -242,12 +242,12 @@ export function CollectionManageDialog({
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2 text-xs font-normal text-zinc-500">
                             <Settings2 className="w-3.5 h-3.5" />
-                            <span>合集基础信息</span>
+                            <span className="font-medium">合集信息</span>
                         </div>
                         <Button 
                             variant="ghost" 
                             size="sm" 
-                            className="h-7 px-2 text-[10px] rounded-lg hover:bg-zinc-200/50 dark:hover:bg-white/10"
+                            className="h-7 px-2.5 text-[11px] rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-200/50 dark:hover:bg-white/10"
                             onClick={() => setIsEditingInfo(!isEditingInfo)}
                         >
                             {isEditingInfo ? '取消' : '编辑信息'}
@@ -298,14 +298,14 @@ export function CollectionManageDialog({
 
                     {!isEditingInfo && (
                         <div className="px-1 py-1">
-                            <h4 className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{name || '未命名合集'}</h4>
-                            <p className="text-[11px] text-zinc-500 mt-0.5 line-clamp-1">{description || '暂无描述'}</p>
+                            <h4 className="text-base font-medium text-zinc-800 dark:text-zinc-100 truncate">{name || '未命名合集'}</h4>
+                            <p className="text-xs text-zinc-500 mt-1 line-clamp-1">{description || '暂无描述'}</p>
                         </div>
                     )}
                 </div>
             </div>
 
-            <div className="px-4 sm:px-6 py-4 flex flex-col sm:flex-row gap-4 sm:items-center justify-between mt-2 border-b border-zinc-100 dark:border-white/5">
+            <div className="px-5 sm:px-7 py-3.5 flex flex-col sm:flex-row gap-3 sm:items-center justify-between border-y border-zinc-100 bg-zinc-50/60 dark:border-white/5 dark:bg-white/[0.025]">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3.5">
                         <div 
@@ -326,7 +326,7 @@ export function CollectionManageDialog({
                             className="text-sm font-normal text-zinc-700 dark:text-zinc-300 cursor-pointer select-none tracking-tight"
                             onClick={() => toggleSelectAll(!isAllSelected)}
                         >
-                            全选 ({items.length})
+                            <span className="font-medium">全选</span><span className="text-zinc-400">{items.length}</span>
                         </Label>
                     </div>
                     <AnimatePresence>
@@ -355,7 +355,7 @@ export function CollectionManageDialog({
                 <Button 
                     size="sm" 
                     onClick={() => setShowAddDialog(true)} 
-                    className="w-full sm:w-auto gap-2 rounded-full px-5 h-9 bg-primary shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-105 active:scale-95 transition-all text-xs font-normal"
+                    className="w-full sm:w-auto gap-2 rounded-xl px-4 h-9 bg-primary shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all text-xs font-medium"
                 >
                     <Plus className="w-4 h-4" />
                     添加新资源
@@ -363,7 +363,7 @@ export function CollectionManageDialog({
             </div>
 
             <ScrollArea className="flex-1 min-h-[400px]">
-                <div className="px-2 sm:px-3 pb-6">
+                <div className="px-3 sm:px-5 py-2 pb-6">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-[350px] gap-4">
                             <div className="relative">
@@ -381,7 +381,7 @@ export function CollectionManageDialog({
                             <p className="text-xs mt-1 opacity-60 font-normal">点击上方按钮开始添加文件吧</p>
                         </div>
                     ) : (
-                        <div className="space-y-3 pb-4">
+                        <div className="space-y-1 pb-4">
                             <AnimatePresence mode="popLayout">
                                 {items.map((item) => {
                                     const isSelected = selectedIds.includes(item.fileId);
@@ -392,7 +392,7 @@ export function CollectionManageDialog({
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             className={cn(
-                                                "group relative grid grid-cols-[auto_auto_1fr_auto] items-center gap-3 sm:gap-4 p-2 sm:p-3 rounded-xl sm:rounded-2xl cursor-pointer transition-all duration-300 border mb-1",
+                                                "group relative grid grid-cols-[auto_auto_1fr_auto] items-center gap-3 sm:gap-4 px-2.5 py-2.5 rounded-2xl cursor-pointer transition-all duration-200 border",
                                                 isSelected 
                                                     ? "bg-zinc-100/80 dark:bg-white/10 border-zinc-200 dark:border-primary/20 shadow-sm" 
                                                     : "bg-transparent border-transparent hover:bg-zinc-100/50 dark:hover:bg-white/5 hover:border-zinc-200/50 dark:hover:border-white/5"
@@ -415,7 +415,7 @@ export function CollectionManageDialog({
                                                 </div>
                                             </div>
 
-                                            <div className="w-12 h-12 rounded-xl bg-zinc-100 dark:bg-white/5 overflow-hidden flex items-center justify-center border border-zinc-200/50 dark:border-white/10 shadow-sm group-hover:scale-105 transition-transform">
+                                             <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-white/5 overflow-hidden flex items-center justify-center border border-zinc-200/50 dark:border-white/10 shadow-sm group-hover:scale-105 transition-transform">
                                                 {item.thumbnailUrl ? (
                                                     /* eslint-disable-next-line @next/next/no-img-element */
                                                     <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />
