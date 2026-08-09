@@ -503,9 +503,13 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                <div 
                  className={cn(
                    "absolute bottom-0 left-3 right-3 z-50 h-7 pb-2 transition-all duration-300 group/progress overflow-visible",
-                   showControls && !isPlaying ? "opacity-100" : "opacity-0 pointer-events-none"
-                )}
-                onClick={(e) => e.stopPropagation()}
+                    showControls ? "opacity-100" : "opacity-0"
+                 )}
+                 onPointerDown={(e) => {
+                   e.stopPropagation();
+                   setShowControls(true);
+                 }}
+                 onClick={(e) => e.stopPropagation()}
               >
                    <div className="absolute inset-x-0 bottom-2 h-1.5">
                      <div
