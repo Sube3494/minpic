@@ -689,6 +689,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                                onPlay={() => {
                                  if (isActive) {
                                      setIsPlaying(true);
+                                     setShowControls(false);
                                  }
                                }}
                                 onPlaying={() => {
@@ -702,7 +703,10 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                                   }
                                 }}
                                onPause={() => {
-                                 if (isActive) setIsPlaying(false);
+                                 if (isActive) {
+                                   setIsPlaying(false);
+                                   setShowControls(true);
+                                 }
                                }}
                                onTimeUpdate={isActive ? handleTimeUpdate : undefined}
                                onLoadedMetadata={isActive ? handleLoadedMetadata : undefined}

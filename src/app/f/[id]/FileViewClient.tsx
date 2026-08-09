@@ -390,9 +390,13 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                  onPlay={() => {
                    setHasStarted(true);
                    setIsPlaying(true);
-                  setIsBuffering(false);
-                }}
-                onPause={() => setIsPlaying(false)}
+                   setShowControls(false);
+                   setIsBuffering(false);
+                 }}
+                 onPause={() => {
+                   setIsPlaying(false);
+                   setShowControls(true);
+                 }}
                 onTimeUpdate={handleTimeUpdate}
                 onProgress={handleProgress}
                 onWaiting={() => setIsBuffering(true)}
