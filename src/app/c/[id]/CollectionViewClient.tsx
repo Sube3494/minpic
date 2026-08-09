@@ -28,6 +28,13 @@ interface CollectionViewClientProps {
   id: string;
 }
 
+const formatTime = (seconds: number) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0:00';
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
+
 export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const [items, setItems] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -882,10 +889,9 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                     className="absolute left-0 bottom-2 h-1.5 rounded-full bg-white transition-[width] duration-100"
                     style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                   />
-                  <div 
-                    className="absolute bottom-0.5 h-3 w-3 bg-white border border-zinc-700 rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.7)] scale-0 group-hover/progress:scale-100 transition-transform z-10"
-                    style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 6px)` }}
-                   />
+                  <span className="absolute right-0 bottom-3 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90">
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </span>
                 </div>
              </>
            )}
