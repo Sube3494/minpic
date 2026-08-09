@@ -232,6 +232,9 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
+    // Prevent browser/device media gestures from interpreting vertical swipes
+    // as brightness or volume changes. Video switching remains handled below.
+    e.preventDefault();
     if (touchStartX.current === null || touchStartY.current === null) return;
     
     const touchY = e.touches[0].clientY;
