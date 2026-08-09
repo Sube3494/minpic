@@ -42,7 +42,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
   const [isLooping, setIsLooping] = useState(false);
   const [videoDimensions, setVideoDimensions] = useState<{width: number, height: number} | null>(null);
   const [thumbnailError, setThumbnailError] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(true);
   const [bufferedProgress, setBufferedProgress] = useState(0);
 
   // HUD & Adjustments
@@ -375,7 +375,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                 />
               )}
               
-              <video
+                 <video
                 ref={videoRef}
                 src={file.fileUrl}
                 playsInline 
@@ -393,8 +393,11 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                 onProgress={handleProgress}
                 onWaiting={() => setIsBuffering(true)}
                 onPlaying={() => setIsBuffering(false)}
-                onCanPlay={() => setIsBuffering(false)}
-                onLoadedMetadata={handleLoadedMetadata}
+                 onCanPlay={() => setIsBuffering(false)}
+                 onLoadedData={() => {
+                   videoRef.current?.play().catch(() => undefined);
+                 }}
+                 onLoadedMetadata={handleLoadedMetadata}
                 onEnded={() => {
                     if (!isLooping) setIsPlaying(false);
                 }}
@@ -407,7 +410,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none bg-black/20 backdrop-blur-[2px]"
+                    className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none"
                   >
                     <Loader2 className="w-12 h-12 text-white animate-spin opacity-80" />
                   </motion.div>

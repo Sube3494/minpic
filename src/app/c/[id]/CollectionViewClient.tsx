@@ -52,7 +52,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
 
   // Custom Player States
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
