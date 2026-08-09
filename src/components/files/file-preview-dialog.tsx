@@ -233,17 +233,23 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                       className="block max-w-full max-h-[90vh]"
                     />
                     <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/65 to-transparent px-4 pb-4 pt-12 opacity-0 transition-opacity duration-300 group-hover/video:opacity-100">
-                      <input
-                        type="range"
-                        min={0}
-                        max={duration || 0}
-                        step={0.1}
-                        value={progress}
-                        onChange={(e) => seek(Number(e.target.value))}
-                        aria-label="视频进度"
-                        className="mb-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-transparent [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:bg-white [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
-                        style={{ background: `linear-gradient(to right, rgba(255,255,255,0.95) ${(progress / (duration || 1)) * 100}%, rgba(255,255,255,0.4) ${(progress / (duration || 1)) * 100}%)` }}
-                      />
+                      <div className="relative mb-3 h-1.5 w-full">
+                        <input
+                          type="range"
+                          min={0}
+                          max={duration || 0}
+                          step={0.1}
+                          value={progress}
+                          onChange={(e) => seek(Number(e.target.value))}
+                          aria-label="视频进度"
+                          className="absolute inset-0 z-10 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-transparent [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-0 [&::-webkit-slider-thumb]:w-0 [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-transparent [&::-moz-range-thumb]:h-0 [&::-moz-range-thumb]:w-0"
+                          style={{ background: `linear-gradient(to right, rgba(255,255,255,0.95) ${(progress / (duration || 1)) * 100}%, rgba(255,255,255,0.4) ${(progress / (duration || 1)) * 100}%)` }}
+                        />
+                        <span
+                          className="pointer-events-none absolute top-1/2 z-20 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.65)]"
+                          style={{ left: `${(progress / (duration || 1)) * 100}%` }}
+                        />
+                      </div>
                       <div className="flex items-center gap-2 text-white">
                         <button type="button" onClick={togglePlay} aria-label={isPlaying ? '暂停' : '播放'} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 transition-colors hover:bg-white/25">
                           {isPlaying ? <Pause className="h-4 w-4 fill-white" /> : <Play className="h-4 w-4 fill-white" />}
