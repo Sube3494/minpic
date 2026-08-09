@@ -49,6 +49,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
   const [isLooping, setIsLooping] = useState(false);
   const [videoDimensions, setVideoDimensions] = useState<{width: number, height: number} | null>(null);
   const [thumbnailError, setThumbnailError] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [bufferedProgress, setBufferedProgress] = useState(0);
 
@@ -376,7 +377,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                   onError={() => setThumbnailError(true)}
                   className={cn(
                       "absolute inset-0 w-full h-full object-contain z-10 transition-opacity duration-300",
-                      isPlaying ? "opacity-0 pointer-events-none" : "opacity-100"
+                      hasStarted ? "opacity-0 pointer-events-none" : "opacity-100"
                   )} 
                   alt="" 
                 />
@@ -391,8 +392,9 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                 preload="auto"
                 loop={isLooping}
                 className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain"
-                onPlay={() => {
-                  setIsPlaying(true);
+                 onPlay={() => {
+                   setHasStarted(true);
+                   setIsPlaying(true);
                   setIsBuffering(false);
                 }}
                 onPause={() => setIsPlaying(false)}
