@@ -215,7 +215,7 @@ export function CollectionManageDialog({
   return (
     <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl glass-strong bg-white dark:bg-[#0d1424]/95 backdrop-blur-3xl border-zinc-200 dark:border-[#2d3748] max-h-[92vh] sm:max-h-[86vh] flex flex-col p-0 overflow-hidden shadow-2xl rounded-t-[28px] sm:rounded-[28px]">
+        <DialogContent className="sm:max-w-4xl glass-strong bg-white dark:bg-[#0d1424]/95 backdrop-blur-3xl border-zinc-200 dark:border-[#2d3748] max-h-[92vh] sm:max-h-[86vh] flex flex-col p-0 overflow-hidden shadow-2xl rounded-t-[28px] sm:rounded-[28px]">
             <div className="px-5 sm:px-7 pt-5 sm:pt-7 pb-4 border-b border-zinc-100 dark:border-[#202938]">
                 <DialogHeader className="text-left">
                     <div className="flex items-start gap-3.5">
@@ -232,7 +232,9 @@ export function CollectionManageDialog({
                 </DialogHeader>
             </div>
 
-            <div className="px-5 sm:px-7 py-4">
+            <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
+            <aside className="shrink-0 lg:w-[300px] lg:border-r lg:border-[#202938]">
+            <div className="px-5 sm:px-7 py-5 lg:px-6">
                 <div className={cn(
                     "rounded-2xl border transition-all duration-300 overflow-hidden",
                     isEditingInfo 
@@ -304,7 +306,9 @@ export function CollectionManageDialog({
                     )}
                 </div>
             </div>
+            </aside>
 
+            <section className="flex min-w-0 min-h-0 flex-1 flex-col">
             <div className="px-5 sm:px-7 py-3.5 flex flex-col sm:flex-row gap-3 sm:items-center justify-between border-y border-zinc-100 bg-zinc-50/60 dark:border-[#202938] dark:bg-[#121927]">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-3.5">
@@ -362,7 +366,7 @@ export function CollectionManageDialog({
                 </Button>
             </div>
 
-            <ScrollArea className="flex-1 min-h-[400px]">
+            <ScrollArea className="flex-1 min-h-0 overscroll-contain touch-pan-y">
                 <div className="px-3 sm:px-5 py-2 pb-6">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-[350px] gap-4">
@@ -381,7 +385,7 @@ export function CollectionManageDialog({
                             <p className="text-xs mt-1 opacity-60 font-normal">点击上方按钮开始添加文件吧</p>
                         </div>
                     ) : (
-                        <div className="space-y-1 pb-4">
+                        <div className="space-y-2 pb-5">
                             <AnimatePresence mode="popLayout">
                                 {items.map((item) => {
                                     const isSelected = selectedIds.includes(item.fileId);
@@ -392,7 +396,7 @@ export function CollectionManageDialog({
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             className={cn(
-                                                "group relative grid grid-cols-[auto_auto_1fr_auto] items-center gap-3 sm:gap-4 px-2.5 py-2.5 rounded-2xl cursor-pointer transition-all duration-200 border",
+                                                "group relative grid grid-cols-[auto_auto_1fr_auto] items-center gap-3 sm:gap-4 px-3 py-3 rounded-2xl cursor-pointer transition-all duration-200 border",
                                                 isSelected 
                                                     ? "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-400/25 shadow-sm" 
                                                     : "bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-[#171e2d] hover:border-slate-200 dark:hover:border-[#2d3748]"
@@ -471,6 +475,8 @@ export function CollectionManageDialog({
                     )}
                 </div>
             </ScrollArea>
+            </section>
+            </div>
         </DialogContent>
         </Dialog>
 
