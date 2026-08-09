@@ -530,7 +530,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                        style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
                      />
                    </div>
-                   <span className="absolute right-0 bottom-3 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90">
+                   <span className="absolute left-1/2 bottom-8 -translate-x-1/2 text-2xl font-medium tabular-nums tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
                      {formatTime(currentTime)} / {formatTime(duration)}
                    </span>
                 </div>
