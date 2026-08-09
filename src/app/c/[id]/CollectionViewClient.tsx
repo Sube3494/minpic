@@ -882,7 +882,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                  <div className="absolute inset-x-0 bottom-2 h-1.5">
+                  <div className="absolute inset-x-0 bottom-2 h-1">
                     <div
                       className="absolute inset-0 rounded-full"
                       style={{ background: `linear-gradient(to right, rgba(255,255,255,0.95) ${(currentTime / (duration || 1)) * 100}%, rgba(255,255,255,0.4) ${(currentTime / (duration || 1)) * 100}%)` }}
@@ -914,7 +914,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                       aria-label="视频进度"
                     />
                     <span
-                      className="pointer-events-none absolute top-1/2 z-20 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.65)]"
+                      className="pointer-events-none absolute top-1/2 z-20 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
                       style={{ left: `${(currentTime / (duration || 1)) * 100}%` }}
                     />
                   </div>
