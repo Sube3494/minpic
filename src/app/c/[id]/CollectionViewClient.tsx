@@ -49,7 +49,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
 
   const [volume, setVolume] = useState(0); // Start at 0 to ensure first video autoplays muted
   const videoRef = useRef<HTMLVideoElement>(null);
-  const fullscreenRootRef = useRef<HTMLDivElement>(null);
 
   // Custom Player States
   const [isPlaying, setIsPlaying] = useState(false);
@@ -367,10 +366,10 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
   };
 
   const toggleFullScreen = () => {
-    if (!fullscreenRootRef.current) return;
+    if (!playerContainerRef.current) return;
     
     if (!document.fullscreenElement) {
-      fullscreenRootRef.current.requestFullscreen().then(() => {
+      playerContainerRef.current.requestFullscreen().then(() => {
         // Smart Orientation: 
         if (videoDimensions) {
             const orientation = window.screen.orientation as unknown as { lock: (o: string) => Promise<void> };
@@ -522,7 +521,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
 
   return (
     <div 
-      ref={fullscreenRootRef}
       className="flex flex-col md:flex-row h-dvh bg-black text-white notranslate overflow-hidden overscroll-none touch-none select-none" 
       translate="no"
       onTouchStart={handleTouchStart}
