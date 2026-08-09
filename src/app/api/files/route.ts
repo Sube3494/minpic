@@ -7,7 +7,7 @@ import { requireAuth } from '@/lib/auth-utils';
 import { checkStorageQuota, checkFileQuota, updateStorageUsage, updateFileCount } from '@/lib/team-quota';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { rateLimitResponse } from '@/lib/rate-limit-response';
-import { getUserMinioConfig, getStorageIdentityConfigIds } from '@/lib/get-user-minio-config';
+import { getUserMinioConfig } from '@/lib/get-user-minio-config';
 import { decryptMinioConfig } from '@/lib/config-encryption';
 import { serializeBigInt } from '@/lib/utils';
 
@@ -190,18 +190,14 @@ export async function GET(request: NextRequest) {
     const configId = searchParams.get('configId');
     const mode = searchParams.get('mode'); // 新增: 'count' | 'ids' | null
 
-    // Determine effective config IDs for filtering using refactored utility
-    let filterConfigIds: string[] | undefined = undefined;
-    const activeConfig = await getUserMinioConfig(user.id, configId);
-    
-    if (activeConfig) {
-      filterConfigIds = await getStorageIdentityConfigIds(user.id, activeConfig);
-    }
+    // Each MinIO configuration is an independent file library. Do not merge
+    // records merely because multiple configs point at the same bucket.
+    const filterConfigId = configId || (await getUserMinioConfig(user.id))?.id;
 
     const where = {
       userId: user.id,
       ...(fileType && { fileType }),
-      ...(filterConfigIds && { configId: { in: filterConfigIds } }),
+      ...(filterConfigId && { configId: filterConfigId }),
       ...(search && {
         OR: [
           { filename: { contains: search } },

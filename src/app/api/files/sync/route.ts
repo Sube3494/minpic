@@ -5,7 +5,7 @@ import { generateThumbnail, generateVideoThumbnail, getImageDimensions, getFileT
 import { SyncEvent } from '@/types/config';
 import { auth } from '@/lib/auth';
 import { checkStorageQuota, checkFileQuota, updateStorageUsage, updateFileCount } from '@/lib/team-quota';
-import { getUserMinioConfig, getStorageIdentityConfigIds } from '@/lib/get-user-minio-config';
+import { getUserMinioConfig } from '@/lib/get-user-minio-config';
 import { serializeBigInt } from '@/lib/utils';
 
 // MIME 类型映射表
@@ -76,9 +76,6 @@ export async function POST(request: NextRequest) {
         const minioService = new MinioService();
         await minioService.connect(minioConfig);
 
-        // 获取存储身份组 - 相同存储的不同配置共享文件记录
-        const storageGroupConfigIds = await getStorageIdentityConfigIds(userId, minioConfig);
-
         // 构建用户路径前缀:baseDir/users/{userId}/
         let userPrefix = '';
         if (minioConfig.baseDir) {
@@ -118,24 +115,22 @@ export async function POST(request: NextRequest) {
               }
             });
 
-            // Check if file already exists in THIS STORAGE GROUP
-            // 使用存储身份组，允许相同存储的不同配置共享文件记录
+            // Check only the current configuration's library. Configurations
+            // must remain isolated even when they point at the same bucket.
             const existing = await prisma.file.findFirst({
               where: { 
                 minioPath: fileObj.name,
                 userId: userId,
-                configId: { in: storageGroupConfigIds }  // 检查整个存储组
+                configId: targetConfigId
               },
             });
 
-            // 如果文件已存在，更新其 configId 并跳过
+            // 如果文件已存在，补充元数据并跳过
             if (existing) {
-              // 对于已存在的文件，我们需要：
-              // 1. 更新 configId 到当前配置（确保配置切换时文件关联正确）
-              // 2. 如果缺少元数据（缩略图/拼音），补全元数据
+              // 如果缺少元数据，补全元数据
               const needsMetadata = !existing.thumbnailData || !existing.pinyin;
               
-              if (needsMetadata || existing.configId !== targetConfigId) {
+              if (needsMetadata) {
                 // 需要更新时，下载文件生成元数据
                 const fileBuffer = await minioService.downloadFile(fileObj.name!);
                 
@@ -166,17 +161,8 @@ export async function POST(request: NextRequest) {
                     width,
                     height,
                     pinyin: pinyinValue,
-                    configId: targetConfigId,  // 更新到当前配置
                   }
                 });
-              } else {
-                // 文件完整且 configId 已匹配，仅更新 configId（如果需要）
-                if (existing.configId !== targetConfigId) {
-                  await prisma.file.update({
-                    where: { id: existing.id },
-                    data: { configId: targetConfigId }
-                  });
-                }
               }
               
               skipped++;
