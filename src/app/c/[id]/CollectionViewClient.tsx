@@ -754,22 +754,6 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                 )}
               </AnimatePresence>
 
-               {/* TikTok Style: Center-Top Page Indicator */}
-               <AnimatePresence>
-                 {showPageIndicator && (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute top-10 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
-                    >
-                       <div className="bg-zinc-950/40 backdrop-blur-md px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5 shadow-2xl">
-                          <span className="text-sm font-medium text-white/90 tracking-widest drop-shadow-sm">{currentIndex + 1} / {items.length}</span>
-                       </div>
-                    </motion.div>
-                 )}
-               </AnimatePresence>
-
                {/* Center Play/Pause Feedback */}
               <AnimatePresence>
                  {!isPlaying && !isTransitioning && Math.abs(swipeY) < 10 && (
