@@ -434,7 +434,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
               {/* TikTok Style: Right Sidebar Actions */}
               <div 
                 className={cn(
-                    "absolute flex transition-all duration-500 z-50 [&>div>button]:!bg-transparent [&>div>button]:!text-white [&>div>button]:!border-transparent [&>div>button]:!shadow-none [&>div>button:hover]:!bg-white/10 [&>div>button:hover]:!text-white",
+                    "absolute flex transition-all duration-500 z-50 [&>div>button]:!bg-transparent [&>div>button]:!text-white [&>div>button]:!border-transparent [&>div>button]:!shadow-none [&>div>button:hover]:!bg-white/10 [&>div>button:hover]:!text-white [&>div>span]:hidden",
                    isLandscape
                      ? "right-6 top-1/2 -translate-y-1/2 flex-col gap-1 scale-[0.85] origin-right"
                      : "right-4 bottom-28 flex-col gap-1.5 scale-90 origin-right",
