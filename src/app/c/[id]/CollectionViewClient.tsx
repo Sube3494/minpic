@@ -28,6 +28,13 @@ interface CollectionViewClientProps {
   id: string;
 }
 
+const formatTime = (seconds: number) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) return '0:00';
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = Math.floor(seconds % 60);
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+};
+
 export function CollectionViewClient({ id }: CollectionViewClientProps) {
   const [items, setItems] = useState<CollectionItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -874,10 +881,10 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
 
 
 
-              {/* TikTok Style: Minimalist Bottom Progress Bar */}
+              {/* High-contrast progress bar with an always-visible seek thumb */}
               <div 
                 className={cn(
-                  "absolute bottom-0 left-0 right-0 z-50 h-1.5 transition-all duration-300 group/progress overflow-visible",
+                  "absolute bottom-0 left-0 right-0 z-50 h-9 px-4 pb-2 transition-all duration-300 group/progress overflow-visible",
                   showControls ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
                 onClick={(e) => e.stopPropagation()}
@@ -889,17 +896,20 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                     step={0.1}
                     value={currentTime}
                     onChange={handleSeek}
-                    className="absolute inset-x-0 -top-4 -bottom-2 w-full opacity-0 z-20 cursor-pointer"
+                    className="absolute inset-x-0 -top-2 -bottom-2 w-full opacity-0 z-20 cursor-pointer"
                   />
-                  <div className="absolute inset-0 bg-white/10" />
+                  <div className="absolute inset-x-4 bottom-2 h-2 rounded-full bg-black/70 ring-1 ring-white/30 shadow-[0_2px_12px_rgba(0,0,0,0.7)]" />
                   <div 
-                    className="absolute inset-y-0 left-0 bg-white shadow-[0_0_15px_rgba(255,255,255,0.6)] rounded-r-full transition-[width] duration-100"
+                    className="absolute left-4 bottom-2 h-2 rounded-full bg-gradient-to-r from-cyan-300 to-sky-500 shadow-[0_0_12px_rgba(56,189,248,0.9)] transition-[width] duration-100"
                     style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                   />
                   <div 
-                    className="absolute top-1/2 -translate-y-1/2 h-3 w-3 bg-white rounded-full shadow-2xl scale-0 group-hover/progress:scale-100 transition-transform z-10"
-                    style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 6px)` }}
+                    className="absolute bottom-[3px] h-4 w-4 bg-white border-2 border-sky-400 rounded-full shadow-[0_0_10px_rgba(56,189,248,0.95)] transition-transform z-10"
+                    style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 8px)` }}
                    />
+                  <div className="absolute left-4 bottom-3 -translate-y-full rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90 opacity-0 transition-opacity group-hover/progress:opacity-100">
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </div>
                </div>
              </>
            )}
