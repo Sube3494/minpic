@@ -502,7 +502,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                {/* High-contrast progress bar with an always-visible seek thumb */}
                <div 
                  className={cn(
-                   "absolute bottom-0 left-0 right-0 z-50 h-9 px-4 pb-2 transition-all duration-300 group/progress overflow-visible",
+                   "absolute bottom-0 left-4 right-4 z-50 h-9 pb-2 transition-all duration-300 group/progress overflow-visible",
                    showControls ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
                 onClick={(e) => e.stopPropagation()}
@@ -516,22 +516,22 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                     onChange={handleSeek}
                      className="absolute inset-x-0 -top-2 -bottom-2 w-full opacity-0 z-20 cursor-pointer"
                    />
-                   <div className="absolute inset-x-4 bottom-2 h-2 rounded-full bg-black/70 ring-1 ring-white/30 shadow-[0_2px_12px_rgba(0,0,0,0.7)]" />
+                   <div className="absolute inset-x-0 bottom-2 h-2 rounded-full bg-black/70 ring-1 ring-white/30 shadow-[0_2px_12px_rgba(0,0,0,0.7)]" />
                   {/* Buffered Progress */}
                   <div 
-                     className="absolute left-4 bottom-2 h-2 rounded-full bg-white/35 transition-[width] duration-300"
+                     className="absolute left-0 bottom-2 h-2 rounded-full bg-white/35 transition-[width] duration-300"
                     style={{ width: `${bufferedProgress}%` }}
                   />
                   {/* Playback Progress */}
                   <div 
-                     className="absolute left-4 bottom-2 h-2 rounded-full bg-white/85 shadow-[0_0_8px_rgba(255,255,255,0.35)] transition-[width] duration-100"
+                     className="absolute left-0 bottom-2 h-2 rounded-full bg-white/85 shadow-[0_0_8px_rgba(255,255,255,0.35)] transition-[width] duration-100"
                     style={{ width: `${(currentTime / (duration || 1)) * 100}%` }}
                   />
                   <div 
                      className="absolute bottom-[3px] h-4 w-4 bg-white border-2 border-zinc-700 rounded-full shadow-[0_1px_6px_rgba(0,0,0,0.7)] transition-transform z-10"
                      style={{ left: `calc(${(currentTime / (duration || 1)) * 100}% - 8px)` }}
                     />
-                   <div className="absolute left-4 bottom-3 -translate-y-full rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90 opacity-0 transition-opacity group-hover/progress:opacity-100">
+                   <div className="absolute left-0 bottom-3 -translate-y-full rounded bg-black/75 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-white/90 opacity-0 transition-opacity group-hover/progress:opacity-100">
                      {formatTime(currentTime)} / {formatTime(duration)}
                    </div>
                 </div>
