@@ -260,7 +260,10 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                           {volume ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
                           </button>
                           <div className="relative hidden h-3 w-16 sm:block">
-                            <div className="absolute inset-x-0 top-1.5 h-1.5 rounded-full bg-white/40" />
+                            <div
+                              className="absolute inset-x-0 top-1.5 h-1.5 rounded-full"
+                              style={{ background: `linear-gradient(to right, rgba(255,255,255,0.95) ${volume * 100}%, rgba(255,255,255,0.4) ${volume * 100}%)` }}
+                            />
                             <input
                               type="range"
                               min={0}
