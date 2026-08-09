@@ -280,7 +280,7 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                             />
                             <span
                               className="pointer-events-none absolute top-1/2 z-20 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.65)]"
-                              style={{ left: `${volume * 100}%` }}
+                              style={{ left: `calc(6px + ${volume * 100}% - ${volume * 12}px)` }}
                             />
                           </div>
                           <button type="button" onClick={toggleFullscreen} aria-label="全屏" className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/15">
