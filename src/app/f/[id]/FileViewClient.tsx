@@ -434,7 +434,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
               {/* TikTok Style: Right Sidebar Actions */}
               <div 
                 className={cn(
-                    "absolute flex transition-all duration-500 z-50 [&>div>button]:!bg-transparent [&>div>button]:!text-white [&>div>button]:!border-transparent [&>div>button]:!shadow-none [&>div>button:hover]:!bg-transparent [&>div>button:hover]:!text-white [&>div>span]:hidden [&>div>button>svg]:!h-7 [&>div>button>svg]:!w-7 [&>div>button>svg]:!text-white [&>div>button>svg]:!drop-shadow-none [&>div>button>svg]:stroke-[2.5]",
+                    "absolute flex transition-all duration-500 z-50 [&>div>button]:!bg-transparent [&>div>button]:!text-white [&>div>button]:!border-transparent [&>div>button]:!shadow-none [&>div>button]:!backdrop-blur-none [&>div>button:hover]:!bg-transparent [&>div>button:hover]:!text-white [&>div>span]:hidden [&>div>button>svg]:!h-7 [&>div>button>svg]:!w-7 [&>div>button>svg]:!text-white [&>div>button>svg]:!drop-shadow-none [&>div>button>svg]:stroke-[2.5]",
                    isLandscape
                      ? "right-6 top-1/2 -translate-y-1/2 flex-col gap-1 scale-[0.85] origin-right"
                      : "right-4 bottom-28 flex-col gap-1.5 scale-90 origin-right",
