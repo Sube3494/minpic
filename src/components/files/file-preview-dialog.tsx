@@ -260,6 +260,7 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                           {volume ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
                           </button>
                           <div className="relative hidden h-3 w-16 sm:block">
+                            <div className="absolute inset-x-0 top-1.5 h-1.5 rounded-full bg-white/40" />
                             <input
                               type="range"
                               min={0}
@@ -275,7 +276,7 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                                 }
                               }}
                               aria-label="音量"
-                              className="absolute inset-x-0 top-1.5 z-10 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-transparent [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-white/40 [&::-webkit-slider-thumb]:h-0 [&::-webkit-slider-thumb]:w-0 [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-white/40 [&::-moz-range-thumb]:h-0 [&::-moz-range-thumb]:w-0"
+                              className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                             />
                             <span
                               className="pointer-events-none absolute top-1/2 z-20 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.65)]"
