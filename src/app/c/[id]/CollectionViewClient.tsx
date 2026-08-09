@@ -266,7 +266,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
             if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
 
             const change = deltaY / 200;
-            const newBrightness = Math.max(0.1, Math.min(1, startBrightness.current + change));
+            const newBrightness = Math.max(0.1, Math.min(1.5, startBrightness.current + change));
             setBrightness(newBrightness);
         } 
         // If starting on right 50% of screen, adjust volume
@@ -671,7 +671,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                           <>
                             <div 
                                 className="absolute inset-0 bg-black pointer-events-none z-20 transition-opacity duration-150"
-                                style={{ opacity: isActive ? (1 - brightness) * 0.8 : 0 }} 
+                                style={{ opacity: isActive ? Math.max(0, 1 - brightness) * 0.8 : 0 }} 
                             />
                             <video
                                ref={(el) => {
@@ -687,6 +687,7 @@ export function CollectionViewClient({ id }: CollectionViewClientProps) {
                                muted={!isActive || volume === 0}
                                loop={isLooping}
                                className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain"
+                               style={{ filter: `brightness(${brightness})` }}
                                onEnded={() => {
                                  if (isActive && !isLooping && currentIndex < items.length - 1) {
                                    jumpToIndex(currentIndex + 1);

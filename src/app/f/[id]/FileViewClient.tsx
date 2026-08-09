@@ -201,7 +201,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
             if (indicatorTimer.current) clearTimeout(indicatorTimer.current);
 
             const change = deltaY / 200;
-            setBrightness(Math.max(0.1, Math.min(1, startBrightness.current + change)));
+            setBrightness(Math.max(0.1, Math.min(1.5, startBrightness.current + change)));
         } else {
             setIsAdjusting('volume');
             setShowIndicator('volume');
@@ -366,7 +366,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
 
           <div 
             className="absolute inset-0 bg-black pointer-events-none z-20 transition-opacity duration-300"
-            style={{ opacity: (1 - brightness) * 0.8 }} 
+                style={{ opacity: Math.max(0, 1 - brightness) * 0.8 }} 
           />
 
           {file.fileType === 'video' ? (
@@ -392,6 +392,7 @@ export function FileViewClient({ id, initialError }: FileViewClientProps) {
                 preload="auto"
                 loop={isLooping}
                 className="relative z-10 max-w-full max-h-full w-auto h-auto object-contain"
+                style={{ filter: `brightness(${brightness})` }}
                  onPlay={() => {
                    setHasStarted(true);
                    setIsPlaying(true);
