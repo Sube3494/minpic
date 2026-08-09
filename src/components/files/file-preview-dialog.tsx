@@ -259,23 +259,29 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                           <button type="button" onClick={toggleMute} aria-label={volume ? '静音' : '取消静音'} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/15">
                           {volume ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
                           </button>
-                          <input
-                          type="range"
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          value={volume}
-                          onChange={(e) => {
-                            const next = Number(e.target.value);
-                            setVolume(next);
-                            if (videoRef.current) {
-                              videoRef.current.volume = next;
-                              videoRef.current.muted = next === 0;
-                            }
-                          }}
-                          aria-label="音量"
-                          className="hidden h-1.5 w-16 cursor-pointer appearance-none rounded-full bg-transparent sm:block [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-white/40 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-0 [&::-webkit-slider-thumb]:bg-white [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-white/40 [&::-moz-range-thumb]:h-3 [&::-moz-range-thumb]:w-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-white"
-                          />
+                          <div className="relative hidden h-3 w-16 sm:block">
+                            <input
+                              type="range"
+                              min={0}
+                              max={1}
+                              step={0.05}
+                              value={volume}
+                              onChange={(e) => {
+                                const next = Number(e.target.value);
+                                setVolume(next);
+                                if (videoRef.current) {
+                                  videoRef.current.volume = next;
+                                  videoRef.current.muted = next === 0;
+                                }
+                              }}
+                              aria-label="音量"
+                              className="absolute inset-x-0 top-1.5 z-10 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-transparent [&::-webkit-slider-runnable-track]:h-1.5 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-white/40 [&::-webkit-slider-thumb]:h-0 [&::-webkit-slider-thumb]:w-0 [&::-moz-range-track]:h-1.5 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:bg-white/40 [&::-moz-range-thumb]:h-0 [&::-moz-range-thumb]:w-0"
+                            />
+                            <span
+                              className="pointer-events-none absolute top-1/2 z-20 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.65)]"
+                              style={{ left: `${volume * 100}%` }}
+                            />
+                          </div>
                           <button type="button" onClick={toggleFullscreen} aria-label="全屏" className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/15">
                           <Maximize className="h-4 w-4" />
                           </button>
