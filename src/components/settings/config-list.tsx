@@ -14,14 +14,13 @@ interface ConfigListProps {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onCreate: () => void;
-  onActivate: (id: string) => void;
   onDelete: (id: string) => void;
   canDelete: boolean;
   canEdit?: boolean; // Whether user can create/delete configs
 }
 
 export function ConfigList({ 
-  configs, activeId, selectedId, onSelect, onCreate, onActivate, onDelete, canDelete, canEdit = true
+  configs, activeId, selectedId, onSelect, onCreate, onDelete, canDelete, canEdit = true
 }: ConfigListProps) {
   const [indicatorStyle, setIndicatorStyle] = useState({ top: 0, height: 0, opacity: 0 });
   const itemsRef = useRef<(HTMLDivElement | null)[]>([]);
@@ -168,28 +167,6 @@ export function ConfigList({
 
                             {/* Action Buttons */}
                             <div className="flex items-center gap-1.5 shrink-0">
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onActivate(config.id);
-                                    }}
-                                    className={cn(
-                                        "h-7 w-auto min-w-[28px] p-0 transition-all flex items-center justify-center hover:bg-transparent",
-                                        isActive 
-                                            ? "text-green-600 dark:text-green-500 hover:text-green-700 dark:hover:text-green-400" 
-                                            : "text-zinc-300 dark:text-zinc-600 hover:text-zinc-400 dark:hover:text-zinc-500"
-                                    )}
-                                >
-                                    <div className="relative w-9 h-5 rounded-full border-2 border-current p-[2px] flex items-center">
-                                        <motion.div 
-                                            className="w-3 h-3 rounded-full bg-current shadow-sm"
-                                            animate={{ x: isActive ? 18 : 0 }}
-                                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                        />
-                                    </div>
-                                </Button>
                                 <Button
                                     size="sm"
                                     variant="ghost"

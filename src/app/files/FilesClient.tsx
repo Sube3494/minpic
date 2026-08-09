@@ -455,7 +455,7 @@ export function FilesClient() {
 
   // 文件管理只使用当前激活的配置。连接测试成功仅代表配置可连接，
   // 不代表它已经启用，避免关闭的配置仍出现在文件库切换器中。
-  const activeConfigs = configs.filter(c => c.id === selectedConfigId && c.status === 'success');
+  const activeConfigs = configs.filter(c => c.status === 'success');
   const selectedConfig = activeConfigs.find(c => c.id === selectedConfigId);
   
   const selectedConfigName = configLoading 

@@ -136,7 +136,6 @@ export function SettingsClient() {
                         selectedId={selectedId}
                         onSelect={setSelectedId}
                         onCreate={createConfig}
-                        onActivate={activateConfig}
                         onDelete={handleDeleteClick}
                         canDelete={true}
                         canEdit={true}

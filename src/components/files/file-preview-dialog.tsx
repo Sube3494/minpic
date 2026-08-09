@@ -2,9 +2,9 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { cn } from "@/lib/utils";
 import { FileItem } from "@/types/file";
 import { formatFileSize } from "@/lib/utils";
-import { useEffect, useState, memo } from "react";
+import { useEffect, useState, memo, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Copy, Loader2 } from "lucide-react";
+import { Copy, Loader2, Pause, Play, Volume2, VolumeX, Maximize, MoreVertical } from "lucide-react";
 import { CopyFormatMenu } from "./copy-format-menu";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -19,6 +19,11 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
 
   useEffect(() => {
     let ignore = false;
@@ -45,6 +50,9 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
           setUrl(null);
           setIsMenuOpen(false);
           setLoading(false);
+          setIsPlaying(false);
+          setProgress(0);
+          setDuration(0);
         }
       });
     }
@@ -55,6 +63,42 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
   }, [open, file, getDirectLink]);
 
   if (!file) return null;
+
+  const formatTime = (seconds: number) => {
+    if (!Number.isFinite(seconds)) return '00:00';
+    const minutes = Math.floor(seconds / 60);
+    const remaining = Math.floor(seconds % 60);
+    return `${String(minutes).padStart(2, '0')}:${String(remaining).padStart(2, '0')}`;
+  };
+
+  const togglePlay = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) video.play().catch(() => undefined);
+    else video.pause();
+  };
+
+  const seek = (value: number) => {
+    const video = videoRef.current;
+    if (!video || !duration) return;
+    video.currentTime = value;
+    setProgress(value);
+  };
+
+  const toggleMute = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = !video.muted;
+    if (!video.muted && video.volume === 0) video.volume = volume || 1;
+    setVolume(video.muted ? 0 : video.volume);
+  };
+
+  const toggleFullscreen = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
+    else video.requestFullscreen?.().catch(() => undefined);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -147,9 +191,10 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                       className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10"
                     />
                   ) : file.fileType === 'video' ? (
+                    <div className="relative group/video max-w-full max-h-[90vh] rounded-lg overflow-hidden bg-black shadow-[0_0_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10">
                     <motion.video
+                      ref={videoRef}
                       src={url}
-                      controls
                       autoPlay
                       muted
                       preload="auto"
@@ -157,8 +202,56 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.2 }}
-                      className="max-w-full max-h-[90vh] rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] ring-1 ring-white/10"
+                      onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+                      onTimeUpdate={(e) => setProgress(e.currentTarget.currentTime)}
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      onClick={togglePlay}
+                      className="block max-w-full max-h-[90vh]"
                     />
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-4 pb-3 pt-8 opacity-0 transition-opacity group-hover/video:opacity-100">
+                      <input
+                        type="range"
+                        min={0}
+                        max={duration || 0}
+                        step={0.1}
+                        value={progress}
+                        onChange={(e) => seek(Number(e.target.value))}
+                        aria-label="视频进度"
+                        className="mb-2 h-1 w-full cursor-pointer accent-white"
+                      />
+                      <div className="flex items-center gap-3 text-white">
+                        <button type="button" onClick={togglePlay} aria-label={isPlaying ? '暂停' : '播放'}>
+                          {isPlaying ? <Pause className="h-4 w-4 fill-white" /> : <Play className="h-4 w-4 fill-white" />}
+                        </button>
+                        <span className="text-xs tabular-nums">{formatTime(progress)} / {formatTime(duration)}</span>
+                        <button type="button" onClick={toggleMute} aria-label={volume ? '静音' : '取消静音'} className="ml-auto">
+                          {volume ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+                        </button>
+                        <input
+                          type="range"
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          value={volume}
+                          onChange={(e) => {
+                            const next = Number(e.target.value);
+                            setVolume(next);
+                            if (videoRef.current) {
+                              videoRef.current.volume = next;
+                              videoRef.current.muted = next === 0;
+                            }
+                          }}
+                          aria-label="音量"
+                          className="hidden w-16 cursor-pointer accent-white sm:block"
+                        />
+                        <button type="button" onClick={toggleFullscreen} aria-label="全屏">
+                          <Maximize className="h-4 w-4" />
+                        </button>
+                        <MoreVertical className="h-4 w-4 opacity-70" />
+                      </div>
+                    </div>
+                    </div>
                   ) : (
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.95 }}
