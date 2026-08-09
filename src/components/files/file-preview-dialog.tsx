@@ -24,6 +24,8 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [showPlaybackMenu, setShowPlaybackMenu] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -53,6 +55,8 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
           setIsPlaying(false);
           setProgress(0);
           setDuration(0);
+          setPlaybackRate(1);
+          setShowPlaybackMenu(false);
         }
       });
     }
@@ -98,6 +102,25 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
     if (!video) return;
     if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined);
     else video.requestFullscreen?.().catch(() => undefined);
+  };
+
+  const changePlaybackRate = (rate: number) => {
+    setPlaybackRate(rate);
+    if (videoRef.current) videoRef.current.playbackRate = rate;
+    setShowPlaybackMenu(false);
+  };
+
+  const downloadVideo = () => {
+    if (!url) return;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = file.filename;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setShowPlaybackMenu(false);
   };
 
   return (
@@ -209,7 +232,7 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                       onClick={togglePlay}
                       className="block max-w-full max-h-[90vh]"
                     />
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-4 pb-3 pt-8 opacity-0 transition-opacity group-hover/video:opacity-100">
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/65 to-transparent px-4 pb-4 pt-12 opacity-0 transition-opacity duration-300 group-hover/video:opacity-100">
                       <input
                         type="range"
                         min={0}
@@ -218,14 +241,14 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                         value={progress}
                         onChange={(e) => seek(Number(e.target.value))}
                         aria-label="视频进度"
-                        className="mb-2 h-1 w-full cursor-pointer accent-white"
+                        className="mb-3 h-1.5 w-full cursor-pointer accent-blue-400"
                       />
-                      <div className="flex items-center gap-3 text-white">
-                        <button type="button" onClick={togglePlay} aria-label={isPlaying ? '暂停' : '播放'}>
+                      <div className="flex items-center gap-2 text-white">
+                        <button type="button" onClick={togglePlay} aria-label={isPlaying ? '暂停' : '播放'} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 transition-colors hover:bg-white/25">
                           {isPlaying ? <Pause className="h-4 w-4 fill-white" /> : <Play className="h-4 w-4 fill-white" />}
                         </button>
-                        <span className="text-xs tabular-nums">{formatTime(progress)} / {formatTime(duration)}</span>
-                        <button type="button" onClick={toggleMute} aria-label={volume ? '静音' : '取消静音'} className="ml-auto">
+                        <span className="min-w-24 text-xs font-medium tabular-nums text-white/85">{formatTime(progress)} <span className="text-white/40">/</span> {formatTime(duration)}</span>
+                        <button type="button" onClick={toggleMute} aria-label={volume ? '静音' : '取消静音'} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/15">
                           {volume ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
                         </button>
                         <input
@@ -243,12 +266,45 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                             }
                           }}
                           aria-label="音量"
-                          className="hidden w-16 cursor-pointer accent-white sm:block"
+                          className="hidden w-16 cursor-pointer accent-blue-400 sm:block"
                         />
-                        <button type="button" onClick={toggleFullscreen} aria-label="全屏">
+                        <button type="button" onClick={toggleFullscreen} aria-label="全屏" className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/15">
                           <Maximize className="h-4 w-4" />
                         </button>
-                        <MoreVertical className="h-4 w-4 opacity-70" />
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setShowPlaybackMenu((open) => !open)}
+                            aria-label="播放设置"
+                            aria-expanded={showPlaybackMenu}
+                            className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/15"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                          {showPlaybackMenu && (
+                            <div className="absolute bottom-10 right-0 min-w-28 rounded-xl border border-white/15 bg-zinc-950/90 p-1.5 text-xs text-white shadow-2xl backdrop-blur-xl">
+                              <div className="px-2 py-1.5 text-[10px] font-medium tracking-wide text-white/45">播放速度</div>
+                              {[0.5, 1, 1.5, 2].map((rate) => (
+                                <button
+                                  key={rate}
+                                  type="button"
+                                  onClick={() => changePlaybackRate(rate)}
+                                  className={`block w-full rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/10 ${playbackRate === rate ? 'bg-blue-500/20 text-blue-300' : 'text-white/85'}`}
+                                >
+                                  {rate}×
+                                </button>
+                              ))}
+                              <div className="my-1 border-t border-white/10" />
+                              <button
+                                type="button"
+                                onClick={downloadVideo}
+                                className="block w-full rounded-lg px-2 py-1.5 text-left text-white/85 transition-colors hover:bg-white/10"
+                              >
+                                下载视频
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                     </div>
