@@ -261,7 +261,7 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                           </button>
                           <div className="relative hidden h-3 w-16 sm:block">
                             <div
-                              className="absolute inset-x-0 top-1.5 h-1.5 rounded-full"
+                              className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-full"
                               style={{ background: `linear-gradient(to right, rgba(255,255,255,0.95) ${volume * 100}%, rgba(255,255,255,0.4) ${volume * 100}%)` }}
                             />
                             <input
@@ -279,7 +279,7 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                                 }
                               }}
                               aria-label="音量"
-                              className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                              className="absolute inset-x-0 top-1/2 z-10 h-1.5 w-full -translate-y-1/2 cursor-pointer opacity-0"
                             />
                             <span
                               className="pointer-events-none absolute top-1/2 z-20 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_1px_4px_rgba(0,0,0,0.65)]"
