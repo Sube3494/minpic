@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dialog,
@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Search, CheckCircle2, Circle, Image as ImageIcon, Video, Check, Plus, Filter } from 'lucide-react';
+import { Loader2, Search, CheckCircle2, Circle, Image as ImageIcon, Video, Check, Plus } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -50,6 +50,7 @@ export function CollectionAddDialog({
   const [hasMore, setHasMore] = useState(true);
   const { configs, selectedConfigId, configLoading } = useConfigs();
   const [sourceConfigId, setSourceConfigId] = useState('');
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const availableConfigs = configs.filter(config => config.status !== 'error');
 
@@ -115,10 +116,24 @@ export function CollectionAddDialog({
     }
   }, [debouncedSearch, open, sourceConfigId, fetchFiles]);
 
-  const handleLoadMore = () => {
-      fetchFiles(page, debouncedSearch, false, sourceConfigId);
-  };
+  useEffect(() => {
+    if (!open || !hasMore || loading || !sourceConfigId) return;
 
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          fetchFiles(page, debouncedSearch, false, sourceConfigId);
+        }
+      },
+      { threshold: 0.1, rootMargin: '240px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [open, hasMore, loading, page, debouncedSearch, sourceConfigId, fetchFiles]);
 
   const toggleSelect = (id: string) => {
     if (existingFileIds.includes(id)) return;
@@ -277,15 +292,11 @@ export function CollectionAddDialog({
                     )}
                     
                     {!loading && hasMore && (
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={handleLoadMore}
-                            className="rounded-full px-8 hover:bg-primary hover:text-white transition-all active:scale-95 border-zinc-200 dark:border-white/10"
-                        >
-                            <Filter className="w-3 h-3 mr-2" />
-                            加载更多资源
-                        </Button>
+                        <div
+                            ref={loadMoreRef}
+                            className="h-10 w-full"
+                            aria-label="滚动加载更多资源"
+                        />
                     )}
 
                     {!loading && files.length === 0 && (
