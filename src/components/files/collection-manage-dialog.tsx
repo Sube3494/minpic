@@ -216,8 +216,8 @@ export function CollectionManageDialog({
   return (
     <>
         <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-2xl glass-strong bg-white dark:bg-[#0d1424]/95 backdrop-blur-3xl border-zinc-200 dark:border-[#2d3748] max-h-[92vh] sm:max-h-[86vh] flex flex-col p-0 overflow-hidden shadow-2xl rounded-t-[28px] sm:rounded-[28px]">
-            <div className="px-5 sm:px-7 pt-5 sm:pt-7 pb-4 border-b border-zinc-100 dark:border-[#202938]">
+        <DialogContent className="sm:max-w-2xl glass-strong bg-white dark:bg-[#0d1424]/95 backdrop-blur-3xl border-zinc-200 dark:border-[#2d3748] h-[92vh] sm:h-[86vh] flex flex-col p-0 overflow-hidden shadow-2xl rounded-t-[28px] sm:rounded-[28px]">
+            <div className="shrink-0 px-5 sm:px-7 pt-5 sm:pt-7 pb-4 border-b border-zinc-100 dark:border-[#202938]">
                 <DialogHeader className="text-left">
                     <div className="flex items-start gap-3.5">
                         <div className="p-2.5 rounded-2xl bg-primary/10 border border-primary/15 text-primary shadow-sm">
@@ -233,7 +233,7 @@ export function CollectionManageDialog({
                 </DialogHeader>
             </div>
 
-            <div className="px-5 sm:px-7 py-4">
+            <div className="shrink-0 px-5 sm:px-7 py-4">
                 <div className={cn(
                     "rounded-2xl border transition-all duration-300 overflow-hidden",
                     isEditingInfo 
