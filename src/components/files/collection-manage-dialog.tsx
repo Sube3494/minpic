@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Trash2, Plus, FileText, Image as ImageIcon, Video, Layers, Settings2, Check, Grid2X2, List } from 'lucide-react';
+import { Loader2, Trash2, Plus, FileText, Image as ImageIcon, Video, Layers, Settings2, Check } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { CollectionAddDialog } from './collection-add-dialog';
@@ -49,7 +49,6 @@ export function CollectionManageDialog({
   const [description, setDescription] = useState('');
   const [savingInfo, setSavingInfo] = useState(false);
   const [isEditingInfo, setIsEditingInfo] = useState(false);
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   
   // Calculate checked state for "Select All"
   const isAllSelected = items.length > 0 && selectedIds.length === items.length;
@@ -354,34 +353,6 @@ export function CollectionManageDialog({
                     </AnimatePresence>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="flex h-9 rounded-xl border border-zinc-200 bg-white p-1 shadow-sm dark:border-white/10 dark:bg-white/5">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            aria-label="列表视图"
-                            className={cn(
-                                "h-7 w-7 rounded-lg text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white",
-                                viewMode === 'list' && "bg-primary text-white hover:bg-primary hover:text-white dark:text-white"
-                            )}
-                            onClick={() => setViewMode('list')}
-                        >
-                            <List className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            aria-label="网格视图"
-                            className={cn(
-                                "h-7 w-7 rounded-lg text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white",
-                                viewMode === 'grid' && "bg-primary text-white hover:bg-primary hover:text-white dark:text-white"
-                            )}
-                            onClick={() => setViewMode('grid')}
-                        >
-                            <Grid2X2 className="h-4 w-4" />
-                        </Button>
-                    </div>
                     <Button 
                         size="sm" 
                         onClick={() => setShowAddDialog(true)} 
@@ -412,12 +383,7 @@ export function CollectionManageDialog({
                             <p className="text-xs mt-1 opacity-60 font-normal">点击上方按钮开始添加文件吧</p>
                         </div>
                     ) : (
-                        <div className={cn(
-                            "pb-4",
-                            viewMode === 'list'
-                                ? "space-y-1"
-                                : "grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"
-                        )}>
+                        <div className="grid grid-cols-2 gap-2 pb-4 sm:grid-cols-3 sm:gap-3">
                             <AnimatePresence mode="popLayout">
                                 {items.map((item) => {
                                     const isSelected = selectedIds.includes(item.fileId);
@@ -428,20 +394,14 @@ export function CollectionManageDialog({
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             className={cn(
-                                                "group relative cursor-pointer transition-all duration-200 border",
-                                                viewMode === 'list'
-                                                    ? "grid grid-cols-[auto_auto_1fr_auto] items-center gap-3 sm:gap-4 px-2.5 py-2.5 rounded-2xl"
-                                                    : "flex min-h-[176px] flex-col overflow-hidden rounded-2xl",
+                                                "group relative flex min-h-[176px] cursor-pointer flex-col overflow-hidden rounded-2xl border transition-all duration-200",
                                                 isSelected 
                                                     ? "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-400/25 shadow-sm" 
                                                     : "bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-[#171e2d] hover:border-slate-200 dark:hover:border-[#2d3748]"
                                             )}
                                             onClick={() => toggleSelect(item.fileId)}
                                         >
-                                            <div className={cn(
-                                                "flex items-center justify-center",
-                                                viewMode === 'list' ? "pl-1" : "absolute left-2 top-2 z-10"
-                                            )} onClick={(e) => e.stopPropagation()}>
+                                            <div className="absolute left-2 top-2 z-10 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                                                 <div 
                                                     className="cursor-pointer transition-all hover:scale-110 active:scale-90"
                                                     onClick={() => toggleSelect(item.fileId)}
@@ -457,12 +417,7 @@ export function CollectionManageDialog({
                                                 </div>
                                             </div>
 
-                                             <div className={cn(
-                                                "bg-zinc-100 dark:bg-white/5 overflow-hidden flex items-center justify-center border border-zinc-200/50 dark:border-white/10 shadow-sm transition-transform",
-                                                viewMode === 'list'
-                                                    ? "w-12 h-12 rounded-2xl group-hover:scale-105"
-                                                    : "aspect-video w-full rounded-t-2xl border-x-0 border-t-0"
-                                             )}>
+                                             <div className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-t-2xl border-b border-zinc-200/50 bg-zinc-100 shadow-sm transition-transform dark:border-white/10 dark:bg-white/5">
                                                 {item.thumbnailUrl ? (
                                                     /* eslint-disable-next-line @next/next/no-img-element */
                                                     <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />
@@ -473,13 +428,9 @@ export function CollectionManageDialog({
                                                 )}
                                             </div>
 
-                                            <div className={cn(
-                                                "min-w-0 flex flex-col justify-center overflow-hidden",
-                                                viewMode === 'grid' && "px-3 py-2.5"
-                                            )}>
+                                            <div className="min-w-0 flex flex-col justify-center overflow-hidden px-3 py-2.5">
                                                 <h4 className={cn(
-                                                    "text-sm font-normal transition-colors leading-tight mb-1",
-                                                    viewMode === 'list' ? "truncate" : "line-clamp-2 min-h-9",
+                                                    "mb-1 min-h-9 line-clamp-2 text-sm font-normal leading-tight transition-colors",
                                                     isSelected ? "text-primary" : "text-zinc-700 dark:text-zinc-200"
                                                 )} title={item.filename}>
                                                     {item.filename}
@@ -499,10 +450,7 @@ export function CollectionManageDialog({
                                                 </div>
                                             </div>
 
-                                            <div className={cn(
-                                                "flex items-center justify-center",
-                                                viewMode === 'list' ? "w-8" : "absolute right-2 top-2"
-                                            )} onClick={(e) => e.stopPropagation()}>
+                                            <div className="absolute right-2 top-2 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
