@@ -184,7 +184,7 @@ export function CollectionAddDialog({
                     <SelectTrigger className="h-9 min-w-0 flex-1 rounded-xl border-zinc-200/80 bg-white/70 text-xs text-zinc-700 shadow-sm hover:bg-white dark:border-white/15 dark:bg-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.12]">
                         <SelectValue placeholder={configLoading ? '正在加载资源库...' : '选择资源库'} />
                     </SelectTrigger>
-                    <SelectContent position="popper" className="border-zinc-200/80 bg-white/95 dark:border-white/15 dark:bg-zinc-800/95">
+                    <SelectContent position="popper">
                         {availableConfigs.length === 0 ? (
                             <SelectItem value="empty" disabled>暂无可用资源库</SelectItem>
                         ) : availableConfigs.map(config => (
