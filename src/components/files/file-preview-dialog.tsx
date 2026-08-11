@@ -258,7 +258,9 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                         <button type="button" onClick={togglePlay} aria-label={isPlaying ? '暂停' : '播放'} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 transition-colors hover:bg-white/25">
                           {isPlaying ? <Pause className="h-4 w-4 fill-white" /> : <Play className="h-4 w-4 fill-white" />}
                         </button>
-                        <span className="absolute bottom-12 left-1/2 -translate-x-1/2 text-2xl font-medium tabular-nums tracking-wide text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">{formatTime(progress)} <span className="text-white/60">/</span> {formatTime(duration)}</span>
+                        <span className="text-xs font-medium tabular-nums text-white/85">
+                          {formatTime(progress)} / {formatTime(duration)}
+                        </span>
                         <div className="ml-auto flex items-center gap-2">
                           <button type="button" onClick={toggleMute} aria-label={volume ? '静音' : '取消静音'} className="flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-white/15">
                           {volume ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
