@@ -454,7 +454,7 @@ export function CollectionManageDialog({
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 rounded-full text-zinc-400 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all active:scale-90 flex items-center justify-center"
+                                                    className="flex h-7 w-7 items-center justify-center rounded-full bg-black/35 text-white/80 opacity-0 shadow-sm backdrop-blur-md transition-all hover:bg-black/45 hover:text-white group-hover:opacity-100 active:scale-90 disabled:opacity-60"
                                                     onClick={() => handleRemove(item.fileId)}
                                                     disabled={removingId === item.fileId || removingId === 'batch'}
                                                 >

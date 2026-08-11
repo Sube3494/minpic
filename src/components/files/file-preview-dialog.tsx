@@ -306,23 +306,23 @@ export const FilePreviewDialog = memo(function FilePreviewDialog({ file, open, o
                             <MoreVertical className="h-4 w-4" />
                           </button>
                           {showPlaybackMenu && (
-                            <div className="absolute bottom-10 right-0 min-w-28 rounded-xl border border-white/15 bg-zinc-950/90 p-1.5 text-xs text-white shadow-2xl backdrop-blur-xl">
-                              <div className="px-2 py-1.5 text-[10px] font-medium tracking-wide text-white/45">播放速度</div>
+                            <div className="absolute bottom-12 right-0 z-50 min-w-28 rounded-xl border border-transparent bg-white/80 p-1.5 text-xs text-zinc-800 shadow-2xl backdrop-blur-2xl dark:bg-white/10 dark:text-white">
+                              <div className="px-2 py-1.5 text-[10px] font-medium tracking-wide text-zinc-500 dark:text-white/45">播放速度</div>
                               {[0.5, 1, 1.5, 2].map((rate) => (
                                 <button
                                   key={rate}
                                   type="button"
                                   onClick={() => changePlaybackRate(rate)}
-                                  className={`block w-full rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-white/10 ${playbackRate === rate ? 'bg-blue-500/20 text-blue-300' : 'text-white/85'}`}
+                                  className={`block w-full rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-zinc-900/10 dark:hover:bg-white/10 ${playbackRate === rate ? 'bg-primary/15 text-primary dark:bg-white/15 dark:text-white' : 'text-zinc-700 dark:text-white/85'}`}
                                 >
                                   {rate}×
                                 </button>
                               ))}
-                              <div className="my-1 border-t border-white/10" />
+                              <div className="my-1 border-t border-zinc-900/10 dark:border-white/10" />
                               <button
                                 type="button"
                                 onClick={downloadVideo}
-                                className="block w-full rounded-lg px-2 py-1.5 text-left text-white/85 transition-colors hover:bg-white/10"
+                                className="block w-full rounded-lg px-2 py-1.5 text-left text-zinc-700 transition-colors hover:bg-zinc-900/10 dark:text-white/85 dark:hover:bg-white/10"
                               >
                                 下载视频
                               </button>
