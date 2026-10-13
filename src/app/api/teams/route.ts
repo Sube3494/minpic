@@ -9,6 +9,8 @@ import { cache, CacheKeys } from '@/lib/cache';
 const createTeamSchema = z.object({
   name: z.string().min(1).max(50),
   description: z.string().max(200).optional(),
+  storageQuotaMB: z.number().positive().default(500),
+  fileQuota: z.number().int().positive().default(1000),
 });
 
 // 更新团队的Schema
@@ -184,7 +186,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, description } = validation.data;
+    const { name, description, storageQuotaMB, fileQuota } = validation.data;
 
     // 创建团队和团队主的成员记录
     const team = await prisma.team.create({
@@ -192,6 +194,8 @@ export async function POST(request: NextRequest) {
         name,
         description,
         ownerId: userId,
+        storageQuota: BigInt(Math.floor(storageQuotaMB * 1024 * 1024)),
+        fileQuota,
         members: {
           create: {
             userId,
@@ -209,6 +213,8 @@ export async function POST(request: NextRequest) {
                 name: true,
                 avatar: true,
                 githubId: true,
+                storageUsed: true,
+                fileCount: true,
               },
             },
           },
