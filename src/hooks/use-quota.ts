@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import { readApiResponse } from '@/lib/api-response';
 
 
 export interface UserQuota {
-  storageQuota?: string;
+  storageQuota?: string | null;
   storageUsed: string;
-  fileQuota?: number;
+  fileQuota?: number | null;
   fileCount: number;
 }
 
@@ -16,7 +17,7 @@ export function useQuota() {
     try {
       const res = await fetch('/api/user/profile');
       if (res.ok) {
-        const data = await res.json();
+        const data = await readApiResponse<UserQuota>(res);
         setQuota({
           storageQuota: data.storageQuota,
           storageUsed: data.storageUsed,

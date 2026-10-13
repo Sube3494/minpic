@@ -6,7 +6,7 @@ export interface FileItem {
   id: string;
   filename: string;
   minioPath: string;
-  fileSize: number;
+  fileSize: string | number;
   mimeType: string;
   fileType: string;
   thumbnailPath: string | null;

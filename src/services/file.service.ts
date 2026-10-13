@@ -1,5 +1,6 @@
 import { FileItem } from '@/types/file';
 import { MinioConfigItem } from '@/types/config';
+import { readApiResponse } from '@/lib/api-response';
 
 export const fileService = {
   async getFiles(
@@ -18,7 +19,10 @@ export const fileService = {
 
     const response = await fetch(`/api/files?${params}`);
     if (!response.ok) throw new Error('Failed to fetch files');
-    const data = await response.json();
+    const data = await readApiResponse<{
+      files?: FileItem[];
+      pagination: { total: number; totalPages: number };
+    }>(response);
     return {
       files: data.files || [],
       pagination: data.pagination
@@ -126,6 +130,6 @@ export const fileService = {
       body: JSON.stringify(data),
     });
     if (!response.ok) throw new Error('Failed to patch file');
-    return response.json();
+    return readApiResponse(response);
   }
 };

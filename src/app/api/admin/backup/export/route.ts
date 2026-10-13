@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
                    now.getMinutes().toString().padStart(2, '0') + 
                    now.getSeconds().toString().padStart(2, '0');
     const fileName = `minpic-backup-${dateStr}-${timeStr}.backup`;
-    let finalData = JSON.stringify(serializeBigInt(data));
+    let finalData = JSON.stringify(serializeBigInt(data, 'tagged'));
 
     const encrypted = await encryptBackup(finalData, password);
     finalData = JSON.stringify(encrypted);

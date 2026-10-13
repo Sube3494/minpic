@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatFileSize(bytes: number | bigint) {
+export function formatFileSize(bytes: number | bigint | string) {
   const bytesNum = Number(bytes);
   if (bytesNum < 1024) return bytesNum + ' B';
   if (bytesNum < 1024 * 1024) return (bytesNum / 1024).toFixed(1) + ' KB';
@@ -49,11 +49,11 @@ export function getClientIp(request: Request) {
 /**
  * 递归序列化对象中的 BigInt 类型，将其转为字符串
  */
-export function serializeBigInt(obj: unknown): unknown {
+export function serializeBigInt(obj: unknown, format: 'string' | 'tagged' = 'string'): unknown {
   if (obj === null || obj === undefined) return obj;
   
   if (typeof obj === 'bigint') {
-    return { __bigint: obj.toString() };
+    return format === 'tagged' ? { __bigint: obj.toString() } : obj.toString();
   }
   
   if (Buffer.isBuffer(obj)) {
@@ -61,7 +61,7 @@ export function serializeBigInt(obj: unknown): unknown {
   }
   
   if (Array.isArray(obj)) {
-    return obj.map(item => serializeBigInt(item));
+    return obj.map(item => serializeBigInt(item, format));
   }
 
   if (obj instanceof Date) {
@@ -73,7 +73,7 @@ export function serializeBigInt(obj: unknown): unknown {
     const res: Record<string, unknown> = {};
     for (const key in record) {
       if (Object.prototype.hasOwnProperty.call(record, key)) {
-        res[key] = serializeBigInt(record[key]);
+        res[key] = serializeBigInt(record[key], format);
       }
     }
     return res;

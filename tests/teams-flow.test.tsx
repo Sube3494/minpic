@@ -54,7 +54,7 @@ describe('Team API → service → page regression', () => {
     vi.mocked(prisma.teamMember.findUnique).mockResolvedValue({ team, role: 'ADMIN' } as never);
     const response = await GET();
     const raw = await response.clone().json();
-    expect(raw.team.storageQuota).toEqual({ __bigint: '524288000' });
+    expect(raw.team.storageQuota).toBe('524288000');
     vi.stubGlobal('fetch', vi.fn(async () => response));
 
     state.teamInfo = await teamService.getTeamInfo();
@@ -73,7 +73,7 @@ describe('Team API → service → page regression', () => {
         storageUsed: BigInt(1024 * 1024), fileCount: 1 },
     });
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(
-      serializeBigInt({ team, role: 'OWNER' }),
+      serializeBigInt({ team, role: 'OWNER' }, 'tagged'),
     ))));
     state.teamInfo = await teamService.getTeamInfo();
 

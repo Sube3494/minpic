@@ -7,7 +7,7 @@ import { formatFileSize } from '@/lib/utils';
 interface PersonalStorageCardProps {
   stats: {
     totalFiles: number;
-    totalStorage: number;
+    totalStorage: string | number;
   };
 }
 

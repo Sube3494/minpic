@@ -1,3 +1,5 @@
+import { readApiResponse } from '@/lib/api-response';
+
 export interface Team {
   id: string;
   name: string;
@@ -66,23 +68,12 @@ export interface InviteCode {
   }>;
 }
 
-// API responses use tagged BigInts for backup compatibility. Team consumers
-// expect decimal strings so they can safely use BigInt() and Number().
-async function readTeamResponse<T>(response: Response): Promise<T> {
-  return JSON.parse(await response.text(), (_key, value) => {
-    if (value && typeof value === 'object' && typeof value.__bigint === 'string') {
-      return value.__bigint;
-    }
-    return value;
-  });
-}
-
 export const teamService = {
   // Get current user's team info
   async getTeamInfo(): Promise<TeamInfo> {
     const res = await fetch('/api/teams');
     if (!res.ok) throw new Error('Failed to fetch team info');
-    return readTeamResponse(res);
+    return readApiResponse(res);
   },
 
   // Create team
@@ -101,7 +92,7 @@ export const teamService = {
       const error = await res.json();
       throw new Error(error.error || 'Failed to create team');
     }
-    return readTeamResponse(res);
+    return readApiResponse(res);
   },
 
   // Update team
@@ -112,7 +103,7 @@ export const teamService = {
       body: JSON.stringify({ name, description, storageQuotaMB, fileQuota, autoAllocateQuota, defaultStorageQuotaMB, defaultFileQuota }),
     });
     if (!res.ok) throw new Error('Failed to update team');
-    return readTeamResponse(res);
+    return readApiResponse(res);
   },
 
   // Delete team
@@ -127,7 +118,7 @@ export const teamService = {
   async getMembers(): Promise<{ members: TeamMember[] }> {
     const res = await fetch('/api/teams/members');
     if (!res.ok) throw new Error('Failed to fetch members');
-    return readTeamResponse(res);
+    return readApiResponse(res);
   },
 
   // Remove member
@@ -146,7 +137,7 @@ export const teamService = {
       body: JSON.stringify({ role }),
     });
     if (!res.ok) throw new Error('Failed to update member role');
-    return readTeamResponse(res);
+    return readApiResponse(res);
   },
 
   // Generate invite code
@@ -160,7 +151,7 @@ export const teamService = {
       const error = await res.json();
       throw new Error(error.error || 'Failed to generate invite');
     }
-    return readTeamResponse(res);
+    return readApiResponse(res);
   },
 
   // Delete invite code
@@ -185,7 +176,7 @@ export const teamService = {
       const error = await res.json();
       throw new Error(error.error || 'Failed to join team');
     }
-    return readTeamResponse(res);
+    return readApiResponse(res);
   },
 
   // Leave team
@@ -203,7 +194,7 @@ export const teamService = {
   async getInviteCodes(): Promise<{ invites: InviteCode[] }> {
     const res = await fetch('/api/teams/invites');
     if (!res.ok) throw new Error('Failed to fetch invite codes');
-    return readTeamResponse(res);
+    return readApiResponse(res);
   },
 
   // Set member quota

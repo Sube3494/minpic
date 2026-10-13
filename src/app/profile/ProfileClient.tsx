@@ -15,6 +15,7 @@ import { Shield, Calendar, Mail, User as UserIcon, Activity, BarChart3, Github, 
 import { useSession, signIn, signOut } from 'next-auth/react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { formatFileSize, cn } from '@/lib/utils';
+import { readApiResponse } from '@/lib/api-response';
 import { useTeam } from '@/hooks/use-team';
 import { TeamResourceCard } from '@/components/settings/team-resource-card';
 import { PersonalStorageCard } from '@/components/settings/personal-storage-card';
@@ -46,9 +47,9 @@ interface UserProfile {
 
 interface UserStats {
   totalFiles: number;
-  totalStorage: number;
-  personalStats: { totalFiles: number; totalStorage: number };
-  teamStats: { totalFiles: number; totalStorage: number };
+  totalStorage: string | number;
+  personalStats: { totalFiles: number; totalStorage: string | number };
+  teamStats: { totalFiles: number; totalStorage: string | number };
   personalConfigCount: number;
   recentFiles: number;
   fileTypeDistribution: Array<{ type: string; count: number }>;
@@ -244,8 +245,10 @@ export function ProfileClient() {
       if (!profileRes.ok) throw new Error('Failed to fetch profile');
       if (!statsRes.ok) throw new Error('Failed to fetch stats');
 
-      const profileData = await profileRes.json();
-      const statsData = await statsRes.json();
+      const [profileData, statsData] = await Promise.all([
+        readApiResponse<UserProfile>(profileRes),
+        readApiResponse<UserStats>(statsRes),
+      ]);
       setProfile(profileData);
       setStats(statsData);
     } catch (err) {

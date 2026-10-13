@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
+import { serializeBigInt } from '@/lib/utils';
 
 // GET /api/teams/invites - 获取团队邀请码历史
 export async function GET() {
@@ -44,7 +45,7 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ invites });
+    return NextResponse.json(serializeBigInt({ invites }));
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: '获取邀请码列表失败' }, { status: 500 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { serializeBigInt } from '@/lib/utils';
 
 // 更新成员角色的Schema
 const updateMemberRoleSchema = z.object({
@@ -33,6 +34,8 @@ export async function GET() {
                     name: true,
                     avatar: true,
                     githubId: true,
+                    storageUsed: true,
+                    fileCount: true,
                   },
                 },
               },
@@ -49,7 +52,7 @@ export async function GET() {
         if (b.userId === ownerId) return 1;
         return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
       });
-      return NextResponse.json({ members: sortedMembers });
+      return NextResponse.json(serializeBigInt({ members: sortedMembers }));
     }
 
     // 如果不是成员,检查是否是团队主(但没有成员记录的边缘情况)
@@ -65,6 +68,8 @@ export async function GET() {
                 name: true,
                 avatar: true,
                 githubId: true,
+                storageUsed: true,
+                fileCount: true,
               },
             },
           },
@@ -79,7 +84,7 @@ export async function GET() {
         if (b.userId === userId) return 1;
         return new Date(a.joinedAt).getTime() - new Date(b.joinedAt).getTime();
       });
-      return NextResponse.json({ members: sortedMembers });
+      return NextResponse.json(serializeBigInt({ members: sortedMembers }));
     }
 
     return NextResponse.json({ error: '您不在任何团队中' }, { status: 404 });
@@ -228,12 +233,14 @@ export async function PATCH(request: NextRequest) {
             name: true,
             avatar: true,
             githubId: true,
+            storageUsed: true,
+            fileCount: true,
           },
         },
       },
     });
 
-    return NextResponse.json({ member: updatedMember });
+    return NextResponse.json(serializeBigInt({ member: updatedMember }));
   } catch (error) {
     console.error('更新成员角色失败:', error);
     return NextResponse.json({ error: '服务器错误' }, { status: 500 });
