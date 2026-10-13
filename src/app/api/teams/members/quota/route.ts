@@ -7,8 +7,8 @@ import { cache, CacheKeys } from '@/lib/cache';
 // Schema for setting member quota
 const setQuotaSchema = z.object({
   userId: z.string(),
-  storageQuota: z.number().optional().nullable(),
-  fileQuota: z.number().int().optional().nullable(),
+  storageQuota: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER).optional().nullable(),
+  fileQuota: z.number().int().nonnegative().max(2147483647).optional().nullable(),
 });
 
 // PATCH /api/teams/members/quota - 设置成员配额
@@ -70,9 +70,6 @@ export async function PATCH(request: Request) {
       select: {
         storageQuota: true,
         fileQuota: true,
-        owner: {
-          select: { storageUsed: true, fileCount: true }
-        }
       }
     });
 
@@ -89,14 +86,15 @@ export async function PATCH(request: Request) {
       return `${(Number(bytes) / (1024 * 1024)).toFixed(2)} MB`;
     };
 
-      // 1. 验证存储限额
+    // 1. 验证存储限额：成员配额池不包含团队主的使用量或限额
     if (storageQuota !== undefined) {
       const newStorageVal = storageQuota === null ? null : BigInt(storageQuota);
       
-      let oldTotalStorage = BigInt(teamWithMembers.owner.storageUsed || 0);
-      let newTotalStorage = BigInt(teamWithMembers.owner.storageUsed || 0);
+      let oldTotalStorage = BigInt(0);
+      let newTotalStorage = BigInt(0);
 
       for (const m of allMembers) {
+        if (m.userId === team.ownerId) continue;
         // 只统计显式设置的成员配额
         const currentMQuota = m.storageQuota || BigInt(0);
         oldTotalStorage += BigInt(currentMQuota);
@@ -113,17 +111,18 @@ export async function PATCH(request: Request) {
       if (newTotalStorage > totalPool && newTotalStorage > oldTotalStorage) {
         return NextResponse.json({
           error: '分配失败：存储空间超出团队总额',
-          message: `您的总容量为 ${formatSize(totalPool)}。当前已通过显式限额分配了 ${formatSize(newTotalStorage)} (含个人占用)，超过了总容量。请先调低其他成员的限额或清理空间。`
+          message: `团队成员总容量为 ${formatSize(totalPool)}。当前成员配额分配总额为 ${formatSize(newTotalStorage)}，超过了总容量。请先调低其他成员的限额。`
         }, { status: 400 });
       }
     }
 
     // 2. 验证文件数量限额
     if (fileQuota !== undefined) {
-      let oldTotalFiles = Number(teamWithMembers.owner.fileCount || 0);
-      let newTotalFiles = Number(teamWithMembers.owner.fileCount || 0);
+      let oldTotalFiles = 0;
+      let newTotalFiles = 0;
 
       for (const m of allMembers) {
+        if (m.userId === team.ownerId) continue;
         // 只统计显式设置的成员配额
         const currentFQuota = m.fileQuota || 0;
         oldTotalFiles += currentFQuota;
@@ -139,7 +138,7 @@ export async function PATCH(request: Request) {
       if (newTotalFiles > teamWithMembers.fileQuota && newTotalFiles > oldTotalFiles) {
         return NextResponse.json({
           error: '分配失败：文件数量超出团队总额',
-          message: `您的总文件配额为 ${teamWithMembers.fileQuota}。目前显式分配已达 ${newTotalFiles} (含个人占用)，超过了上限。`
+          message: `团队成员总文件配额为 ${teamWithMembers.fileQuota}。当前成员配额分配总额为 ${newTotalFiles}，超过了上限。`
         }, { status: 400 });
       }
     }
