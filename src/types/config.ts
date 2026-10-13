@@ -22,6 +22,7 @@ export interface MinioConfigItem {
   expirationDays?: number; // 文件过期天数，0 表示永不过期
   status?: 'unknown' | 'success' | 'error'; // 配置状态
   isTeam?: boolean; // 是否为团队共享配置 (只读)
+  sharedWithTeam?: boolean; // 未设置的旧节点保留共享，新节点默认关闭
   teamName?: string; // 所属团队名称
 }
 
@@ -60,6 +61,7 @@ export const DEFAULT_MINIO_CONFIG: Omit<MinioConfigItem, 'id' | 'name'> = {
   baseDir: '',
   archiveStrategy: 'none',
   expirationDays: 0,
+  sharedWithTeam: false,
 };
 
 // --- Hook Return Types ---

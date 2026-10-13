@@ -2,77 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { MinioConfigItem } from '@/types/config';
-import { decryptMinioConfig, encryptMinioConfig } from '@/lib/config-encryption';
+import { encryptMinioConfig } from '@/lib/config-encryption';
+import { getAccessibleMinioConfigs, getUserMinioConfig } from '@/lib/get-user-minio-config';
 
 export async function GET() {
   const { error, user } = await requireAuth();
   if (error) return error;
 
   try {
-    // 获取用户的所有 MinIO 配置
-    const configs = await prisma.config.findMany({
-      where: {
-        userId: user.id,
-        key: { startsWith: 'minio_' },
-        NOT: {
-          key: { in: ['minio_active_id', 'minio_configs'] }
-        }
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
-
-    // 解析用户的配置并解密
-    const parsedConfigs: MinioConfigItem[] = configs.map(c => {
-      const config = JSON.parse(c.value);
-      // 解密敏感字段
-      return decryptMinioConfig(config) as unknown as MinioConfigItem;
-    });
-
-    // 检查用户是否在团队中
-    const membership = await prisma.teamMember.findUnique({
-      where: { userId: user.id },
-      include: {
-        team: {
-          include: {
-            owner: {
-              select: {
-                id: true,
-                username: true,
-                name: true
-              }
-            }
-          }
-        }
-      }
-    });
-
-    // 如果在团队中且不是团队主，获取团队主的配置
-    if (membership && membership.userId !== membership.team.ownerId) {
-      const ownerConfigs = await prisma.config.findMany({
-        where: {
-          userId: membership.team.ownerId,
-          key: { startsWith: 'minio_' },
-          NOT: {
-            key: { in: ['minio_active_id', 'minio_configs'] }
-          }
-        },
-        orderBy: { updatedAt: 'desc' },
-      });
-
-      const parsedOwnerConfigs = ownerConfigs.map(c => {
-        const cfg = JSON.parse(c.value);
-        // 解密团队主配置
-        const decryptedCfg = decryptMinioConfig(cfg) as unknown as MinioConfigItem;
-        return {
-          ...decryptedCfg,
-          isTeam: true,
-          teamName: membership.team.name,
-        };
-      });
-
-      // 将团队配置添加到列表前面
-      parsedConfigs.unshift(...parsedOwnerConfigs);
-    }
+    const parsedConfigs = await getAccessibleMinioConfigs(user.id);
 
     // 获取活动配置 ID（如果有）
     const activeConfig = await prisma.config.findUnique({
@@ -81,7 +19,8 @@ export async function GET() {
       }
     });
 
-    const activeId = activeConfig?.value ?? (parsedConfigs[0]?.id || '');
+    const activeId = parsedConfigs.some(config => config.id === activeConfig?.value)
+      ? activeConfig!.value : (parsedConfigs[0]?.id || '');
 
     return NextResponse.json({ configs: parsedConfigs, activeId });
   } catch (error) {
@@ -111,6 +50,11 @@ export async function POST(request: NextRequest) {
 
     // 过滤掉团队共享配置（只保存用户自己的配置）
     const userConfigs = configs.filter((c: MinioConfigItem) => !c.isTeam);
+    if (userConfigs.some((config: MinioConfigItem) =>
+      config.sharedWithTeam !== undefined && typeof config.sharedWithTeam !== 'boolean'
+    )) {
+      return NextResponse.json({ error: '共享选项必须为布尔值' }, { status: 400 });
+    }
 
     if (configs.length === 0) {
       // If configs is empty, we just delete everything (handled below) and return
@@ -124,6 +68,12 @@ export async function POST(request: NextRequest) {
           { error: 'Active config not found in configs array' },
           { status: 400 }
         );
+      }
+      if (found.isTeam) {
+        const accessible = await getUserMinioConfig(user.id, activeId);
+        if (!accessible?.isTeam) {
+          return NextResponse.json({ error: '该存储节点已取消共享或无权访问' }, { status: 403 });
+        }
       }
     }
 

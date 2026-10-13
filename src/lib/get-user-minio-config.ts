@@ -13,98 +13,45 @@ type MinioConfig = MinioConfigItem;
  * 4. 用户的第一个配置
  */
 export async function getUserMinioConfig(userId: string, configId?: string | null): Promise<MinioConfig | null> {
-  let config = null;
+  const configs = await getAccessibleMinioConfigs(userId);
+  // A specified node must match exactly; never silently switch storage targets.
+  if (configId) return configs.find(config => config.id === configId) ?? null;
 
-  // 1. 如果提供了 configId，尝试获取该配置
-  if (configId) {
-    try {
-      const configRecord = await prisma.config.findUnique({
-        where: {
-          userId_key: { userId, key: `minio_${configId}` }
-        },
-      });
-
-      if (configRecord) {
-        config = JSON.parse(configRecord.value);
-        // 解密敏感字段
-        config = decryptMinioConfig(config) as unknown as MinioConfig;
-        return config;
-      }
-    } catch {
-      // Ignore error
-    }
-  }
-
-  // 2. 尝试获取用户的活动配置
-  try {
-    const activeConfigRecord = await prisma.config.findUnique({
-      where: {
-        userId_key: { userId, key: 'minio_active_id' }
-      }
-    });
-
-    if (activeConfigRecord) {
-      const activeId = activeConfigRecord.value;
-
-      const configRecord = await prisma.config.findUnique({
-        where: {
-          userId_key: { userId, key: `minio_${activeId}` }
-        },
-      });
-
-      if (configRecord) {
-        config = JSON.parse(configRecord.value);
-        // 解密敏感字段
-        config = decryptMinioConfig(config) as unknown as MinioConfig;
-        return config;
-      }
-    }
-  } catch {
-    // Ignore error
-  }
-
-  // 3. 如果用户是团队成员，尝试获取团队主的活动配置
-  try {
-    const teamMember = await prisma.teamMember.findUnique({
-      where: { userId },
-      include: {
-        team: {
-          select: {
-            ownerId: true,
-          },
-        },
-      },
-    });
-
-    if (teamMember) {
-      const ownerConfig = await getUserMinioConfig(teamMember.team.ownerId);
-      if (ownerConfig) {
-        return ownerConfig;
-      }
-    }
-  } catch {
-    // Ignore error
-  }
-
-  // 4. 最后尝试获取用户的第一个配置
-  const userConfig = await prisma.config.findFirst({
-    where: {
-      userId,
-      key: { startsWith: 'minio_' },
-      NOT: {
-        key: { in: ['minio_active_id', 'minio_configs'] }
-      }
-    },
-    orderBy: { updatedAt: 'desc' },
+  const active = await prisma.config.findUnique({
+    where: { userId_key: { userId, key: 'minio_active_id' } },
   });
+  return configs.find(config => config.id === active?.value) ?? configs[0] ?? null;
+}
 
-  if (userConfig) {
-    config = JSON.parse(userConfig.value);
-    // 解密敏感字段
-    config = decryptMinioConfig(config) as unknown as MinioConfig;
-  }
+/** Own nodes plus the owner's explicitly shared nodes; legacy nodes retain sharing. */
+export async function getAccessibleMinioConfigs(userId: string): Promise<MinioConfig[]> {
+  const nodeFilter = {
+    key: { startsWith: 'minio_' },
+    NOT: { key: { in: ['minio_active_id', 'minio_configs', 'minio_test'] } },
+  };
+  const [ownRecords, membership] = await Promise.all([
+    prisma.config.findMany({ where: { userId, ...nodeFilter }, orderBy: { updatedAt: 'desc' } }),
+    prisma.teamMember.findUnique({
+      where: { userId }, include: { team: { select: { ownerId: true, name: true } } },
+    }),
+  ]);
+  const parse = (record: { key: string; value: string }): MinioConfig => {
+    const config = JSON.parse(record.value);
+    return { ...decryptMinioConfig(config) as MinioConfig, id: record.key.slice('minio_'.length), isTeam: false };
+  };
+  const ownConfigs = ownRecords.map(parse);
+  if (!membership || membership.team.ownerId === userId) return ownConfigs;
 
-  return config;
+  const ownerId = membership.team.ownerId;
+  const [ownerRecords, ownerActive] = await Promise.all([
+    prisma.config.findMany({ where: { userId: ownerId, ...nodeFilter }, orderBy: { updatedAt: 'desc' } }),
+    prisma.config.findUnique({ where: { userId_key: { userId: ownerId, key: 'minio_active_id' } } }),
+  ]);
+  const sharedConfigs = ownerRecords.map(parse)
+    .filter(config => config.sharedWithTeam !== false)
+    .map(config => ({ ...config, isTeam: true, teamName: membership.team.name }));
+  sharedConfigs.sort((a, b) => Number(b.id === ownerActive?.value) - Number(a.id === ownerActive?.value));
+  return [...sharedConfigs, ...ownConfigs];
 }
 
 /**

@@ -146,6 +146,20 @@ export function ConfigEditor({
         </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-2">
+        {canEdit && !config.isTeam && (
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 dark:border-white/10 p-3">
+            <div className="space-y-1">
+              <Label htmlFor={`team-sharing-${config.id}`} className="font-medium">共享给团队</Label>
+              <p className="text-xs text-muted-foreground">允许团队成员使用此节点，文件保持独立。保存配置后生效。</p>
+            </div>
+            <Switch
+              id={`team-sharing-${config.id}`}
+              checked={config.sharedWithTeam !== false}
+              disabled={isSaving}
+              onCheckedChange={(checked) => onUpdate({ sharedWithTeam: checked })}
+            />
+          </div>
+        )}
         {/* Alias */}
         <div className="space-y-2">
           <Label className="text-zinc-700 dark:text-zinc-300 font-semibold text-xs uppercase tracking-wider ml-1">配置名称 (别名) <span className="text-red-500">*</span></Label>

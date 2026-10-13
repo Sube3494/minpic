@@ -142,6 +142,9 @@ export function ConfigList({
                                         {config.name}
                                     </span>
                                     <StatusIndicator status={config.status} size="sm" />
+                                    {!config.isTeam && config.sharedWithTeam !== false && (
+                                        <span className="text-[10px] text-blue-600 dark:text-blue-400 shrink-0">团队共享</span>
+                                    )}
                                     {config.isTeam && (
                                         <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
                                             <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 leading-none">团队: {config.teamName}</span>

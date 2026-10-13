@@ -188,6 +188,9 @@ export async function GET(request: NextRequest) {
     const fileType = searchParams.get('fileType');
     const search = searchParams.get('search');
     const configId = searchParams.get('configId');
+    if (configId && !(await getUserMinioConfig(user.id, configId))) {
+      return NextResponse.json({ error: '该存储节点已取消共享或无权访问' }, { status: 403 });
+    }
     const mode = searchParams.get('mode'); // 新增: 'count' | 'ids' | null
 
     // Each MinIO configuration is an independent file library. Do not merge
@@ -197,7 +200,7 @@ export async function GET(request: NextRequest) {
     const where = {
       userId: user.id,
       ...(fileType && { fileType }),
-      ...(filterConfigId && { configId: filterConfigId }),
+      configId: filterConfigId || { in: [] },
       ...(search && {
         OR: [
           { filename: { contains: search } },
